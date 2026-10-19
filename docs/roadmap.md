@@ -45,7 +45,6 @@ Overlay widgets, per-widget click-through settings, global hotkeys, local log wa
 ## Open questions
 - Wormhole systems on the map: separate layer or excluded?
 - Fleet session lifetime and roles.
-- Final license choice.
 
 ## Feature backlog
 _Add new feature ideas here before they are designed._

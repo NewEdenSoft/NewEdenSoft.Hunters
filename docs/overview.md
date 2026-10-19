@@ -37,4 +37,4 @@ Both libraries are owned by the project author.
 
 ## License
 
-Open source. License to be chosen to stay compatible with NewEdenKit (currently GPL-3.0-or-later; the author can relicense NewEdenKit if needed).
+GNU General Public License v3.0 (see [LICENSE](../LICENSE)), compatible with NewEdenKit (GPL-3.0-or-later).

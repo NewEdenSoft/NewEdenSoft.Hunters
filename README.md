@@ -9,3 +9,7 @@ Hunters helps EVE Online players find targets. It tracks your registered charact
 ## Status
 
 Design phase. See the [design documentation](docs/README.md) and [roadmap](docs/roadmap.md).
+
+## License
+
+[GNU General Public License v3.0](LICENSE)
