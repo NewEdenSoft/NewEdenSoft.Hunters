@@ -1,71 +1,66 @@
-using System.Collections.ObjectModel;
-using Avalonia.Media;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NewEdenSoft.Hunters.Desktop.Theming;
+using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
+using NewEdenSoft.Hunters.Desktop.Widgets;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels;
 
+/// <summary>Main window shell: navigation rail with widget pages and system pages.</summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private readonly ThemeService _themes;
-
-    public MainWindowViewModel(ThemeService themes)
+    public MainWindowViewModel(WidgetManager widgets, AccountPageViewModel account, SettingsPageViewModel settings)
     {
-        _themes = themes;
+        WidgetPages = widgets.Widgets.Select(w => new WidgetPageViewModel(w, widgets)).ToList();
+        SystemPages = [account, settings];
 
-        ThemeGroups = new ObservableCollection<ThemeGroupViewModel>(
-            themes.Catalog.Themes
-                .GroupBy(t => t.Group)
-                .Select(g => new ThemeGroupViewModel(
-                    g.Key.ToUpperInvariant(),
-                    g.Select(t => new ThemeOptionViewModel(t, SelectThemeCommand)).ToList())));
+        foreach (var page in WidgetPages)
+            page.Widget.PropertyChanged += OnWidgetChanged;
 
-        SecurityScale = Enumerable.Range(0, 11)
-            .Select(i => 1.0 - i / 10.0)
-            .Select(s => new SecurityStepViewModel(s.ToString("0.0"), Brush(themes.Catalog.SecurityColor(s))))
-            .Append(new SecurityStepViewModel("−1.0", Brush(themes.Catalog.SecurityNull)))
-            .ToList();
-
-        themes.ThemeChanged += (_, theme) => Sync(theme);
-        Sync(themes.Current);
+        Navigate(WidgetPages.FirstOrDefault() ?? (PageViewModel)account);
     }
 
-    public ObservableCollection<ThemeGroupViewModel> ThemeGroups { get; }
+    public IReadOnlyList<WidgetPageViewModel> WidgetPages { get; }
 
-    public IReadOnlyList<SecurityStepViewModel> SecurityScale { get; }
-
-    [ObservableProperty]
-    public partial string CurrentThemeName { get; set; } = "";
+    public IReadOnlyList<PageViewModel> SystemPages { get; }
 
     [ObservableProperty]
-    public partial string CurrentThemeGroup { get; set; } = "";
+    public partial PageViewModel? CurrentPage { get; private set; }
+
+    /// <summary>Set by the main window as it is shown and hidden to the tray.</summary>
+    [ObservableProperty]
+    public partial bool IsWindowVisible { get; set; }
 
     [RelayCommand]
-    private void SelectTheme(string themeId) => _themes.Apply(themeId);
-
-    private void Sync(ThemeDefinition theme)
+    public void Navigate(PageViewModel page)
     {
-        CurrentThemeName = theme.Name;
-        CurrentThemeGroup = theme.Group.ToUpperInvariant();
-        foreach (var option in ThemeGroups.SelectMany(g => g.Themes))
-            option.IsSelected = option.Id == theme.Id;
+        if (CurrentPage is not null)
+            CurrentPage.IsSelected = false;
+
+        CurrentPage = page;
+        page.IsSelected = true;
+        UpdateDockedActivity();
     }
 
-    private static IBrush Brush(Rgba color) => new SolidColorBrush(ThemeService.ToColor(color));
+    /// <summary>Selects a widget's page, for example from the tray menu.</summary>
+    public void NavigateToWidget(string widgetId)
+    {
+        if (WidgetPages.FirstOrDefault(p => p.Widget.Id == widgetId) is { } page)
+            Navigate(page);
+    }
+
+    partial void OnIsWindowVisibleChanged(bool value) => UpdateDockedActivity();
+
+    private void OnWidgetChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(WidgetState.IsFloating))
+            UpdateDockedActivity();
+    }
+
+    /// <summary>Docked widgets are active only while their page is visible. Floating ones are handled by <see cref="WidgetManager"/>.</summary>
+    private void UpdateDockedActivity()
+    {
+        foreach (var page in WidgetPages.Where(p => !p.Widget.IsFloating))
+            page.Widget.Content.IsActive = IsWindowVisible && page.IsSelected;
+    }
 }
-
-public sealed record ThemeGroupViewModel(string Name, IReadOnlyList<ThemeOptionViewModel> Themes);
-
-public sealed partial class ThemeOptionViewModel(ThemeDefinition theme, IRelayCommand<string> select) : ObservableObject
-{
-    public string Id => theme.Id;
-    public string Name => theme.Name;
-    public IBrush Swatch { get; } = new SolidColorBrush(ThemeService.ToColor(theme.Primary));
-    public IRelayCommand<string> SelectCommand => select;
-
-    [ObservableProperty]
-    public partial bool IsSelected { get; set; }
-}
-
-public sealed record SecurityStepViewModel(string Label, IBrush Color);

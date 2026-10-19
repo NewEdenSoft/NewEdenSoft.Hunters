@@ -31,12 +31,14 @@ public sealed record ViewRegistration(Type ViewModelType, Type ViewType);
 
 public static class ViewRegistrationExtensions
 {
-    /// <summary>Registers a view model, its view, and the mapping the <see cref="ViewLocator"/> uses.</summary>
+    /// <summary>
+    /// Maps a view model type to its view for the <see cref="ViewLocator"/> and registers the view.
+    /// The view model is registered separately, with the lifetime it needs.
+    /// </summary>
     public static IServiceCollection AddView<TViewModel, TView>(this IServiceCollection services)
         where TViewModel : ViewModelBase
         where TView : Control
     {
-        services.AddTransient<TViewModel>();
         services.AddTransient<TView>();
         services.AddSingleton(new ViewRegistration(typeof(TViewModel), typeof(TView)));
         return services;

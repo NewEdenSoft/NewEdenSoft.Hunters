@@ -52,5 +52,10 @@ Users pick a theme based on EVE's race, faction and corporation colours. Each th
 
 *Rejected:* a generated CSS/XAML build step (more tooling; runtime evaluation also enables custom themes later); a third-party Avalonia theme library (lock-in, harder to match the web).
 
+## D17 — Desktop features are widgets that dock or float
+Each desktop feature is a widget that is either a page in the main window or an overlay over the game. The app lives in the system tray and the main window is mostly closed. A floating widget's page shows its overlay settings, and locking and click-through are per widget.
+
+*Rejected:* a global unlock hotkey for all overlays (per-widget settings on the widget's own page are clearer); showing a widget both docked and floating at once (two live views of the same state).
+
 ## D15 — Desktop is Windows first; platform features behind interfaces
 Overlay, hotkey, credential and log-location code sits behind per-OS interfaces. Windows first, macOS second, Linux X11 best effort, Wayland limited. See [Desktop Client](desktop-client.md#platform-support).

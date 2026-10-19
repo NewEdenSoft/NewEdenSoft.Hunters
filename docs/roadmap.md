@@ -9,6 +9,7 @@ Character registration and account management come first; every other feature bu
 4. ✅ Dockerfile, `docker-compose.yml`, `.env.example`, GitHub Actions build and test.
 5. ✅ Desktop app on the .NET Generic Host with dependency injection.
 6. ✅ Design system: HUD styles, faction themes from `design/themes.json`, bundled fonts, theme picker in both apps.
+7. ✅ Desktop widget framework: docked pages or floating overlays, per-widget opacity / lock / click-through (Windows), system tray, saved layout. Placeholder widgets only.
 
 ## Phase 1 — Character registration and account management
 1. Server: confidential EVE flow, shared callback routed by `state`, web login, desktop `begin` / loopback redirect / `redeem`.
@@ -33,7 +34,7 @@ Route on hover, avoid lists, jump-range highlight.
 Invites, shared locations, destination broadcast, waypoint setting.
 
 ## Phase 6 — Desktop extras
-Overlay widgets, per-widget click-through settings, global hotkeys, local log watcher. Windows first, then macOS.
+Real widget content for each feature, local log watcher, macOS overlay support (click-through via `NSWindow.ignoresMouseEvents`), app icon.
 
 ## Later
 - Thera / Turnur routes via EVE-Scout

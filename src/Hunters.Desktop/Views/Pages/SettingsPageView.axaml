@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:p="using:NewEdenSoft.Hunters.Desktop.ViewModels.Pages"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+             x:Class="NewEdenSoft.Hunters.Desktop.Views.Pages.SettingsPageView"
+             x:DataType="p:SettingsPageViewModel">
+  <StackPanel Spacing="20">
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label accent" Text="SYSTEM" />
+      <TextBlock Classes="h1" Text="{Binding Title}" />
+    </StackPanel>
+
+    <c:HudPanel>
+      <StackPanel Spacing="14">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Classes="label" Text="THEME" VerticalAlignment="Center" />
+          <TextBlock Classes="h2 accent" Text="{Binding CurrentThemeName}" VerticalAlignment="Center" />
+          <TextBlock Classes="label" Text="{Binding CurrentThemeGroup}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <ItemsControl ItemsSource="{Binding ThemeGroups}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="10" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="p:ThemeGroupViewModel">
+              <Grid ColumnDefinitions="90,*">
+                <TextBlock Classes="label" Text="{Binding Name}" VerticalAlignment="Center" />
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding Themes}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel ItemSpacing="8" LineSpacing="8" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="p:ThemeOptionViewModel">
+                      <Button Classes="swatch"
+                              Classes.selected="{Binding IsSelected}"
+                              Background="{Binding Swatch}"
+                              Command="{Binding SelectCommand}"
+                              CommandParameter="{Binding Id}"
+                              ToolTip.Tip="{Binding Name}"
+                              AutomationProperties.Name="{Binding Name}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </c:HudPanel>
+
+    <c:HudPanel>
+      <StackPanel Spacing="14">
+        <TextBlock Classes="label" Text="STARTUP" />
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Start in the system tray" />
+            <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                       Text="Open only your overlays at startup. Open this window from the tray icon." />
+          </StackPanel>
+          <ToggleSwitch Grid.Column="1" OnContent="" OffContent="" IsChecked="{Binding StartInTray}" />
+        </Grid>
+      </StackPanel>
+    </c:HudPanel>
+  </StackPanel>
+</UserControl>

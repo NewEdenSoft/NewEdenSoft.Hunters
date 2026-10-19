@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:p="using:NewEdenSoft.Hunters.Desktop.Widgets.Placeholders"
+             x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Placeholders.PlaceholderWidgetView"
+             x:DataType="p:PlaceholderWidgetViewModel">
+  <StackPanel Margin="16" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="320">
+    <TextBlock Classes="h3" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Text="{Binding EmptyTitle}" />
+    <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" FontSize="13" Text="{Binding EmptyMessage}" />
+  </StackPanel>
+</UserControl>

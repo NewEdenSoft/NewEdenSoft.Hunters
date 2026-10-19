@@ -33,13 +33,70 @@ ESI's error limit is per IP, so these calls count against the user's own connect
 
 EVE writes a line to the Local chat log when a character changes system ("Channel changed to Local : &lt;system&gt;"). The desktop watches these logs to detect system changes immediately, ahead of ESI polling. The log folder is auto-detected per platform and can be overridden in settings.
 
-## Overlays
+## Widgets
 
-- Each widget is its own borderless window: transparent, always on top, adjustable opacity.
-- **Click-through is toggled per widget** from a central settings screen. A click-through widget passes all mouse input to the EVE client underneath; an interactive widget can be clicked and dragged.
-- A global hotkey can temporarily make all widgets interactive (to move or adjust them), then return them to their configured state.
-- Widget position, size, opacity and click-through state are saved per widget.
-- EVE must run windowed or borderless; overlays cannot draw over exclusive fullscreen.
+Most features of the desktop app are **widgets**. Each widget is either:
+
+- **Docked**: a page in the main window, selected from the navigation rail, or
+- **Floating**: an overlay window on top of the game.
+
+The main window is mostly closed. It holds account and character management, settings, and any widgets that are not floating.
+
+```
+Main window                                          Overlay (floating widget)
+┌──────────────┬───────────────────────────────┐     ┌─[ FLEET ]──────── MOVABLE ┐
+│ HUNTERS      │                               │     │                           │
+│ WIDGETS      │  Docked: the widget itself    │     │   widget content          │
+│ ▸ Nearby     │                               │     │                           │
+│ ▸ Fleet  OVL │  Floating: its overlay        │     │                         ⋰ │
+│ SYSTEM       │  settings (opacity, lock,     │     └───────────────────────────┘
+│ ▸ Account    │  click-through, reset, dock)  │
+│ ▸ Settings   │                               │
+└──────────────┴───────────────────────────────┘
+```
+
+### Per-widget overlay settings
+
+While a widget floats, its page in the main window shows its overlay settings:
+
+| Setting | Effect |
+|---|---|
+| Background opacity | Opacity of the panel behind the content (20–100%). Text stays fully opaque. |
+| Lock in place | The overlay cannot be moved or resized. Its content can still be clicked. |
+| Click-through | Mouse input passes through to the game. Implies locked. |
+| Reset position | Back to the automatic position and default size. |
+| Dock to main window | Closes the overlay; the widget returns to its page. |
+
+Overlays are moved by dragging the header and resized from the bottom-right grip, both only while unlocked. Position, size and all settings are saved per widget in `desktop-settings.json`.
+
+EVE must run windowed or borderless; overlays cannot draw over exclusive fullscreen.
+
+### System tray and lifetime
+
+The app lives in the system tray. Closing the main window hides it; the app exits only from the tray menu.
+
+| Tray menu item | Action |
+|---|---|
+| Open Hunters | Show the main window (also a left click on the icon) |
+| Overlays ▸ *widget* | Pop each widget out as an overlay, or dock it back (checked = floating) |
+| Hide all overlays | Temporarily hide every overlay without docking it |
+| Quit Hunters | Save layout and exit |
+
+At startup the saved overlays are restored. The main window opens unless **Start in the system tray** is on and at least one overlay is open.
+
+### Implementation
+
+| Piece | Role |
+|---|---|
+| `services.AddWidget<TViewModel, TView>(id, title, description, width, height)` | Registers a widget. Its view model is a single instance, so state survives moving between page and overlay. |
+| `WidgetViewModelBase.IsActive` | True while the widget is on screen (selected page in a visible main window, or a shown overlay). Use it to pause polling. |
+| `WidgetState` | Live layout state per widget, bound by the page and the overlay. |
+| `WidgetManager` | Floats and docks widgets, owns the overlay windows, restores and saves layout. |
+| `OverlayWindow` | Borderless, transparent, topmost, not in the taskbar or Alt+Tab, does not take focus when shown. |
+| `IOverlayPlatform` | Click-through and overlay window styles per OS. Windows: `WS_EX_LAYERED \| WS_EX_TRANSPARENT`, `WS_EX_TOOLWINDOW`. |
+| `TrayIconService` | The tray icon and menu. |
+
+Widgets so far are placeholders (Nearby activity, Fleet); their content arrives with the features they show.
 
 Widget ideas:
 
@@ -61,7 +118,8 @@ Avalonia runs on Windows, macOS and Linux, so the core app (map, login, ESI, fle
 | Transparent, always-on-top widgets | ✅ | ✅ | ✅ needs a compositor | ⚠️ the compositor decides; always-on-top and window positioning are not guaranteed |
 | Click-through | ✅ `WS_EX_TRANSPARENT \| WS_EX_LAYERED` | ✅ `NSWindow.ignoresMouseEvents` via native handle | ✅ empty XShape input region | ⚠️ works under XWayland via X11 shape; native Wayland depends on the compositor |
 | Over fullscreen EVE | Borderless only | ✅ with `fullScreenAuxiliary` window behaviour | Borderless only | Borderless only |
-| Global hotkeys | ✅ `RegisterHotKey` | ✅ Carbon hotkeys (no extra permission) | ✅ `XGrabKey` | ⚠️ only via the desktop portal GlobalShortcuts API (KDE, recent GNOME) |
+| Global hotkeys (if added later) | ✅ `RegisterHotKey` | ✅ Carbon hotkeys (no extra permission) | ✅ `XGrabKey` | ⚠️ only via the desktop portal GlobalShortcuts API (KDE, recent GNOME) |
+| System tray | ✅ | ✅ menu bar extra | ✅ StatusNotifier / AppIndicator | ✅ StatusNotifier (GNOME needs the AppIndicator extension) |
 | Credential storage | Credential Manager / DPAPI | Keychain | Secret Service (libsecret) | Secret Service (libsecret) |
 | Log watcher | `Documents\EVE\logs` | Mac client's log folder | Inside the Proton/Wine prefix | Inside the Proton/Wine prefix |
 | Packaging | Installer + auto-update (e.g. Velopack) | Signed + notarized `.app` (needs an Apple developer account) | AppImage / Flatpak | AppImage / Flatpak |

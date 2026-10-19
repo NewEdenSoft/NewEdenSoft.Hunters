@@ -34,12 +34,21 @@
     <Setter Property="FontSize" Value="20" />
     <Setter Property="LetterSpacing" Value="0.6" />
   </Style>
+  <Style Selector="TextBlock.h3">
+    <Setter Property="FontFamily" Value="{StaticResource Hud.DisplayFont}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="LetterSpacing" Value="0.4" />
+  </Style>
   <Style Selector="TextBlock.label">
     <Setter Property="FontFamily" Value="{StaticResource Hud.DisplayFont}" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="LetterSpacing" Value="2" />
     <Setter Property="Foreground" Value="{DynamicResource Hud.FgMutedBrush}" />
+  </Style>
+  <Style Selector="TextBlock.hint">
+    <Setter Property="FontSize" Value="12.5" />
   </Style>
   <Style Selector="TextBlock.accent">
     <Setter Property="Foreground" Value="{DynamicResource Hud.PrimaryBrush}" />
@@ -116,6 +125,78 @@
   </Style>
   <Style Selector="Button.hud.ghost:pointerover">
     <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+  </Style>
+
+  <!-- Navigation rail: <Button Classes="nav" Classes.selected="{Binding IsSelected}" /> -->
+  <Style Selector="TextBlock.nav-heading">
+    <Setter Property="Margin" Value="22,8,22,6" />
+    <Setter Property="FontSize" Value="10" />
+  </Style>
+  <Style Selector="Button.nav">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Padding" Value="20,8,16,8" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.FgMutedBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource Hud.BodyFont}" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_Border"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="2,0,0,0">
+          <ContentPresenter Name="PART_ContentPresenter"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Padding="{TemplateBinding Padding}"
+                            Foreground="{TemplateBinding Foreground}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.nav:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
+  </Style>
+  <Style Selector="Button.nav.selected">
+    <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.PrimaryBrush}" />
+  </Style>
+  <Style Selector="Button.nav:focus-visible /template/ Border#PART_Border">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
+  </Style>
+
+  <!-- Status chip: <Border Classes="badge"><TextBlock Text="..." /></Border> -->
+  <Style Selector="Border.badge">
+    <Setter Property="Padding" Value="5,1" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineStrongBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.badge > TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource Hud.MonoFont}" />
+    <Setter Property="FontSize" Value="9.5" />
+    <Setter Property="LetterSpacing" Value="0.6" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.PrimaryBrush}" />
+  </Style>
+
+  <!-- Overlay windows -->
+  <Style Selector="TextBlock.overlay-mode">
+    <Setter Property="FontSize" Value="9.5" />
+    <Setter Property="LetterSpacing" Value="0.6" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
+  </Style>
+  <Style Selector="Border.movable">
+    <Setter Property="Cursor" Value="SizeAll" />
+  </Style>
+  <Style Selector="c|ResizeGrip">
+    <Setter Property="Foreground" Value="{DynamicResource Hud.LineStrongBrush}" />
   </Style>
 
   <!-- Theme swatches: <Button Classes="swatch" Classes.selected="{Binding IsSelected}" /> -->

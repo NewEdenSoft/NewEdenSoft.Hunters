@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
+        xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+        x:Class="NewEdenSoft.Hunters.Desktop.Widgets.OverlayWindow"
+        x:DataType="w:WidgetState"
+        Title="{Binding Title}"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        CanResize="True"
+        SizeToContent="Manual">
+
+  <Panel>
+    <!-- Background only: opacity applies to the panel, not to the text on it. -->
+    <Border Background="{DynamicResource Hud.TintBrush}" Opacity="{Binding Opacity}" />
+
+    <c:HudPanel Padding="0" Background="{x:Null}">
+      <DockPanel>
+        <Border Name="Header"
+                DockPanel.Dock="Top"
+                Padding="10,5"
+                Background="{DynamicResource Hud.PrimarySoftBrush}"
+                BorderBrush="{DynamicResource Hud.LineBrush}"
+                BorderThickness="0,0,0,1"
+                Classes.movable="{Binding CanMove}">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="label accent" Text="{Binding Title, Converter={x:Static w:UpperCaseConverter.Instance}}" />
+            <TextBlock Grid.Column="1" Classes="mono overlay-mode" Text="{Binding ModeLabel}" />
+          </Grid>
+        </Border>
+
+        <ContentControl Content="{Binding Content}" />
+      </DockPanel>
+    </c:HudPanel>
+
+    <c:ResizeGrip Name="Grip"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Bottom"
+                  IsVisible="{Binding CanMove}" />
+  </Panel>
+</Window>

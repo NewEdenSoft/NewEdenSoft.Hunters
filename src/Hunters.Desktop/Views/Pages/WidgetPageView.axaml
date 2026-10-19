@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:p="using:NewEdenSoft.Hunters.Desktop.ViewModels.Pages"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+             x:Class="NewEdenSoft.Hunters.Desktop.Views.Pages.WidgetPageView"
+             x:DataType="p:WidgetPageViewModel">
+  <DockPanel>
+
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="label accent" Text="WIDGET" />
+        <TextBlock Classes="h1" Text="{Binding Title}" />
+        <TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="560" HorizontalAlignment="Left" Text="{Binding Description}" />
+      </StackPanel>
+      <Button Grid.Column="1" VerticalAlignment="Bottom"
+              Classes="hud"
+              Content="POP OUT AS OVERLAY"
+              Command="{Binding PopOutCommand}"
+              IsVisible="{Binding !Widget.IsFloating}" />
+    </Grid>
+
+    <Panel>
+      <!-- Docked: the widget itself -->
+      <c:HudPanel Padding="0" MinHeight="320" IsVisible="{Binding !Widget.IsFloating}">
+        <ContentControl Content="{Binding DockedContent}" />
+      </c:HudPanel>
+
+      <!-- Floating: overlay settings -->
+      <c:HudPanel VerticalAlignment="Top" IsVisible="{Binding Widget.IsFloating}">
+        <StackPanel Spacing="20" MaxWidth="620" HorizontalAlignment="Left">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="label" Text="OVERLAY" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="This widget is shown over your game. Change how its overlay looks and behaves here." />
+          </StackPanel>
+
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+            <TextBlock Text="Background opacity" />
+            <TextBlock Grid.Row="1" Classes="muted hint" Text="Text stays fully readable at any opacity." />
+            <StackPanel Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" Grid.ColumnSpan="2"
+                        Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" VerticalAlignment="Center">
+              <Slider Width="220" Minimum="0.2" Maximum="1" SmallChange="0.05" LargeChange="0.1"
+                      Value="{Binding Widget.Opacity}" VerticalAlignment="Center" />
+              <TextBlock Classes="mono" Width="44" TextAlignment="Right" VerticalAlignment="Center">
+                <Run Text="{Binding Widget.OpacityPercent}" /><Run Text="%" />
+              </TextBlock>
+            </StackPanel>
+          </Grid>
+
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Text="Lock in place" />
+              <TextBlock Classes="muted hint" TextWrapping="Wrap" Text="Stops the overlay being moved or resized. Its content can still be clicked." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" OnContent="" OffContent="" IsChecked="{Binding Widget.Locked}" />
+          </Grid>
+
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Text="Click-through" />
+              <TextBlock Classes="muted hint" TextWrapping="Wrap" Text="Mouse clicks pass through to the game underneath. The overlay cannot be moved while this is on." />
+              <TextBlock Classes="hint" Foreground="{DynamicResource Hud.WarningBrush}" TextWrapping="Wrap"
+                         IsVisible="{Binding !SupportsClickThrough}"
+                         Text="Click-through is not available on this platform yet." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                          IsEnabled="{Binding SupportsClickThrough}"
+                          IsChecked="{Binding Widget.ClickThrough}" />
+          </Grid>
+
+          <WrapPanel ItemSpacing="10" LineSpacing="10">
+            <Button Classes="hud" Content="RESET POSITION" Command="{Binding ResetPositionCommand}" />
+            <Button Classes="hud primary" Content="DOCK TO MAIN WINDOW" Command="{Binding DockCommand}" />
+          </WrapPanel>
+        </StackPanel>
+      </c:HudPanel>
+    </Panel>
+
+  </DockPanel>
+</UserControl>

@@ -7,6 +7,36 @@ namespace NewEdenSoft.Hunters.Desktop.Settings;
 public sealed record DesktopSettings
 {
     public string? ThemeId { get; init; }
+
+    /// <summary>Start hidden in the system tray instead of opening the main window.</summary>
+    public bool StartInTray { get; init; }
+
+    /// <summary>Layout of each widget, keyed by widget id.</summary>
+    public IReadOnlyDictionary<string, WidgetSettings> Widgets { get; init; } = new Dictionary<string, WidgetSettings>();
+}
+
+/// <summary>Where and how one widget is shown.</summary>
+public sealed record WidgetSettings
+{
+    /// <summary>Shown as an overlay window instead of a page in the main window.</summary>
+    public bool IsFloating { get; init; }
+
+    /// <summary>Overlay position in screen pixels; null places it automatically.</summary>
+    public int? X { get; init; }
+    public int? Y { get; init; }
+
+    /// <summary>Overlay size in device-independent pixels; null uses the widget's default.</summary>
+    public double? Width { get; init; }
+    public double? Height { get; init; }
+
+    /// <summary>Opacity of the overlay's background panel, 0.2–1. Text stays fully opaque.</summary>
+    public double Opacity { get; init; } = 0.8;
+
+    /// <summary>Mouse input passes through the overlay to the window underneath.</summary>
+    public bool ClickThrough { get; init; }
+
+    /// <summary>The overlay cannot be moved or resized.</summary>
+    public bool Locked { get; init; }
 }
 
 public interface ISettingsStore
