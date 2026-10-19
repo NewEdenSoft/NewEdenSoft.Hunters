@@ -1,0 +1,37 @@
+# syntax=docker/dockerfile:1
+
+# --- Web app -----------------------------------------------------------------
+FROM node:22-alpine AS web
+WORKDIR /src/web/hunters-web
+COPY web/hunters-web/package.json web/hunters-web/package-lock.json ./
+RUN npm ci
+COPY design/ /src/design/
+COPY web/hunters-web/ ./
+RUN npm run build
+
+# --- Server ------------------------------------------------------------------
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY global.json Directory.Build.props Directory.Packages.props ./
+COPY src/Hunters.Server/Hunters.Server.csproj src/Hunters.Server/
+COPY src/Hunters.Contracts/Hunters.Contracts.csproj src/Hunters.Contracts/
+COPY src/Hunters.Domain/Hunters.Domain.csproj src/Hunters.Domain/
+COPY src/Hunters.ServiceDefaults/Hunters.ServiceDefaults.csproj src/Hunters.ServiceDefaults/
+RUN dotnet restore src/Hunters.Server/Hunters.Server.csproj
+COPY src/ src/
+RUN dotnet publish src/Hunters.Server/Hunters.Server.csproj -c Release -o /app/publish --no-restore
+
+# --- Runtime -----------------------------------------------------------------
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+
+# Volume mount points, owned by the non-root app user so named volumes inherit the ownership.
+RUN mkdir -p /app/keys && chown "$APP_UID" /app/keys
+
+COPY --from=build /app/publish ./
+COPY --from=web /src/web/hunters-web/dist ./wwwroot
+
+ENV Hunters__DataProtection__KeysPath=/app/keys
+EXPOSE 8080
+USER $APP_UID
+ENTRYPOINT ["dotnet", "NewEdenSoft.Hunters.Server.dll"]

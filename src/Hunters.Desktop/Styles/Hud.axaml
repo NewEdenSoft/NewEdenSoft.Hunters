@@ -1,0 +1,150 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls">
+
+  <!--
+    HUD styles. Colours come from ThemeService as DynamicResource Hud.{Name}Brush,
+    generated from design/themes.json. See docs/design.md.
+  -->
+
+  <Styles.Resources>
+    <FontFamily x:Key="Hud.DisplayFont">avares://NewEdenSoft.Hunters.Desktop/Assets/Fonts#Oxanium</FontFamily>
+    <FontFamily x:Key="Hud.BodyFont">avares://NewEdenSoft.Hunters.Desktop/Assets/Fonts#Saira</FontFamily>
+    <FontFamily x:Key="Hud.MonoFont">avares://NewEdenSoft.Hunters.Desktop/Assets/Fonts#JetBrains Mono</FontFamily>
+  </Styles.Resources>
+
+  <!-- Window -->
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource Hud.BgBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource Hud.BodyFont}" />
+    <Setter Property="FontSize" Value="14" />
+  </Style>
+
+  <!-- Text -->
+  <Style Selector="TextBlock.h1">
+    <Setter Property="FontFamily" Value="{StaticResource Hud.DisplayFont}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="30" />
+    <Setter Property="LetterSpacing" Value="1" />
+  </Style>
+  <Style Selector="TextBlock.h2">
+    <Setter Property="FontFamily" Value="{StaticResource Hud.DisplayFont}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="20" />
+    <Setter Property="LetterSpacing" Value="0.6" />
+  </Style>
+  <Style Selector="TextBlock.label">
+    <Setter Property="FontFamily" Value="{StaticResource Hud.DisplayFont}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="LetterSpacing" Value="2" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.FgMutedBrush}" />
+  </Style>
+  <Style Selector="TextBlock.accent">
+    <Setter Property="Foreground" Value="{DynamicResource Hud.PrimaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.muted">
+    <Setter Property="Foreground" Value="{DynamicResource Hud.FgMutedBrush}" />
+  </Style>
+  <Style Selector="TextBlock.mono">
+    <Setter Property="FontFamily" Value="{StaticResource Hud.MonoFont}" />
+  </Style>
+
+  <!-- Panels -->
+  <Style Selector="c|HudPanel">
+    <Setter Property="Background" Value="{DynamicResource Hud.SurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
+    <Setter Property="BracketBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+    <Setter Property="Padding" Value="18" />
+  </Style>
+
+  <!-- Buttons: <Button Classes="hud primary" /> -->
+  <Style Selector="Button.hud">
+    <Setter Property="Foreground" Value="{DynamicResource Hud.PrimaryBrush}" />
+    <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineStrongBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource Hud.DisplayFont}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Padding" Value="18,9" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <c:ChamferBorder Name="PART_Border"
+                         Background="{TemplateBinding Background}"
+                         BorderBrush="{TemplateBinding BorderBrush}"
+                         BorderThickness="1"
+                         Cut="8">
+          <ContentPresenter Name="PART_ContentPresenter"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Padding="{TemplateBinding Padding}"
+                            Foreground="{TemplateBinding Foreground}"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
+        </c:ChamferBorder>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.hud:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Hud.LineBrush}" />
+  </Style>
+  <Style Selector="Button.hud:focus-visible /template/ c|ChamferBorder#PART_Border">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+
+  <Style Selector="Button.hud.primary">
+    <Setter Property="Background" Value="{DynamicResource Hud.PrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.OnPrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+  </Style>
+  <Style Selector="Button.hud.primary:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Hud.FgBrush}" />
+  </Style>
+
+  <Style Selector="Button.hud.danger">
+    <Setter Property="Foreground" Value="{DynamicResource Hud.DangerBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.DangerBrush}" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="Button.hud.ghost">
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.hud.ghost:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+  </Style>
+
+  <!-- Theme swatches: <Button Classes="swatch" Classes.selected="{Binding IsSelected}" /> -->
+  <Style Selector="Button.swatch">
+    <Setter Property="Width" Value="22" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <c:ChamferBorder Name="PART_Border"
+                         Background="{TemplateBinding Background}"
+                         BorderBrush="{TemplateBinding BorderBrush}"
+                         BorderThickness="1"
+                         Cut="5" />
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.swatch:pointerover">
+    <Setter Property="RenderTransform" Value="translateY(-1px)" />
+  </Style>
+  <Style Selector="Button.swatch.selected /template/ c|ChamferBorder#PART_Border">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="Button.swatch:focus-visible /template/ c|ChamferBorder#PART_Border">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+
+</Styles>

@@ -1,0 +1,111 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:NewEdenSoft.Hunters.Desktop.ViewModels"
+        xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+        x:Class="NewEdenSoft.Hunters.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Width="1100" Height="720" MinWidth="640" MinHeight="420"
+        Title="Hunters">
+
+  <DockPanel>
+
+    <!-- Theme bar -->
+    <Border DockPanel.Dock="Top"
+            Padding="20,10"
+            BorderThickness="0,0,0,1"
+            BorderBrush="{DynamicResource Hud.LineBrush}">
+      <Grid ColumnDefinitions="Auto,*">
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <TextBlock Classes="label" Text="THEME" VerticalAlignment="Center" />
+          <TextBlock Classes="h2 accent" Text="{Binding CurrentThemeName}" VerticalAlignment="Center" />
+          <TextBlock Classes="label" Text="{Binding CurrentThemeGroup}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <ItemsControl Grid.Column="1" HorizontalAlignment="Right" ItemsSource="{Binding ThemeGroups}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" ItemSpacing="18" LineSpacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ThemeGroupViewModel">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Classes="label" Text="{Binding Name}" VerticalAlignment="Center" />
+                <ItemsControl ItemsSource="{Binding Themes}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <StackPanel Orientation="Horizontal" Spacing="6" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ThemeOptionViewModel">
+                      <Button Classes="swatch"
+                              Classes.selected="{Binding IsSelected}"
+                              Background="{Binding Swatch}"
+                              Command="{Binding SelectCommand}"
+                              CommandParameter="{Binding Id}"
+                              ToolTip.Tip="{Binding Name}"
+                              AutomationProperties.Name="{Binding Name}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Grid>
+    </Border>
+
+    <!-- Content -->
+    <ScrollViewer>
+      <StackPanel Margin="32,36" Spacing="24" MaxWidth="1040">
+
+        <StackPanel Spacing="10">
+          <TextBlock Classes="label accent" Text="NEWEDENSOFT · HUNTERS · DESKTOP" />
+          <TextBlock Classes="h1" TextWrapping="Wrap"><Run Text="A tactical HUD for " /><Run Text="hunting in New Eden" Foreground="{DynamicResource Hud.PrimaryBrush}" /></TextBlock>
+          <TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Left"
+                     Text="Pick a theme above. Colours come from design/themes.json, shared with the web app; security and alert colours stay fixed in every theme." />
+        </StackPanel>
+
+        <c:HudPanel>
+          <StackPanel Spacing="14">
+            <TextBlock Classes="label" Text="CONTROLS" />
+            <WrapPanel ItemSpacing="10" LineSpacing="10">
+              <Button Classes="hud primary" Content="ADD CHARACTER" />
+              <Button Classes="hud" Content="SET AS MAIN" />
+              <Button Classes="hud ghost" Content="CANCEL" />
+              <Button Classes="hud danger" Content="REMOVE" />
+            </WrapPanel>
+          </StackPanel>
+        </c:HudPanel>
+
+        <c:HudPanel>
+          <StackPanel Spacing="12">
+            <TextBlock Classes="label" Text="SECURITY STATUS · FIXED" />
+            <ItemsControl ItemsSource="{Binding SecurityScale}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Rows="1" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SecurityStepViewModel">
+                  <StackPanel Spacing="6" Margin="1.5,0">
+                    <Border Height="26" Background="{Binding Color}" />
+                    <TextBlock Classes="mono muted" FontSize="11" HorizontalAlignment="Center" Text="{Binding Label}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </c:HudPanel>
+
+      </StackPanel>
+    </ScrollViewer>
+
+  </DockPanel>
+</Window>

@@ -1,0 +1,38 @@
+services:
+  hunters:
+    image: ghcr.io/newedensoft/hunters-server:${HUNTERS_TAG:-latest}
+    build: .
+    restart: unless-stopped
+    environment:
+      Hunters__Name: ${HUNTERS_NAME:-Hunters}
+      Hunters__Web__Enabled: ${HUNTERS_WEB_ENABLED:-true}
+      Hunters__Admission__AccessKey__Enabled: ${HUNTERS_ACCESS_KEY_ENABLED:-false}
+      ConnectionStrings__hunters: Host=db;Database=hunters;Username=hunters;Password=${DB_PASSWORD:?DB_PASSWORD must be set}
+      # Set to true when running behind a reverse proxy (Caddy, Traefik, nginx).
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${HUNTERS_BEHIND_PROXY:-false}
+    volumes:
+      - dpkeys:/app/keys # Data Protection keys: must persist, or stored tokens become unreadable
+    ports:
+      - "${HUNTERS_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hunters
+      POSTGRES_USER: hunters
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hunters -d hunters"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dpkeys:
+  pgdata:

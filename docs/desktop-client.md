@@ -2,6 +2,14 @@
 
 Avalonia (.NET 10), MVVM with CommunityToolkit.Mvvm. Windows first; see [Platform support](#platform-support).
 
+## Composition
+
+The app runs inside the .NET Generic Host (`DesktopHost`): dependency injection, configuration, logging, and hosted services for background work (ESI polling, log watcher). The host starts before Avalonia and stops after the last window closes.
+
+- Views and view models are registered in DI with `services.AddView<TViewModel, TView>()`.
+- `ViewLocator` resolves views from DI by view model type, without reflection.
+- `App` has a parameterless constructor for the XAML previewer only; at runtime it receives the service provider.
+
 ## Server profiles
 
 - Users add servers by URL. The client reads the [discovery document](discovery-and-admission.md), checks compatibility, and asks the user to confirm trust.

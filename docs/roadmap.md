@@ -2,11 +2,13 @@
 
 Character registration and account management come first; every other feature builds on them.
 
-## Phase 0 — Scaffold
-1. Repo layout, `Directory.Build.props` (`net10.0`, nullable, warnings as errors), `Directory.Packages.props`.
-2. Projects: `Hunters.Domain`, `Hunters.Contracts`, `Hunters.Server`, `Hunters.Client`, `Hunters.Desktop`, `Hunters.AppHost`, `Hunters.ServiceDefaults`, tests, `web/hunters-web` (Vite + React + TS).
-3. Server basics: discovery endpoint, EF Core + Postgres, Data Protection persisted to file system, `Web:Enabled` switch, `ICacheStore` / `IPresenceStore` / `IMessageBus` with in-memory implementations.
-4. Dockerfile, `docker-compose.yml`, `.env.example`, GitHub Actions build and test.
+## Phase 0 — Scaffold ✅
+1. ✅ Repo layout, `Directory.Build.props` (`net10.0`, nullable, warnings as errors), `Directory.Packages.props`.
+2. ✅ Projects: `Hunters.Domain`, `Hunters.Contracts`, `Hunters.Server`, `Hunters.Client`, `Hunters.Desktop`, `Hunters.AppHost`, `Hunters.ServiceDefaults`, tests, `web/hunters-web` (Vite + React + TS).
+3. ✅ Server basics: discovery endpoint, EF Core + Postgres, Data Protection persisted to file system, `Web:Enabled` switch, `ICacheStore` / `IPresenceStore` / `IMessageBus` with in-memory implementations.
+4. ✅ Dockerfile, `docker-compose.yml`, `.env.example`, GitHub Actions build and test.
+5. ✅ Desktop app on the .NET Generic Host with dependency injection.
+6. ✅ Design system: HUD styles, faction themes from `design/themes.json`, bundled fonts, theme picker in both apps.
 
 ## Phase 1 — Character registration and account management
 1. Server: confidential EVE flow, shared callback routed by `state`, web login, desktop `begin` / loopback redirect / `redeem`.

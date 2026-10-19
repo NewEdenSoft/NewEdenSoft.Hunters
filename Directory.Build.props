@@ -1,0 +1,22 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>NewEdenSoft.$(MSBuildProjectName)</RootNamespace>
+    <AssemblyName>NewEdenSoft.$(MSBuildProjectName)</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>NewEdenSoft</Authors>
+    <Company>NewEdenSoft</Company>
+    <Product>NewEdenSoft.Hunters</Product>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/NewEdenSoft/NewEdenSoft.Hunters</RepositoryUrl>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

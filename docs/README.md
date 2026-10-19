@@ -15,6 +15,7 @@ Hunters helps EVE Online players find targets. It tracks a user's registered cha
 | [Fleet Sessions](fleet-sessions.md) | Shared locations, destination broadcast, storage |
 | [Desktop Client](desktop-client.md) | Server profiles, ESI calls, overlays, log watcher, platform support |
 | [Web Client](web-client.md) | Cookie session, browser ESI calls |
+| [Design](design.md) | HUD visual direction, faction themes, fonts, components |
 | [Deployment](deployment.md) | Docker Compose, configuration reference |
 | [Decisions](decisions.md) | Decision log with rationale |
 | [Roadmap](roadmap.md) | Phases, open questions, feature backlog |

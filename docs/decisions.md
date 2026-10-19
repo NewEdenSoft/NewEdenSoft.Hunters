@@ -47,5 +47,10 @@ One zKill consumer per deployment, slim summaries, a bounded channel, per-system
 ## D14 — Refresh tokens encrypted at rest despite the client secret
 The client secret protects tokens used outside the server. Encryption covers the common case where a database dump or backup leaks without the server itself being compromised. Cost is low (built-in Data Protection, one persistent volume); losing the keys only forces users to log in again.
 
+## D16 — Sci-fi HUD design with user-selectable faction themes from one shared token file
+Users pick a theme based on EVE's race, faction and corporation colours. Each theme is three input colours; the rest is derived with OKLab mixing rules stored as data in `design/themes.json`, which both apps read, so web and desktop always match and adding a theme needs no code. Security, activity and alert colours are fixed across themes. Fonts are bundled, not loaded from Google, which suits self-hosting. See [Design](design.md).
+
+*Rejected:* a generated CSS/XAML build step (more tooling; runtime evaluation also enables custom themes later); a third-party Avalonia theme library (lock-in, harder to match the web).
+
 ## D15 — Desktop is Windows first; platform features behind interfaces
 Overlay, hotkey, credential and log-location code sits behind per-OS interfaces. Windows first, macOS second, Linux X11 best effort, Wayland limited. See [Desktop Client](desktop-client.md#platform-support).

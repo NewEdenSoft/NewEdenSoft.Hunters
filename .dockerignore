@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+**/node_modules/
+web/hunters-web/dist/
+.git/
+.github/
+.idea/
+.vs/
+.vscode/
+docs/
+tests/
+**/*.user
+.env
+.env.*
