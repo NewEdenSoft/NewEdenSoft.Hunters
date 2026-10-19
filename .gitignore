@@ -1,0 +1,39 @@
+# .NET build output
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+*.nupkg
+TestResults/
+*.trx
+*.coverage
+
+# IDEs
+.idea/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+*.DotSettings.user
+
+# Node / web
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+
+# Local data and caches
+.sde-cache/
+.esi-cache/
+
+# OS
+.DS_Store
+Thumbs.db
