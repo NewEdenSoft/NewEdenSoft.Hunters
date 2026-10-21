@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="NewEdenKit.ESI" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Hunters.Contracts\Hunters.Contracts.csproj" />
   </ItemGroup>
 
