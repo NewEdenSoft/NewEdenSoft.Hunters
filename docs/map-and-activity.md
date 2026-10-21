@@ -2,15 +2,24 @@
 
 ## Map pack
 
-The server loads the SDE with NewEdenKit.SDE and builds a compact **map pack**, versioned by SDE build number. Clients download it once and cache it by build number (not by server), so switching servers does not re-download it.
+The server loads the SDE with NewEdenKit.Sde and builds a compact **map pack**, versioned by SDE build number. Clients download it once and cache it by build number (not by server), so switching servers does not re-download it.
 
-Contents:
+- **When:** in the background at startup (`MapPackService`), then every `Hunters:Sde:RefreshInterval` it checks CCP for a new build. The archive (about 100 MB) is downloaded only for a new build and cached in `Hunters:Sde:CachePath`. Until the first load finishes, the discovery document has no `mapPack` and the endpoint answers 503.
+- **Where:** `GET /api/map/packs/{sdeBuild}` (session required). The discovery document's `mapPack.sdeBuild` names the current build; other builds are 404. The response is immutable and served precompressed (Brotli or gzip).
+- **What:** known space, meaning every k-space system (id below 31,000,000) with at least one stargate. That leaves out wormhole space, Abyssal deadspace and the unreachable Jove systems, and keeps Pochven and Zarzakh.
 
-- Systems: id, name, security status, constellation, region, 2D position
-- Regions and constellations: id, name, 2D bounding box
-- Stargate edges (system ↔ system)
+| Contents | Fields |
+|---|---|
+| Regions | id, name |
+| Systems | id, name, region, constellation, true security, `topDown` and `flat` positions |
+| Gates | `from`, `to` (each connection once, `from` < `to`) |
 
-The full SDE is hundreds of MB; the map pack is expected to be a few hundred KB.
+Positions are in light years, oriented for screens (x east, y south). Each system has two layouts:
+
+- `topDown`: the 3D position seen from above (SDE `x`, `z`), like the in-game star map. See [2D projection](#2d-projection).
+- `flat`: CCP's own flattened layout (SDE `position2D`), like the in-game 2D map.
+
+SDE build 3632936: 5,268 systems, 6,989 gates, 68 regions; 112 KB with Brotli (1 MB uncompressed).
 
 ## 2D projection
 
@@ -18,7 +27,7 @@ The first map style is a top-down projection of the SDE's 3D coordinates: system
 
 Region bounding boxes are precomputed so clients can zoom to a region directly.
 
-**TBD:** whether wormhole systems (no stargates) are a separate layer or excluded. A Dotlan-style schematic layout may be added later; the SDE has no schematic layout data.
+Wormhole space is not in the map pack (no stargates). The SDE now also has CCP's flattened layout (`position2D`), which the map pack carries as `flat`; which layout the clients use by default is decided by trying both.
 
 ## Path finding
 

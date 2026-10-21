@@ -16,6 +16,7 @@ services:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${HUNTERS_BEHIND_PROXY:-false}
     volumes:
       - dpkeys:/app/keys # Data Protection keys: must persist, or stored tokens become unreadable
+      - sde:/app/sde # SDE cache for the map: optional, avoids a 100 MB download on every restart
     ports:
       - "${HUNTERS_PORT:-8080}:8080"
     depends_on:
@@ -39,4 +40,5 @@ services:
 
 volumes:
   dpkeys:
+  sde:
   pgdata:

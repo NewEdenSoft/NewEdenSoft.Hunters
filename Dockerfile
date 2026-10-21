@@ -26,12 +26,13 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
 # Volume mount points, owned by the non-root app user so named volumes inherit the ownership.
-RUN mkdir -p /app/keys && chown "$APP_UID" /app/keys
+RUN mkdir -p /app/keys /app/sde && chown "$APP_UID" /app/keys /app/sde
 
 COPY --from=build /app/publish ./
 COPY --from=web /src/web/hunters-web/dist ./wwwroot
 
 ENV Hunters__DataProtection__KeysPath=/app/keys
+ENV Hunters__Sde__CachePath=/app/sde
 EXPOSE 8080
 USER $APP_UID
 ENTRYPOINT ["dotnet", "NewEdenSoft.Hunters.Server.dll"]

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NewEdenSoft.Hunters.Server.Infrastructure.Eve;
+using NewEdenSoft.Hunters.Server.Infrastructure.Sde;
 using NewEdenSoft.Hunters.Server.Tests.Fakes;
 
 namespace NewEdenSoft.Hunters.Server.Tests;
@@ -34,6 +35,8 @@ public sealed class HuntersServerFactory : WebApplicationFactory<Program>
     public FakeEveSso Sso { get; } = new();
 
     public FakeAffiliations Affiliations { get; } = new();
+
+    public FakeSdeMap Sde { get; } = new();
 
     public HuntersServerFactory With(string key, string? value)
     {
@@ -77,6 +80,8 @@ public sealed class HuntersServerFactory : WebApplicationFactory<Program>
             services.AddSingleton<IEveSsoClient>(Sso);
             services.RemoveAll<IEveAffiliationService>();
             services.AddSingleton<IEveAffiliationService>(Affiliations);
+            services.RemoveAll<ISdeMapSource>();
+            services.AddSingleton<ISdeMapSource>(Sde);
         });
     }
 
