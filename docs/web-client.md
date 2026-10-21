@@ -14,10 +14,35 @@ React + TypeScript (Vite), served by its own server (see [Deployment](deployment
 | `/login` | `routes/login.tsx` | Public. Form post to `/auth/web/login`; shows `?error` from a failed EVE login; skips to `?redirect` when already logged in. |
 | layout | `routes/_authed.tsx` | Loads the account before every page below; a 401 redirects to `/login?redirect=…`. App bar with navigation and log out. |
 | `/` | `routes/_authed/index.tsx` | Home. |
+| `/map` | `routes/_authed/map.tsx` | The map (full window below the app bar, `staticData.fullBleed`). |
 | `/account` | `routes/_authed/account.tsx` | Account and characters. |
-| `/settings` | `routes/_authed/settings.tsx` | Theme picker. |
+| `/settings` | `routes/_authed/settings.tsx` | Theme and map layout. |
 
 When a query gets a 401 while the app is open (session revoked or ended elsewhere), the query cache is cleared and the app returns to `/login`.
+
+## Map
+
+`src/map` holds the map, independent of React except for `MapView` ([D21](decisions.md#d21--the-map-is-2d-drawn-with-canvas-2d-web-and-skia-desktop)):
+
+| File | Role |
+|---|---|
+| `model.ts` | The map pack as typed arrays per system index: positions per layout, security buckets, gate index pairs, bounds. |
+| `security.ts` | Security as EVE shows it (above 0.0 and below 0.05 shows as 0.1) and its colour bucket. |
+| `filters.ts` | Colour filters: how each system is coloured, or hidden. Security is the first. |
+| `MapLegend.tsx` | The active filter's legend. |
+| `gridIndex.ts` | Uniform grid for the nearest system to the cursor. |
+| `MapRenderer.ts` | Canvas 2D renderer: view transform, pan (drag), zoom (wheel, pinch), hover; draws only when something changes. |
+| `MapView.tsx` | Hosts the renderer; shows the hover panel. |
+
+Sizes follow the zoom: systems grow from 0.9 to 6.5 px radius and gates from 0.4 to 2 px wide, so the zoomed-out map stays calm and the zoomed-in map is easy to read. Zoomed in (from 12 px/ly), a clear margin of up to 5 px opens between each system and its gates: the gate layer is cut out around the systems in one batch before the systems are drawn.
+
+Each frame: gates are stroked under the view transform: solid within a constellation, short dashes (6 px on, 4 px off) between constellations, long dashes (18 px on, 8 px off) between regions, with widths and dashes divided by the zoom so they look the same at every zoom. A gate is coloured with a gradient from its first system's filter colour to the other's, at 55% opacity; gates whose ends share a colour (about three quarters with the security filter) are batched into one `Path2D` per colour and style, and the others each get a gradient. Paths and gradients are built in world coordinates once per layout, filter and theme, and reused every frame; gates out of view are skipped. A gate to a hidden system keeps the neutral gate colour. Then systems in view are filled in one batch per colour group of the active filter; from zoom 28 px/ly, names are drawn to the bottom right of each system, skipping any that would overlap a name already drawn (the hovered system's name always wins). Below that zoom, region names are drawn instead, centred on the mean position of each region's systems, larger regions first and with clear space between names. A region whose systems spread more than twice as wide as the median region gets no label in that layout (Pochven in the top-down layout), since its centre would sit inside other regions. Theme colours are CSS `color-mix()` expressions, which Canvas cannot read, so they are resolved to `rgba()` once and again when the theme changes.
+
+**Colour filters.** A filter turns the map into a colour group per system (or `HIDDEN`), the group colours (CSS, theme variables allowed) and a legend. The renderer only draws groups, so new ways of colouring the map (activity, a route, fleet members) are new filters, not renderer changes. Hidden systems are not drawn, labelled or hoverable; their gates still are. The hover panel always shows the system's real security in its security colour, whatever the filter.
+
+The layout is a user setting, kept in local storage like the theme (`settings/mapSettings.ts`, key `hunters.map.layout`) and chosen on the map or on the Settings page. The colour filter is in the URL (`/map?colour=…`, default left out), so a view can be linked.
+
+The map pack is fetched by the SDE build named in the discovery document and kept in the TanStack Query cache for the session; IndexedDB persistence comes next. The page offers both layouts in the pack: CCP's 2D map, the default, and top-down.
 
 ## Account page
 

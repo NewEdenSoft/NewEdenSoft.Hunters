@@ -42,10 +42,10 @@ public sealed class ThemeCatalogTests
     [InlineData(0.5, "#efef00")]
     [InlineData(0.45, "#efef00")]
     [InlineData(0.44, "#d77700")]
-    [InlineData(0.0, "#f00000")]
-    [InlineData(-0.04, "#f00000")]
-    [InlineData(-0.05, "#b5001a")]
-    [InlineData(-1.0, "#b5001a")]
+    [InlineData(0.0, "#8b3061")]
+    [InlineData(-0.04, "#8b3061")]
+    [InlineData(-0.05, "#8b3061")]
+    [InlineData(-1.0, "#8b3061")]
     public void Security_colour_rounds_like_eve(double security, string expected)
     {
         Assert.Equal(expected, _catalog.SecurityColor(security).ToHex());

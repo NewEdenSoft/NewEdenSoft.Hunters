@@ -1,4 +1,5 @@
 import themesJson from '@design/themes.json'
+import { NULL_BUCKET, securityBucket } from '../map/security'
 
 // design/themes.json is shared with the desktop app. See design/README.md.
 
@@ -36,11 +37,14 @@ export function getTheme(id: string | null | undefined): ThemeDefinition {
   return themes.find((t) => t.id === id) ?? themes.find((t) => t.id === defaultThemeId)!
 }
 
-/** Security status colour, rounded to one decimal as EVE displays it. */
+/** Security status colour, for the security as EVE displays it. */
 export function securityColor(security: number): string {
-  const rounded = Math.round(security * 10) / 10
-  if (rounded < 0) return catalog.security.null
-  return catalog.security.steps[Math.round(Math.min(rounded, 1) * 10)]
+  return securityBucketColor(securityBucket(security))
+}
+
+/** Colour of a {@link securityBucket}. */
+export function securityBucketColor(bucket: number): string {
+  return bucket === NULL_BUCKET ? catalog.security.null : catalog.security.steps[bucket]
 }
 
 function operand(value: string): string {

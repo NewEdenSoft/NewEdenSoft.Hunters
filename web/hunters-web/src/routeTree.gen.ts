@@ -13,6 +13,7 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedAccountRouteImport } from './routes/_authed/account'
+import { Route as AuthedMapRouteImport } from './routes/_authed/map'
 import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
 
 const AuthedRoute = AuthedRouteImport.update({
@@ -34,6 +35,11 @@ const AuthedAccountRoute = AuthedAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedMapRoute = AuthedMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedSettingsRoute = AuthedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -44,11 +50,13 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
   '/account': typeof AuthedAccountRoute
+  '/map': typeof AuthedMapRoute
   '/settings': typeof AuthedSettingsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/account': typeof AuthedAccountRoute
+  '/map': typeof AuthedMapRoute
   '/settings': typeof AuthedSettingsRoute
   '/': typeof AuthedIndexRoute
 }
@@ -57,19 +65,21 @@ export interface FileRoutesById {
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authed/account': typeof AuthedAccountRoute
+  '/_authed/map': typeof AuthedMapRoute
   '/_authed/settings': typeof AuthedSettingsRoute
   '/_authed/': typeof AuthedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/account' | '/settings'
+  fullPaths: '/' | '/login' | '/account' | '/map' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/account' | '/settings' | '/'
+  to: '/login' | '/account' | '/map' | '/settings' | '/'
   id:
     | '__root__'
     | '/_authed'
     | '/login'
     | '/_authed/account'
+    | '/_authed/map'
     | '/_authed/settings'
     | '/_authed/'
   fileRoutesById: FileRoutesById
@@ -109,6 +119,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAccountRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/map': {
+      id: '/_authed/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof AuthedMapRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/settings': {
       id: '/_authed/settings'
       path: '/settings'
@@ -121,12 +138,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthedRouteChildren {
   AuthedAccountRoute: typeof AuthedAccountRoute
+  AuthedMapRoute: typeof AuthedMapRoute
   AuthedSettingsRoute: typeof AuthedSettingsRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedAccountRoute: AuthedAccountRoute,
+  AuthedMapRoute: AuthedMapRoute,
   AuthedSettingsRoute: AuthedSettingsRoute,
   AuthedIndexRoute: AuthedIndexRoute,
 }
