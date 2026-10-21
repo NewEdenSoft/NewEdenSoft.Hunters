@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, searchForWorkspaceRoot } from 'vite'
 
@@ -16,7 +17,8 @@ const serverPaths = ['/api', '/auth', '/hubs', '/openapi', '/.well-known']
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  // The router plugin generates src/routeTree.gen.ts from src/routes and must run before React.
+  plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: true }), react()],
   resolve: {
     alias: { '@design': designDir },
   },
