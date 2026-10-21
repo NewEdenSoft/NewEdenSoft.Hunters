@@ -14,11 +14,26 @@ The app runs inside the .NET Generic Host (`DesktopHost`): dependency injection,
 
 - Users add servers by URL. The client reads the [discovery document](discovery-and-admission.md), checks compatibility, and asks the user to confirm trust.
 - Several profiles can be saved; one is active at a time initially.
-- Each profile's app session is stored separately in the OS credential store.
+- Profiles store the server address and its name, never a session. See [Sessions are memory only](#sessions-are-memory-only).
 
 ## Login
 
 Loopback login with a single-use code. See [Authentication](authentication.md#desktop-login).
+
+### Signed out and signed in (planned)
+
+Every feature requires a signed-in session. See [D19](decisions.md#d19--both-apps-are-behind-login).
+
+#### Sessions are memory only
+
+The desktop keeps its app session in memory and never writes it to disk or the OS credential store, so every start of the app needs a login ([D20](decisions.md#d20--desktop-sessions-are-memory-only)). The EVE login page usually remembers the browser, so this is normally two clicks. When the app quits it revokes its session on the server (best effort), so unused sessions do not pile up.
+
+- **Signed out**: the main window shows only the login screen (server address, access key, log in). No navigation rail, no widgets, no overlays. The tray menu has only *Open Hunters* and *Quit Hunters*.
+- **Signed in**: the full app (navigation rail, widget pages, Account, Settings) and the saved overlays are restored.
+- **At startup**: the app always opens on the login screen, with the last server's address filled in, even if *Start in the system tray* is on. Saved overlays and *Start in the system tray* apply after login.
+- **Session ends** (log out, revoked by the server, or rejected by admission): overlays close, background work stops and the app returns to the login screen.
+
+Until this is built, the Account page is just another page and the rest of the app works without a session.
 
 ## ESI calls
 
@@ -82,7 +97,7 @@ The app lives in the system tray. Closing the main window hides it; the app exit
 | Hide all overlays | Temporarily hide every overlay without docking it |
 | Quit Hunters | Save layout and exit |
 
-At startup the saved overlays are restored. The main window opens unless **Start in the system tray** is on and at least one overlay is open.
+After login the saved overlays are restored, and the main window hides to the tray if **Start in the system tray** is on and at least one overlay is open.
 
 ### Implementation
 
@@ -111,7 +126,7 @@ Custom Skia-drawn control: pan, zoom, region focus, activity colouring, route hi
 
 ## Platform support
 
-Avalonia runs on Windows, macOS and Linux, so the core app (map, login, ESI, fleet, account management) is cross-platform without extra work. The platform-specific parts are behind interfaces (`IOverlayPlatform`, `IGlobalHotkeys`, `ICredentialStore`, `IEveLogLocator`) with one implementation per OS.
+Avalonia runs on Windows, macOS and Linux, so the core app (map, login, ESI, fleet, account management) is cross-platform without extra work. The platform-specific parts are behind interfaces (`IOverlayPlatform`, `IGlobalHotkeys`, `IEveLogLocator`) with one implementation per OS.
 
 | Feature | Windows | macOS | Linux (X11) | Linux (Wayland) |
 |---|---|---|---|---|
@@ -120,7 +135,6 @@ Avalonia runs on Windows, macOS and Linux, so the core app (map, login, ESI, fle
 | Over fullscreen EVE | Borderless only | ✅ with `fullScreenAuxiliary` window behaviour | Borderless only | Borderless only |
 | Global hotkeys (if added later) | ✅ `RegisterHotKey` | ✅ Carbon hotkeys (no extra permission) | ✅ `XGrabKey` | ⚠️ only via the desktop portal GlobalShortcuts API (KDE, recent GNOME) |
 | System tray | ✅ | ✅ menu bar extra | ✅ StatusNotifier / AppIndicator | ✅ StatusNotifier (GNOME needs the AppIndicator extension) |
-| Credential storage | Credential Manager / DPAPI | Keychain | Secret Service (libsecret) | Secret Service (libsecret) |
 | Log watcher | `Documents\EVE\logs` | Mac client's log folder | Inside the Proton/Wine prefix | Inside the Proton/Wine prefix |
 | Packaging | Installer + auto-update (e.g. Velopack) | Signed + notarized `.app` (needs an Apple developer account) | AppImage / Flatpak | AppImage / Flatpak |
 

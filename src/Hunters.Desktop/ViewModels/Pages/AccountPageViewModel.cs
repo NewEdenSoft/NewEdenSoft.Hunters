@@ -7,8 +7,8 @@ using NewEdenSoft.Hunters.Contracts.Auth;
 namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 
 /// <summary>
-/// Log in to a Hunters server with EVE Online. The session is kept in memory for now; saved
-/// servers, credential storage and character management follow.
+/// Log in to a Hunters server with EVE Online. The session is kept in memory only and never
+/// saved (docs/decisions.md, D20). Saved servers and character management follow.
 /// </summary>
 public sealed partial class AccountPageViewModel(DesktopLoginClient logins) : PageViewModel
 {

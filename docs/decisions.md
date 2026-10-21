@@ -62,5 +62,15 @@ The browser leg (challenge, `state` protection, correlation cookie, callback, er
 
 *Rejected:* the hand-written flow plus a custom correlation cookie (more security-sensitive code to own); the third-party `AspNet.Security.OAuth.EVEOnline` provider (extra dependency; token validation still needed for refresh).
 
+## D19 — Both apps are behind login
+Every feature of the desktop and web apps requires a signed-in session. Signed out, each app shows only its login screen. The desktop also restores no overlays and offers only *Open* and *Quit* in the tray. When a session ends, the app returns to the login screen. All features depend on the user's characters and the server (locations, activity near them, fleets), so there is nothing useful to show without a session, and one gate is simpler than per-feature checks.
+
+*Rejected:* an anonymous map or activity view (needs public server endpoints and load the server owner did not opt into).
+
+## D20 — Desktop sessions are memory only
+The desktop app keeps its session token in memory and logs in again at every start. Only the web app keeps a session across restarts (its cookie). No long-lived bearer token sits on the user's disk, in backups or in the OS credential store, and there is no per-OS credential code to maintain. Logging in is quick because the EVE login page usually remembers the browser. The app revokes its session when it quits.
+
+*Rejected:* storing the session in the OS credential store (Credential Manager, Keychain, Secret Service): convenient, but a stolen token gives full access to the account until revoked, and it needs a credential implementation per OS.
+
 ## D15 — Desktop is Windows first; platform features behind interfaces
-Overlay, hotkey, credential and log-location code sits behind per-OS interfaces. Windows first, macOS second, Linux X11 best effort, Wayland limited. See [Desktop Client](desktop-client.md#platform-support).
+Overlay, hotkey and log-location code sits behind per-OS interfaces. Windows first, macOS second, Linux X11 best effort, Wayland limited. See [Desktop Client](desktop-client.md#platform-support).

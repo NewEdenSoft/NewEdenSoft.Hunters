@@ -75,8 +75,8 @@ Same flow, with the existing app session attached to `begin`. The new character 
 
 ## App sessions
 
-- The desktop receives an app session (long-lived, revocable per device) on redeem. It is stored per server in the OS credential store (Windows Credential Manager / DPAPI).
-- The web app uses a cookie session.
+- The desktop receives an app session (revocable per device) on redeem. It keeps the session in memory only, so each start of the app needs a login, and revokes it when it quits. See [D20](decisions.md#d20--desktop-sessions-are-memory-only).
+- The web app uses a cookie session, which persists across browser restarts.
 - Admins can revoke sessions; admission rechecks also revoke them. See [Admission](discovery-and-admission.md).
 
 ## Access tokens for clients

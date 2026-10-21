@@ -6,6 +6,10 @@ React + TypeScript (Vite), served by its own server (see [Deployment](deployment
 
 Cookie session on the server's origin. Login and adding characters use the web flow in [Authentication](authentication.md#web-login).
 
+The session cookie persists, so users stay logged in across browser restarts until they log out or the session is revoked. Unlike the desktop, which keeps its session in memory only ([D20](decisions.md#d20--desktop-sessions-are-memory-only)).
+
+Every page except the login page requires a session ([D19](decisions.md#d19--both-apps-are-behind-login)). Without one, the app shows only the login page; when the session ends, it returns there.
+
 ## ESI calls
 
 The web client makes the same character ESI calls as the desktop client, directly from the browser (ESI supports CORS):

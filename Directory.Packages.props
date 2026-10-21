@@ -49,7 +49,6 @@
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.13" />
-    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup Label="Tests">
