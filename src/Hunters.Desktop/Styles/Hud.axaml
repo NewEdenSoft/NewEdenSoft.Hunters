@@ -127,6 +127,33 @@
     <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
   </Style>
 
+  <!-- Text input: <TextBox Classes="hud" /> -->
+  <Style Selector="TextBox.hud">
+    <Setter Property="FontFamily" Value="{StaticResource Hud.MonoFont}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
+    <Setter Property="Background" Value="{DynamicResource Hud.BgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineStrongBrush}" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Padding" Value="10,7" />
+  </Style>
+  <Style Selector="TextBox.hud:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource Hud.BgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+  </Style>
+  <Style Selector="TextBox.hud:focus /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource Hud.BgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="TextBox.hud:pointerover, TextBox.hud:focus">
+    <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
+  </Style>
+  <Style Selector="TextBox.hud:disabled /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource Hud.BgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
+  </Style>
+
   <!-- Navigation rail: <Button Classes="nav" Classes.selected="{Binding IsSelected}" /> -->
   <Style Selector="TextBlock.nav-heading">
     <Setter Property="Margin" Value="22,8,22,6" />

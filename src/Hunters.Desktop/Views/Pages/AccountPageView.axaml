@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:p="using:NewEdenSoft.Hunters.Desktop.ViewModels.Pages"
              xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+             xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
              x:Class="NewEdenSoft.Hunters.Desktop.Views.Pages.AccountPageView"
              x:DataType="p:AccountPageViewModel">
   <StackPanel Spacing="20">
@@ -9,12 +10,51 @@
       <TextBlock Classes="label accent" Text="SYSTEM" />
       <TextBlock Classes="h1" Text="{Binding Title}" />
     </StackPanel>
-    <c:HudPanel>
-      <StackPanel Spacing="6">
-        <TextBlock Classes="label" Text="SERVERS AND CHARACTERS" />
-        <TextBlock Classes="muted" TextWrapping="Wrap"
-                   Text="Connect to a Hunters server, log in with EVE Online and manage your characters. Coming in Phase 1." />
+
+    <!-- Logged out: server address and login -->
+    <c:HudPanel IsVisible="{Binding !IsLoggedIn}">
+      <StackPanel Spacing="14" MaxWidth="520" HorizontalAlignment="Left">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="label" Text="LOG IN" />
+          <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                     Text="Connect to a Hunters server and log in with your EVE Online character. Your browser opens for the EVE login." />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="SERVER" />
+          <TextBox Classes="hud" Text="{Binding ServerUrl}" IsEnabled="{Binding IsIdle}"
+                   PlaceholderText="hunters.example.com" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="ACCESS KEY (OPTIONAL)" />
+          <TextBox Classes="hud" Text="{Binding AccessKey}" IsEnabled="{Binding IsIdle}"
+                   PasswordChar="•" PlaceholderText="Only needed for a new account on some servers" />
+        </StackPanel>
+
+        <TextBlock Classes="hint" Foreground="{DynamicResource Hud.DangerBrush}" TextWrapping="Wrap"
+                   Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="hud primary" Content="LOG IN WITH EVE ONLINE" Command="{Binding LogInCommand}" />
+          <Button Classes="hud ghost" Content="CANCEL" Command="{Binding CancelLogInCommand}" IsVisible="{Binding IsLoggingIn}" />
+          <TextBlock Classes="muted hint" VerticalAlignment="Center" IsVisible="{Binding IsLoggingIn}"
+                     Text="Waiting for the browser…" />
+        </StackPanel>
       </StackPanel>
+    </c:HudPanel>
+
+    <!-- Logged in -->
+    <c:HudPanel IsVisible="{Binding IsLoggedIn}">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="label accent" Text="{Binding Session.Greeting, Converter={x:Static w:UpperCaseConverter.Instance}}" />
+          <TextBlock Classes="h2" Text="{Binding Session.CharacterName}" />
+          <TextBlock Classes="muted mono hint" Text="{Binding Session.ServerHost}" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="hud danger" VerticalAlignment="Center"
+                Content="LOG OUT" Command="{Binding LogOutCommand}" />
+      </Grid>
     </c:HudPanel>
   </StackPanel>
 </UserControl>
