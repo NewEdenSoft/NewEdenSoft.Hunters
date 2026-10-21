@@ -62,5 +62,10 @@ The browser leg (challenge, `state` protection, correlation cookie, callback, er
 
 *Rejected:* the hand-written flow plus a custom correlation cookie (more security-sensitive code to own); the third-party `AspNet.Security.OAuth.EVEOnline` provider (extra dependency; token validation still needed for refresh).
 
+## D19 — Both apps are behind login
+Every feature of the desktop and web apps requires a signed-in session. Signed out, each app shows only its login screen. The desktop also restores no overlays and offers only *Open* and *Quit* in the tray. When a session ends, the app returns to the login screen. All features depend on the user's characters and the server (locations, activity near them, fleets), so there is nothing useful to show without a session, and one gate is simpler than per-feature checks.
+
+*Rejected:* an anonymous map or activity view (needs public server endpoints and load the server owner did not opt into).
+
 ## D15 — Desktop is Windows first; platform features behind interfaces
 Overlay, hotkey, credential and log-location code sits behind per-OS interfaces. Windows first, macOS second, Linux X11 best effort, Wayland limited. See [Desktop Client](desktop-client.md#platform-support).

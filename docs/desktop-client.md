@@ -20,6 +20,17 @@ The app runs inside the .NET Generic Host (`DesktopHost`): dependency injection,
 
 Loopback login with a single-use code. See [Authentication](authentication.md#desktop-login).
 
+### Signed out and signed in (planned)
+
+Every feature requires a signed-in session. See [D19](decisions.md#d19--both-apps-are-behind-login).
+
+- **Signed out**: the main window shows only the login screen (server address, access key, log in). No navigation rail, no widgets, no overlays. The tray menu has only *Open Hunters* and *Quit Hunters*.
+- **Signed in**: the full app (navigation rail, widget pages, Account, Settings) and the saved overlays are restored.
+- **At startup**: with a stored session for the last server, the app checks it with the server and goes straight to the signed-in state. Otherwise it opens on the login screen, even if *Start in the system tray* is on.
+- **Session ends** (log out, revoked by the server, or rejected by admission): overlays close, background work stops and the app returns to the login screen.
+
+Until this is built, the Account page is just another page and the rest of the app works without a session.
+
 ## ESI calls
 
 The desktop calls ESI directly with NewEdenKit.ESI, using a local file cache. Access tokens come from the server through `ICharacterTokenProvider`; the desktop never holds refresh tokens.
