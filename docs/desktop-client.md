@@ -79,6 +79,8 @@ The desktop calls ESI directly with NewEdenKit.ESI, using a local file cache. Ac
 - `Track(ids)` sets exactly which characters are tracked; characters no longer in the list are stopped and removed, with a `Changed` event whose `Current` is null.
 - The ESI calls go through `ILocationEsi`, implemented with NewEdenKit.ESI's `ILocation`, so the tracker is tested with a fake ESI and a fake clock.
 
+In the desktop, `CharacterTracking` owns the one tracker for the signed-in session. It tracks the account's characters that are usable (no re-auth or missing permissions) and not switched off, and follows account changes and the switches. A new session replaces the tracker; logging out stops it. Each character row on the Account page has a **Track** switch (on by default, saved for this computer in `Characters.{id}.IsTracked`) and a line such as *Online · Jita · Docked at Jita IV - Moon 4 - Caldari Navy Assembly Plant · Ishtar “Hunter One”*, with a green dot while online. While polling fails, the line turns amber, with the error in its tooltip. Names of systems, stations and ship types come from ESI's public `POST /universe/names` and are cached for the app's lifetime (`EveNames`). Player structures are not public, so those show as *Docked*.
+
 ESI's error limit is per IP, so these calls count against the user's own connection rather than the server's.
 
 ## Local log watcher

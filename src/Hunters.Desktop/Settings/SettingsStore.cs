@@ -26,6 +26,9 @@ public sealed record CharacterSettings
 {
     /// <summary>The character's map marker; null uses the default (the first letter of its name).</summary>
     public CharacterMarker? Marker { get; init; }
+
+    /// <summary>Poll the character's online status, location and ship while the app runs.</summary>
+    public bool IsTracked { get; init; } = true;
 }
 
 public sealed record MapSettings
