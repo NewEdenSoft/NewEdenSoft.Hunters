@@ -1,9 +1,20 @@
+using System.Collections.Concurrent;
+using NewEdenSoft.Hunters.Desktop.Characters;
 using SkiaSharp;
 
 namespace NewEdenSoft.Hunters.Desktop.Map;
 
-/// <summary>Theme colours the map is drawn with. <paramref name="Halo"/> outlines region names so they read over gates.</summary>
-public sealed record MapPalette(SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Hover);
+/// <summary>
+/// Theme colours the map is drawn with. <paramref name="Halo"/> outlines region names so they read
+/// over gates and fills marker badges; <paramref name="Accent"/> draws the hover ring and the markers.
+/// </summary>
+public sealed record MapPalette(SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent);
+
+/// <summary>One character's marker; offline characters are drawn dimmed at their last known system.</summary>
+public readonly record struct MapMarker(CharacterMarker Marker, bool IsOnline);
+
+/// <summary>The markers of the characters in one system, drawn side by side at the end of one leader line.</summary>
+public sealed record MapMarkerGroup(int SystemIndex, IReadOnlyList<MapMarker> Markers);
 
 /// <summary>Typefaces for system names and region names.</summary>
 public sealed record MapFonts(SKTypeface Label, SKTypeface Region);
@@ -30,7 +41,8 @@ public readonly record struct MapCamera(float Scale, float OffsetX, float Offset
 /// window, or an overlay at the user's opacity. Each frame: gates in view (solid within a constellation, dashed between constellations and
 /// regions, coloured from one system's colour to the other's) under the view transform; a margin
 /// around each system when zoomed in; systems in view, batched by colour group; then system names
-/// to the bottom right of each system when zoomed in, or region names when zoomed out.
+/// to the bottom right of each system when zoomed in, or region names when zoomed out; last, the
+/// characters' markers, joined by a line to the upper right of their systems.
 /// </remarks>
 public sealed class MapScene
 {
@@ -60,6 +72,15 @@ public sealed class MapScene
 
     private const float LabelCell = 6;
 
+    /// <summary>Marker badges: size, space between them, and how far the leader line reaches up and right from the system.</summary>
+    private const float MarkerSize = 18, MarkerGap = 3, MarkerLead = 12, MarkerCut = 4, MarkerFontSize = 11;
+
+    /// <summary>Offline characters' markers are drawn at this opacity.</summary>
+    private const float OfflineAlpha = 0.45f;
+
+    /// <summary>Marker icons, parsed once.</summary>
+    private static readonly ConcurrentDictionary<string, SKPath> IconPaths = new();
+
     private readonly MapModel _model;
     private readonly float[] _xy;
     private readonly MapPalette _palette;
@@ -75,6 +96,7 @@ public sealed class MapScene
 
     private readonly SKFont _labelFont;
     private readonly SKFont _regionFont;
+    private readonly SKFont _markerFont;
     private readonly float[] _labelWidths;
     private readonly float _labelAscent;
     private readonly RegionText?[] _regionTexts;
@@ -96,6 +118,7 @@ public sealed class MapScene
         _labelWidths = model.Names.Select(name => _labelFont.MeasureText(name)).ToArray();
 
         _regionFont = new SKFont(fonts.Region, RegionFontSize) { Subpixel = true };
+        _markerFont = new SKFont(fonts.Region, MarkerFontSize) { Subpixel = true };
         _regionTexts = model.Regions.Select(r => r.Centre(layout) is null ? null : RegionText.Create(r.Name.ToUpperInvariant(), _regionFont)).ToArray();
     }
 
@@ -119,7 +142,7 @@ public sealed class MapScene
         return _grid.Nearest(worldX, worldY, HoverRadius / camera.Scale, i => Filter.Groups[i] != MapFilter.Hidden);
     }
 
-    public void Draw(SKCanvas canvas, in MapCamera camera, int hovered)
+    public void Draw(SKCanvas canvas, in MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup>? markers = null)
     {
         // Gates go on a layer of their own, so the margins can be cut out of them without cutting
         // through what is behind the map.
@@ -133,6 +156,103 @@ public sealed class MapScene
             DrawLabels(canvas, camera, hovered);
         else
             DrawRegionLabels(canvas, camera);
+
+        if (markers is { Count: > 0 })
+            DrawMarkers(canvas, camera, markers);
+    }
+
+    /// <summary>
+    /// Each group: a leader line from the system's edge up and to the right, ending at the bottom-left
+    /// corner of a row of badges. Drawn in screen coordinates at every zoom, over everything else. A
+    /// row that would overlap one already drawn (neighbouring systems, zoomed out) moves further up.
+    /// </summary>
+    private void DrawMarkers(SKCanvas canvas, in MapCamera camera, IReadOnlyList<MapMarkerGroup> groups)
+    {
+        var radius = SystemRadius(camera.Scale);
+        var edge = radius * MathF.Sqrt(0.5f);
+        using var line = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1 };
+        using var fill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
+        using var border = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1 };
+        using var content = new SKPaint { IsAntialias = true };
+        using var icon = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeCap = SKStrokeCap.Round, StrokeJoin = SKStrokeJoin.Round };
+        var rows = new List<SKRect>();
+
+        foreach (var group in groups)
+        {
+            var sx = camera.ToScreenX(X(group.SystemIndex));
+            var sy = camera.ToScreenY(Y(group.SystemIndex));
+            var anchorX = sx + radius + MarkerLead;
+            var anchorY = sy - radius - MarkerLead;
+            var rowWidth = group.Markers.Count * (MarkerSize + MarkerGap) - MarkerGap;
+            if (sx > camera.Width || anchorX + rowWidth < 0 || anchorY - MarkerSize > camera.Height || sy < 0)
+                continue;
+
+            // Step up past rows already drawn; the line stays straight up and to the right.
+            var row = new SKRect(anchorX, anchorY - MarkerSize, anchorX + rowWidth, anchorY);
+            for (var step = 0; step < 8 && rows.Any(r => r.IntersectsWith(row)); step++)
+            {
+                var lift = MarkerSize + MarkerGap;
+                anchorX += lift;
+                anchorY -= lift;
+                row.Offset(lift, -lift);
+            }
+
+            rows.Add(row);
+
+            var anyOnline = group.Markers.Any(m => m.IsOnline);
+            line.Color = Faded(_palette.Accent, anyOnline);
+            canvas.DrawLine(sx + edge, sy - edge, anchorX, anchorY, line);
+
+            for (var k = 0; k < group.Markers.Count; k++)
+            {
+                var marker = group.Markers[k];
+                var left = anchorX + k * (MarkerSize + MarkerGap);
+                var top = anchorY - MarkerSize;
+                using var badge = ChamferPath(left, top, MarkerSize, MarkerCut);
+                fill.Color = _palette.Halo;
+                canvas.DrawPath(badge, fill);
+                border.Color = Faded(_palette.Accent, marker.IsOnline);
+                canvas.DrawPath(badge, border);
+
+                var colour = Faded(_palette.Accent, marker.IsOnline);
+                if (marker.Marker.IconPath is { } data)
+                {
+                    // Icons are 2-unit strokes in a 24 x 24 box, drawn at 60% of the badge.
+                    var path = IconPaths.GetOrAdd(data, d => SKPath.ParseSvgPathData(d) ?? new SKPath());
+                    var size = MarkerSize * 0.6f;
+                    canvas.Save();
+                    canvas.Translate(left + (MarkerSize - size) / 2, top + (MarkerSize - size) / 2);
+                    canvas.Scale(size / 24);
+                    icon.Color = colour;
+                    icon.StrokeWidth = 2.4f;
+                    canvas.DrawPath(path, icon);
+                    canvas.Restore();
+                }
+                else if (marker.Marker.Text is { } text)
+                {
+                    content.Color = colour;
+                    var width = _markerFont.MeasureText(text);
+                    canvas.DrawText(text, left + (MarkerSize - width) / 2, top + MarkerSize / 2 + _markerFont.Metrics.CapHeight / 2, _markerFont, content);
+                }
+            }
+        }
+    }
+
+    private static SKColor Faded(SKColor colour, bool online) =>
+        online ? colour : colour.WithAlpha((byte)(colour.Alpha * OfflineAlpha));
+
+    /// <summary>A square with the top-left and bottom-right corners cut off, the HUD's badge shape.</summary>
+    private static SKPath ChamferPath(float left, float top, float size, float cut)
+    {
+        var path = new SKPath();
+        path.MoveTo(left + cut, top);
+        path.LineTo(left + size, top);
+        path.LineTo(left + size, top + size - cut);
+        path.LineTo(left + size - cut, top + size);
+        path.LineTo(left, top + size);
+        path.LineTo(left, top + cut);
+        path.Close();
+        return path;
     }
 
     // Gates are drawn in world coordinates, so widths and dashes are divided by the zoom to stay the same on screen.
@@ -233,7 +353,7 @@ public sealed class MapScene
         {
             paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = 1.5f;
-            paint.Color = _palette.Hover;
+            paint.Color = _palette.Accent;
             canvas.DrawCircle(camera.ToScreenX(X(hovered)), camera.ToScreenY(Y(hovered)), radius + 4, paint);
         }
     }

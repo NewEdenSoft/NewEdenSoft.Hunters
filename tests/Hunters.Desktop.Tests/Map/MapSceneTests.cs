@@ -1,3 +1,4 @@
+using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Theming;
 using SkiaSharp;
@@ -76,6 +77,30 @@ public sealed class MapSceneTests
         Assert.Equal(SKColors.Navy, pixels.GetPixelColor(200 + (int)radius + 3, 150));
         // Halfway along the gate: drawn.
         Assert.NotEqual(SKColors.Navy, pixels.GetPixelColor(300, 150));
+    }
+
+    [Fact]
+    public void Markers_are_drawn_up_and_to_the_right_of_their_system()
+    {
+        var scene = Scene(MapFilters.Security(_model, _catalog));
+        var camera = new MapCamera(Scale: 40, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
+        // A diamond is hollow, so the middle of its badge shows the badge's fill (the halo colour).
+        var diamond = new MapMarker(new CharacterMarker(MarkerKind.Icon, "diamond"), IsOnline: true);
+        var radius = MapScene.SystemRadius(40);
+        var badgeCentre = (X: (int)(200 + radius + 12 + 9), Y: (int)(150 - radius - 12 - 9));
+
+        SKColor Sample(IReadOnlyList<MapMarkerGroup>? markers)
+        {
+            using var surface = SKSurface.Create(new SKImageInfo(400, 300));
+            surface.Canvas.Clear(SKColors.Navy);
+            scene.Draw(surface.Canvas, camera, hovered: -1, markers);
+            using var image = surface.Snapshot();
+            using var pixels = image.PeekPixels();
+            return pixels.GetPixelColor(badgeCentre.X, badgeCentre.Y);
+        }
+
+        Assert.Equal(SKColors.Navy, Sample(null));
+        Assert.Equal(Palette.Halo, Sample([new MapMarkerGroup(_model.IndexOf[10], [diamond])]));
     }
 
     private MapScene Scene(MapFilter filter) =>

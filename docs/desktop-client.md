@@ -176,6 +176,8 @@ The **Map** widget draws known space from the server's map pack, like the [web m
 
 `MapScene` is immutable: the UI thread builds a new one when the model, layout, filter or theme colours change, and frames are drawn on the render thread from the scene and camera captured with them. Theme colours reach the control as `DynamicResource` bindings, so a theme change rebuilds the scene.
 
+**Character markers.** Each tracked character with a known location is drawn with its [marker](#account-page) at its system: a short leader line from the system's edge up and to the right, ending at a row of badges, one per character in that system (main first). Offline characters stay at their last known system, dimmed. Markers are drawn at every zoom, over everything else; a row that would overlap one already drawn (neighbouring systems, zoomed out) moves further up along the same diagonal. Hovering a system also lists the account's characters in it. Markers are frame data (`MapControl.Markers`), not part of the scene, so position updates only redraw.
+
 The map pack is downloaded the first time the widget is on screen in a session and kept in memory for the session. While the server is still preparing it, the page asks again every 10 seconds. A disk cache by SDE build comes later.
 
 Next for the map: region focus, activity colouring, route highlight on hover, fleet member markers.
