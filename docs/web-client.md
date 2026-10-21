@@ -16,7 +16,7 @@ React + TypeScript (Vite), served by its own server (see [Deployment](deployment
 | `/` | `routes/_authed/index.tsx` | Home. |
 | `/map` | `routes/_authed/map.tsx` | The map (full window below the app bar, `staticData.fullBleed`). |
 | `/account` | `routes/_authed/account.tsx` | Account and characters. |
-| `/settings` | `routes/_authed/settings.tsx` | Theme picker. |
+| `/settings` | `routes/_authed/settings.tsx` | Theme and map layout. |
 
 When a query gets a 401 while the app is open (session revoked or ended elsewhere), the query cache is cleared and the app returns to `/login`.
 
@@ -38,7 +38,7 @@ Each frame: gates are one `Path2D` built once per layout and stroked under the v
 
 **Colour filters.** A filter turns the map into a colour group per system (or `HIDDEN`), the group colours (CSS, theme variables allowed) and a legend. The renderer only draws groups, so new ways of colouring the map (activity, a route, fleet members) are new filters, not renderer changes. Hidden systems are not drawn, labelled or hoverable; their gates still are. The hover panel always shows the system's real security in its security colour, whatever the filter.
 
-The layout and filter are in the URL (`/map?layout=flat&colour=…`, defaults left out), so a view can be linked and survives a reload.
+The layout is a user setting, kept in local storage like the theme (`settings/mapSettings.ts`, key `hunters.map.layout`) and chosen on the map or on the Settings page. The colour filter is in the URL (`/map?colour=…`, default left out), so a view can be linked.
 
 The map pack is fetched by the SDE build named in the discovery document and kept in the TanStack Query cache for the session; IndexedDB persistence comes next. The page offers both layouts in the pack (top-down and CCP's 2D map) while we decide on the default.
 

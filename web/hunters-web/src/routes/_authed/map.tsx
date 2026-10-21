@@ -3,30 +3,25 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMemo } from 'react'
 import { discoveryQuery } from '../../api/discovery'
 import { mapPackQuery } from '../../api/map'
-import { Button } from '../../components/ui/Button'
 import { Label } from '../../components/ui/Label'
 import { Panel } from '../../components/ui/Panel'
 import { Status } from '../../components/ui/Status'
+import { Toggle } from '../../components/ui/Toggle'
 import { createFilter, mapFilters, type MapFilterId } from '../../map/filters'
 import { MapLegend } from '../../map/MapLegend'
-import { buildMapModel, type MapLayout } from '../../map/model'
+import { buildMapModel } from '../../map/model'
 import { MapView } from '../../map/MapView'
-
-const layouts: { id: MapLayout; label: string }[] = [
-  { id: 'topDown', label: 'Top-down' },
-  { id: 'flat', label: '2D map' },
-]
+import { mapLayouts, useMapLayout } from '../../settings/mapSettings'
 
 interface MapSearch {
-  layout?: MapLayout
   colour?: MapFilterId
 }
 
 export const Route = createFileRoute('/_authed/map')({
   staticData: { fullBleed: true },
-  // The view is in the URL, so it can be linked and survives a reload. Defaults are left out.
+  // The colour filter is in the URL, so a view can be linked; the default is left out. The layout is
+  // a user setting (settings/mapSettings.ts).
   validateSearch: (search: Record<string, unknown>): MapSearch => ({
-    layout: layouts.some((l) => l.id === search.layout) && search.layout !== 'topDown' ? (search.layout as MapLayout) : undefined,
     colour:
       mapFilters.some((f) => f.id === search.colour) && search.colour !== mapFilters[0].id
         ? (search.colour as MapFilterId)
@@ -38,7 +33,7 @@ export const Route = createFileRoute('/_authed/map')({
 function MapPage() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
-  const layout = search.layout ?? 'topDown'
+  const [layout, setLayout] = useMapLayout()
   const colour = search.colour ?? mapFilters[0].id
 
   // Discovery names the current map pack; it is missing while the server is still loading the SDE.
@@ -71,17 +66,8 @@ function MapPage() {
     )
   }
 
-  const setSearch = (change: Partial<{ layout: MapLayout; colour: MapFilterId }>) =>
-    void navigate({
-      search: (previous) => {
-        const next = { ...previous, ...change }
-        return {
-          layout: next.layout === 'topDown' ? undefined : next.layout,
-          colour: next.colour === mapFilters[0].id ? undefined : next.colour,
-        }
-      },
-      replace: true,
-    })
+  const setColour = (id: MapFilterId) =>
+    void navigate({ search: { colour: id === mapFilters[0].id ? undefined : id }, replace: true })
 
   return (
     <div className="relative size-full">
@@ -89,15 +75,15 @@ function MapPage() {
 
       <div className="absolute top-3 left-3 grid max-w-[calc(100%-1.5rem)] gap-3 border border-line bg-surface/90 p-3 backdrop-blur-sm">
         <ControlGroup label="Layout">
-          {layouts.map((l) => (
-            <Toggle key={l.id} active={l.id === layout} onClick={() => setSearch({ layout: l.id })}>
+          {mapLayouts.map((l) => (
+            <Toggle key={l.id} active={l.id === layout} onClick={() => setLayout(l.id)}>
               {l.label}
             </Toggle>
           ))}
         </ControlGroup>
         <ControlGroup label="Colour">
           {mapFilters.map((f) => (
-            <Toggle key={f.id} active={f.id === colour} onClick={() => setSearch({ colour: f.id })}>
+            <Toggle key={f.id} active={f.id === colour} onClick={() => setColour(f.id)}>
               {f.label}
             </Toggle>
           ))}
@@ -114,13 +100,5 @@ function ControlGroup({ label, children }: { label: string; children: React.Reac
       <Label>{label}</Label>
       <div className="flex flex-wrap gap-1">{children}</div>
     </div>
-  )
-}
-
-function Toggle({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <Button variant={active ? 'primary' : 'ghost'} className="px-3 py-1.5 text-[0.6875rem]" aria-pressed={active} onClick={onClick}>
-      {children}
-    </Button>
   )
 }
