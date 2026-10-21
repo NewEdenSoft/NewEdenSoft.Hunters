@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using NewEdenSoft.Hunters.Client;
 using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Client.Sessions;
+using NewEdenSoft.Hunters.Client.Tracking;
 using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Contracts.Auth;
 using NewEdenSoft.Hunters.Desktop.Characters;
@@ -18,7 +19,12 @@ namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 /// is kept in memory only and never saved (docs/decisions.md, D20).
 /// </summary>
 public sealed partial class AccountPageViewModel(
-    DesktopLoginClient logins, IHttpClientFactory httpClients, PortraitCache portraits, CharacterPreferences preferences) : PageViewModel
+    DesktopLoginClient logins,
+    IHttpClientFactory httpClients,
+    PortraitCache portraits,
+    CharacterPreferences preferences,
+    CharacterTracking tracking,
+    EveNames names) : PageViewModel
 {
     public const string HttpClientName = "Hunters";
 
@@ -207,7 +213,15 @@ public sealed partial class AccountPageViewModel(
         }
 
         SyncCharacters();
+
+        tracking.Changed -= OnTrackingChanged;
+        tracking.Changed += OnTrackingChanged;
+        tracking.SetSession(session);
     }
+
+    // Raised on the polling thread.
+    private void OnTrackingChanged(object? sender, TrackedCharacterChangedEventArgs e) => Dispatcher.UIThread.Post(() =>
+        Characters.FirstOrDefault(c => c.Id == e.CharacterId)?.ShowTracking(e.Current));
 
     // Session events can come from background work (access token requests), so they are marshalled to the UI thread.
     private void OnAccountChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(SyncCharacters);
@@ -224,7 +238,11 @@ public sealed partial class AccountPageViewModel(
         if (Session is { } session)
         {
             foreach (var character in session.Account.Characters.OrderByDescending(c => c.IsMain).ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
-                Characters.Add(new CharacterItemViewModel(character, this, portraits, preferences));
+            {
+                var item = new CharacterItemViewModel(character, this, portraits, preferences, names);
+                item.ShowTracking(tracking.Get(character.Id));
+                Characters.Add(item);
+            }
         }
 
         NeedsAttention = Characters.Any(c => c.NeedsReauth);
@@ -245,13 +263,17 @@ public sealed partial class CharacterItemViewModel : ObservableObject
     private readonly CharacterInfo _character;
     private readonly AccountPageViewModel _page;
     private readonly CharacterPreferences _preferences;
+    private readonly EveNames _names;
+    private int _trackingVersion;
 
-    public CharacterItemViewModel(CharacterInfo character, AccountPageViewModel page, PortraitCache portraits, CharacterPreferences preferences)
+    public CharacterItemViewModel(CharacterInfo character, AccountPageViewModel page, PortraitCache portraits, CharacterPreferences preferences, EveNames names)
     {
         _character = character;
         _page = page;
         _preferences = preferences;
+        _names = names;
         Marker = preferences.GetMarker(character.Id, character.Name);
+        IsTracked = preferences.IsTracked(character.Id);
         _ = LoadPortraitAsync(portraits);
     }
 
@@ -279,6 +301,67 @@ public sealed partial class CharacterItemViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsConfirmingRemove { get; set; }
+
+    /// <summary>The user wants this character's location polled. Saved for this computer.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TrackingText), nameof(IsOnline), nameof(HasTrackingProblem))]
+    public partial bool IsTracked { get; set; }
+
+    /// <summary>What the tracker knows; null while not tracked or not started.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TrackingText), nameof(IsOnline), nameof(HasTrackingProblem), nameof(TrackingError))]
+    public partial TrackedCharacter? Tracked { get; set; }
+
+    public bool IsOnline => IsTracked && Tracked?.IsOnline == true;
+
+    /// <summary>Polling fails (ESI, the server or a permission); the last known state is still shown.</summary>
+    public bool HasTrackingProblem => IsTracked && Tracked?.Status == TrackingStatus.Failing;
+
+    public string? TrackingError => Tracked?.Error;
+
+    /// <summary>For example "Online · Jita · Docked · Ishtar", or "Offline · Amarr · Capsule".</summary>
+    public string TrackingText
+    {
+        get
+        {
+            if (!IsTracked)
+                return "Not tracked";
+            if (Tracked is not { Location: { } location } state)
+                return Tracked?.Status == TrackingStatus.Failing ? "Location unavailable, retrying" : "Locating…";
+
+            var parts = new List<string> { state.IsOnline == true ? "Online" : "Offline" };
+            parts.Add(_names.Get(location.SolarSystemId) ?? "Unknown system");
+            if (location.IsDocked)
+                parts.Add(location.StationId is { } station && _names.Get(station) is { } stationName ? $"Docked at {stationName}" : "Docked");
+            if (state.Ship is { } ship)
+            {
+                var type = _names.Get(ship.TypeId);
+                parts.Add(type is null ? ship.Name : ship.Name == type || string.IsNullOrWhiteSpace(ship.Name) ? type : $"{type} “{ship.Name}”");
+            }
+
+            if (state.Status == TrackingStatus.Failing)
+                parts.Add("retrying");
+            return string.Join(" · ", parts);
+        }
+    }
+
+    /// <summary>Shows a new tracker state, once the names of its system, station and ship are known.</summary>
+    internal async void ShowTracking(TrackedCharacter? state)
+    {
+        // A slow lookup must not overwrite a newer state.
+        var version = ++_trackingVersion;
+        if (state is { Location: { } location })
+        {
+            // Player structures are not public; their names cannot be looked up.
+            long?[] ids = [location.SolarSystemId, location.StationId, state.Ship?.TypeId];
+            await _names.ResolveAsync(ids.OfType<long>());
+        }
+
+        if (version == _trackingVersion)
+            Tracked = state;
+    }
+
+    partial void OnIsTrackedChanged(bool value) => _preferences.SetTracked(Id, value);
 
     /// <summary>How the character is marked on the map.</summary>
     [ObservableProperty]

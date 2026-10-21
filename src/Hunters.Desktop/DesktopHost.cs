@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NewEdenSoft.Hunters.Client.Auth;
+using NewEdenSoft.Hunters.Client.Tracking;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Images;
 using NewEdenSoft.Hunters.Desktop.Map;
@@ -67,6 +68,17 @@ public static class DesktopHost
         services.AddHttpClient(PortraitCache.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
         services.AddSingleton<PortraitCache>();
         services.AddSingleton<CharacterPreferences>();
+
+        // ESI: the desktop's own calls for its characters (docs/decisions.md, D11)
+        services.AddEveEsi(o =>
+        {
+            o.ApplicationName = "NewEdenSoft.Hunters.Desktop";
+            o.Contact = configuration["Hunters:Esi:Contact"] ?? "https://github.com/NewEdenSoft/NewEdenSoft.Hunters";
+        });
+        services.AddSingleton<ILocationEsi, LocationEsi>();
+        services.AddSingleton<IEveNameSource, EsiNameSource>();
+        services.AddSingleton<EveNames>();
+        services.AddSingleton<CharacterTracking>();
 
         // Shell
         services.AddSingleton<MainWindow>();

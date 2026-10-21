@@ -125,12 +125,30 @@
                     </StackPanel>
                     <TextBlock Classes="hint" Foreground="{DynamicResource Hud.WarningBrush}" TextWrapping="Wrap"
                                Text="{Binding StatusText}" IsVisible="{Binding NeedsReauth}" />
+                    <!-- Where the character is, from the tracker -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !NeedsReauth}"
+                                ToolTip.Tip="{Binding TrackingError}">
+                      <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                               Fill="{DynamicResource Hud.FgFaintBrush}" IsVisible="{Binding !IsOnline}" />
+                      <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                               Fill="{DynamicResource Hud.OkBrush}" IsVisible="{Binding IsOnline}" />
+                      <TextBlock Classes="muted hint" Text="{Binding TrackingText}" TextTrimming="CharacterEllipsis"
+                                 IsVisible="{Binding !HasTrackingProblem}" />
+                      <TextBlock Classes="hint" Foreground="{DynamicResource Hud.WarningBrush}" Text="{Binding TrackingText}"
+                                 TextTrimming="CharacterEllipsis" IsVisible="{Binding HasTrackingProblem}" />
+                    </StackPanel>
                   </StackPanel>
 
                   <!-- Actions -->
                   <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                               IsVisible="{Binding !IsConfirmingRemove}"
                               IsEnabled="{Binding $parent[ItemsControl].((p:AccountPageViewModel)DataContext).IsIdle}">
+                    <StackPanel Orientation="Horizontal" Spacing="2" IsVisible="{Binding !NeedsReauth}"
+                                ToolTip.Tip="Poll this character's location, online status and ship while Hunters runs">
+                      <TextBlock Classes="label" Text="TRACK" VerticalAlignment="Center" />
+                      <ToggleSwitch OnContent="" OffContent="" IsChecked="{Binding IsTracked}"
+                                    AutomationProperties.Name="Track location" />
+                    </StackPanel>
                     <Button Classes="hud primary" Content="LOG IN AGAIN" Command="{Binding ReauthCommand}" IsVisible="{Binding NeedsReauth}" />
                     <Button Classes="hud ghost" Content="MAKE MAIN" Command="{Binding MakeMainCommand}" IsVisible="{Binding CanMakeMain}" />
                     <Button Classes="hud ghost" Content="REMOVE" Command="{Binding RemoveCommand}" />
