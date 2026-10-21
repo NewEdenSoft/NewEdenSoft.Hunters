@@ -13,6 +13,17 @@ export interface MapHover {
 export const LABEL_ZOOM = 28
 
 const HOVER_RADIUS_PX = 10
+
+/** Dash patterns in CSS pixels: gates between constellations, and between regions. Gates within a constellation are solid. */
+const CONSTELLATION_DASH = [3, 3]
+const REGION_DASH = [10, 7]
+
+/** Gate paths by what they connect, in world coordinates. */
+interface GatePaths {
+  constellation: Path2D
+  region: Path2D
+  solid: Path2D
+}
 const LABEL_FONT_PX = 11
 const REGION_FONT_PX = 12
 /** Clear space around a region name, so neighbouring names never read as one. */
@@ -34,7 +45,8 @@ interface Palette {
  * Draws the map on a canvas with Canvas 2D (docs/decisions.md, D21) and handles pan, zoom and hover.
  * Framework-agnostic: React hosts it and listens to {@link onHover}.
  *
- * Each frame: all gates as one cached Path2D stroked under the view transform; systems in view,
+ * Each frame: gates as three cached paths (within a constellation solid, between constellations and
+ * between regions dashed) stroked under the view transform; systems in view,
  * batched by security colour; then, when zoomed in, names to the bottom right of each system,
  * skipping any that would overlap. Frames are drawn only when something changes.
  */
@@ -55,7 +67,7 @@ export class MapRenderer {
   private byGroup: Uint32Array[]
   private xy: Float32Array
   private grid: GridIndex
-  private gates: Path2D
+  private gates: GatePaths
   private palette: Palette
   private labelFont = ''
   private regionFont = ''
@@ -79,7 +91,7 @@ export class MapRenderer {
     this.layout = layout
     this.xy = model.positions[layout]
     this.grid = new GridIndex(this.xy, 1)
-    this.gates = this.buildGatePath()
+    this.gates = this.buildGatePaths()
     this.filter = filter
     this.byGroup = groupSystems(filter)
     this.palette = resolvePalette(filter)
@@ -112,7 +124,7 @@ export class MapRenderer {
     this.layout = layout
     this.xy = this.model.positions[layout]
     this.grid = new GridIndex(this.xy, 1)
-    this.gates = this.buildGatePath()
+    this.gates = this.buildGatePaths()
     this.setHovered(-1)
     this.fit()
   }
@@ -178,11 +190,17 @@ export class MapRenderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
 
-    // Gates: one path in world coordinates, about one CSS pixel wide at any zoom.
+    // Gates: paths in world coordinates, so widths and dashes are divided by the zoom to stay the
+    // same on screen.
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offsetX, dpr * offsetY)
     ctx.lineWidth = 1 / scale
     ctx.strokeStyle = palette.gate
-    ctx.stroke(this.gates)
+    ctx.stroke(this.gates.solid)
+    ctx.setLineDash(CONSTELLATION_DASH.map((d) => d / scale))
+    ctx.stroke(this.gates.constellation)
+    ctx.setLineDash(REGION_DASH.map((d) => d / scale))
+    ctx.stroke(this.gates.region)
+    ctx.setLineDash([])
 
     // Systems: a constant size on screen, so drawn in screen space; one fill per filter colour group.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -311,16 +329,22 @@ export class MapRenderer {
     return Math.min(Math.max(this.scale * 0.07, 1.4), 4)
   }
 
-  private buildGatePath(): Path2D {
-    const path = new Path2D()
-    const { gates } = this.model
+  private buildGatePaths(): GatePaths {
+    const paths: GatePaths = { solid: new Path2D(), constellation: new Path2D(), region: new Path2D() }
+    const { gates, regionIds, constellationIds } = this.model
     for (let g = 0; g < gates.length; g += 2) {
-      const a = gates[g] * 2
-      const b = gates[g + 1] * 2
-      path.moveTo(this.xy[a], this.xy[a + 1])
-      path.lineTo(this.xy[b], this.xy[b + 1])
+      const from = gates[g]
+      const to = gates[g + 1]
+      const path =
+        regionIds[from] !== regionIds[to]
+          ? paths.region
+          : constellationIds[from] !== constellationIds[to]
+            ? paths.constellation
+            : paths.solid
+      path.moveTo(this.xy[from * 2], this.xy[from * 2 + 1])
+      path.lineTo(this.xy[to * 2], this.xy[to * 2 + 1])
     }
-    return path
+    return paths
   }
 
   private resize(): void {

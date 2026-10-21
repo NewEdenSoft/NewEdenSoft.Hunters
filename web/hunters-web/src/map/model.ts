@@ -20,6 +20,7 @@ export interface MapModel {
   ids: Int32Array
   names: string[]
   regionIds: Int32Array
+  constellationIds: Int32Array
   security: Float32Array
   /** Interleaved x, y in light years, per layout. */
   positions: Record<MapLayout, Float32Array>
@@ -49,6 +50,7 @@ export function buildMapModel(pack: MapPack): MapModel {
   const count = pack.systems.length
   const ids = new Int32Array(count)
   const regionIds = new Int32Array(count)
+  const constellationIds = new Int32Array(count)
   const security = new Float32Array(count)
   const topDown = new Float32Array(count * 2)
   const flat = new Float32Array(count * 2)
@@ -59,6 +61,7 @@ export function buildMapModel(pack: MapPack): MapModel {
     ids[i] = s.id
     names[i] = s.name
     regionIds[i] = s.regionId
+    constellationIds[i] = s.constellationId
     security[i] = s.security
     topDown[i * 2] = s.topDown.x
     topDown[i * 2 + 1] = s.topDown.y
@@ -83,6 +86,7 @@ export function buildMapModel(pack: MapPack): MapModel {
     ids,
     names,
     regionIds,
+    constellationIds,
     security,
     positions: { topDown, flat },
     bounds: { topDown: boundsOf(topDown), flat: boundsOf(flat) },
