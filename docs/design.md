@@ -19,7 +19,7 @@ All colour comes from [`design/themes.json`](../design/themes.json), shared by b
 
 - **Themes** set only three values: `primary`, `secondary` and a background `tint`. Every other theme colour (backgrounds, surfaces, lines, glow, text levels) is derived from them with OKLab mixing rules stored in the same file.
 - **Fixed colours** never change with the theme:
-  - Security status: the in-game scale from 1.0 (cyan) to 0.0 (red), and a deep red for null-sec.
+  - Security status: from 1.0 (cyan) through green and yellow to 0.4 (orange); low-sec 0.3–0.1 then fades from rust to wine into the dark magenta (`#8b3061`) of null-sec, which 0.0 shares (in EVE, 0.0 is null-sec).
   - Activity heat: violet → magenta → white, kept clear of security hues. On the map, activity is also shown as ring size so it reads without colour.
   - Alerts: danger, warning, ok, info.
 - Faction colours are first approximations, to be tuned against the EVE client.
