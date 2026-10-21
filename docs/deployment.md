@@ -43,7 +43,7 @@ Environment variables use `__` for nesting (`Hunters__Web__Enabled`).
 | Key | Default | Purpose |
 |---|---|---|
 | `Hunters:Name` | `Hunters` | Display name in the discovery document |
-| `Hunters:Web:Enabled` | `true` (`false` in Development) | Serve the web app |
+| `Hunters:Web:Enabled` | `true` (the AppHost sets `false`; Vite serves the web app) | Serve the web app |
 | `Hunters:DataProtection:KeysPath` | `/app/keys` in the image; local app data otherwise | Data Protection key storage |
 | `Hunters:Database:MigrateOnStartup` | `true` | Apply database migrations at startup |
 | `Hunters:Sso:ClientId` | — | EVE application client ID |
@@ -59,10 +59,10 @@ Environment variables use `__` for nesting (`Hunters__Web__Enabled`).
 ## Local development with EVE SSO
 
 1. Register an application at developers.eveonline.com with callback `http://localhost:5173/auth/eve/callback` (the Vite dev server, which Aspire pins to port 5173 and which forwards `/auth` to the server) and the scopes above.
-2. Set the AppHost parameters (`Parameters` section of `src/Hunters.AppHost/appsettings.json`, or user secrets of the AppHost for the client secret). The AppHost passes them to the server as `Hunters__Sso__ClientId`, `Hunters__Sso__ClientSecret`, `Hunters__Sso__CallbackUrl`, `Hunters__Name` and `Hunters__Admins__0`. See the [README](../README.md#2a-local-development-aspire).
+2. Set the AppHost parameters in `src/Hunters.AppHost/appsettings.Development.json` (git-ignored) or as user secrets of the AppHost; `appsettings.json` only holds defaults. The AppHost passes them to the server as `Hunters__Sso__ClientId`, `Hunters__Sso__ClientSecret`, `Hunters__Sso__CallbackUrl`, `Hunters__Name` and `Hunters__Admins__0`. See the [README](../README.md#2a-local-development-aspire).
 3. `dotnet run --project src/Hunters.AppHost`.
 
-Running the server on its own (without Aspire) reads the same `Hunters:Sso:*` keys from its own configuration, for example user secrets of `src/Hunters.Server`.
+Running the server on its own (without Aspire) reads the same `Hunters:Sso:*` keys from its own configuration, for example `src/Hunters.Server/appsettings.Development.json` (git-ignored) or its user secrets.
 
 ## Self-hosting guide (to write)
 

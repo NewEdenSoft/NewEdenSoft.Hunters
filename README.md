@@ -69,7 +69,7 @@ EVE allows one callback URL per application, so use separate applications for de
 
 ### 2a. Local development (Aspire)
 
-The AppHost passes these to the server. It reads them from the `Parameters` section of [`src/Hunters.AppHost/appsettings.json`](src/Hunters.AppHost/appsettings.json):
+The AppHost passes these to the server. It reads them from the `Parameters` section of its configuration: [`src/Hunters.AppHost/appsettings.json`](src/Hunters.AppHost/appsettings.json) holds the defaults, and you put your own values in `src/Hunters.AppHost/appsettings.Development.json`.
 
 | Parameter | Required | Purpose |
 |---|---|---|
@@ -79,12 +79,19 @@ The AppHost passes these to the server. It reads them from the `Parameters` sect
 | `server-name` | No | Name shown to clients |
 | `admin-character-id` | No | EVE character ID of the server admin |
 
-Keep the secret out of git by setting it as a user secret of the AppHost instead; user secrets override `appsettings.json`:
+`appsettings.Development.json` files are git-ignored throughout the repository, so this is the place for your keys. Create `src/Hunters.AppHost/appsettings.Development.json`:
 
-```sh
-dotnet user-secrets --project src/Hunters.AppHost set "Parameters:eve-client-id" "<client id>"
-dotnet user-secrets --project src/Hunters.AppHost set "Parameters:eve-client-secret" "<secret key>"
+```json
+{
+  "Parameters": {
+    "eve-client-id": "<client id>",
+    "eve-client-secret": "<secret key>",
+    "admin-character-id": "<your character id>"
+  }
+}
 ```
+
+User secrets work too and take precedence (`dotnet user-secrets --project src/Hunters.AppHost set "Parameters:eve-client-secret" "<secret key>"`). Never put keys in `appsettings.json`, which is committed.
 
 Restart the AppHost after changing parameters. The web dev server always runs on port 5173 so the callback URL stays valid.
 

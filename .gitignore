@@ -29,6 +29,8 @@ pnpm-debug.log*
 .env.*
 !.env.example
 appsettings.*.local.json
+# Local development settings (EVE keys etc.); see README "Configuration"
+appsettings.Development.json
 
 # Local data and caches
 .sde-cache/

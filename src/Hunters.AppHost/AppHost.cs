@@ -1,7 +1,8 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Server settings, read from the "Parameters" section of this project's configuration
-// (appsettings.json, overridable with user secrets). See README.md, "Configuration".
+// Server settings, read from the "Parameters" section of this project's configuration:
+// appsettings.json holds the defaults, appsettings.Development.json (not committed) or user
+// secrets hold your own values. See README.md, "Configuration".
 var serverName = builder.AddParameter("server-name")
     .WithDescription("Display name of the server, shown to clients.");
 var eveClientId = builder.AddParameter("eve-client-id")
@@ -20,6 +21,8 @@ var database = builder.AddPostgres("postgres")
 var server = builder.AddProject<Projects.Hunters_Server>("server")
     .WithReference(database)
     .WaitFor(database)
+    // The Vite dev server serves the web app during development.
+    .WithEnvironment("Hunters__Web__Enabled", "false")
     .WithEnvironment("Hunters__Name", serverName)
     .WithEnvironment("Hunters__Sso__ClientId", eveClientId)
     .WithEnvironment("Hunters__Sso__ClientSecret", eveClientSecret)
