@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
+using NewEdenSoft.Hunters.Client.Http;
 using NewEdenSoft.Hunters.Contracts.Auth;
 
 namespace NewEdenSoft.Hunters.Client.Auth;
@@ -93,24 +93,11 @@ public sealed class DesktopLoginClient(HttpClient http, IBrowserLauncher browser
         }
     }
 
-    /// <summary>Reads the <c>code</c> and <c>title</c> of a problem response.</summary>
     private static async Task<HuntersLoginException> ToExceptionAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
-        try
-        {
-            using var problem = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-            var root = problem.RootElement;
-            if (root.ValueKind == JsonValueKind.Object
-                && root.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String)
-            {
-                var title = root.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
-                return new HuntersLoginException(code.GetString()!, title ?? "The server refused the login.");
-            }
-        }
-        catch (JsonException)
-        {
-            // Not a problem response; fall through.
-        }
+        var problem = await ServerProblem.ReadAsync(response, cancellationToken);
+        if (problem.Code is not null)
+            return new HuntersLoginException(problem.Code, problem.Title ?? "The server refused the login.");
 
         return response.StatusCode == HttpStatusCode.NotFound
             ? new HuntersLoginException(HuntersLoginException.UnexpectedResponse, "This address does not look like a Hunters server.")

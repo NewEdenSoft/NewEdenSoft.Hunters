@@ -11,6 +11,9 @@
     <FontFamily x:Key="Hud.DisplayFont">avares://NewEdenSoft.Hunters.Desktop/Assets/Fonts#Oxanium</FontFamily>
     <FontFamily x:Key="Hud.BodyFont">avares://NewEdenSoft.Hunters.Desktop/Assets/Fonts#Saira</FontFamily>
     <FontFamily x:Key="Hud.MonoFont">avares://NewEdenSoft.Hunters.Desktop/Assets/Fonts#JetBrains Mono</FontFamily>
+
+    <!-- Icons (24 x 24) -->
+    <StreamGeometry x:Key="Hud.Icon.Warning">M12 2 L23 21 L1 21 Z M11 9 L11 15 L13 15 L13 9 Z M11 17 L11 19 L13 19 L13 17 Z</StreamGeometry>
   </Styles.Resources>
 
   <!-- Window -->
@@ -152,6 +155,26 @@
   <Style Selector="TextBox.hud:disabled /template/ Border#PART_BorderElement">
     <Setter Property="Background" Value="{DynamicResource Hud.BgBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
+  </Style>
+
+  <!-- Icons: <PathIcon Classes="warning" /> -->
+  <Style Selector="PathIcon.warning">
+    <Setter Property="Data" Value="{StaticResource Hud.Icon.Warning}" />
+    <Setter Property="Width" Value="16" />
+    <Setter Property="Height" Value="16" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.WarningBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Character list rows: <Border Classes="character-row" Classes.attention="{Binding NeedsReauth}" /> -->
+  <Style Selector="Border.character-row">
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="Background" Value="{DynamicResource Hud.Surface2Brush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Border.character-row.attention">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.WarningBrush}" />
   </Style>
 
   <!-- Navigation rail: <Button Classes="nav" Classes.selected="{Binding IsSelected}" /> -->

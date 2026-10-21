@@ -54,7 +54,9 @@ public static class DesktopHost
 
         // Server connection
         services.AddSingleton<IBrowserLauncher, SystemBrowserLauncher>();
-        services.AddHttpClient<DesktopLoginClient>(http => http.DefaultRequestHeaders.UserAgent.ParseAdd($"Hunters.Desktop/{typeof(DesktopHost).Assembly.GetName().Version}"));
+        var userAgent = $"Hunters.Desktop/{typeof(DesktopHost).Assembly.GetName().Version}";
+        services.AddHttpClient<DesktopLoginClient>(http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
+        services.AddHttpClient(AccountPageViewModel.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
 
         // Shell
         services.AddSingleton<MainWindow>();

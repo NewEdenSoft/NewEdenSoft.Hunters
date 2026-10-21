@@ -35,6 +35,26 @@ The desktop keeps its app session in memory and never writes it to disk or the O
 
 Until this is built, the Account page is just another page and the rest of the app works without a session.
 
+### Account page
+
+Once logged in, the Account page shows the server and the account's characters (main first), with:
+
+| Action | Notes |
+|---|---|
+| Add character | Browser login with the session attached; the character joins this account. |
+| Log in again | Shown on characters that need re-auth (see below). Same browser login; the user picks that character at EVE. |
+| Make main | Needed before the main can be removed while other characters remain. |
+| Remove | Asks for confirmation. The server revokes the character's token at EVE. |
+| Delete account | Asks for confirmation. Deletes the account, characters and sessions on the server and logs out. |
+| Log out | Revokes this session on the server. |
+
+**Needs re-auth.** Access tokens expire after about 20 minutes and the server refreshes them on request, so the user never sees that. A refresh token stops working when the user revokes the app at EVE, a password changes, or EVE expires it; the server only finds out when it next refreshes. The desktop does not poll for this. A character is flagged when:
+
+- the account snapshot from the server says `NeedsReauth` or `MissingScopes` (on login, refresh, or after any account change), or
+- `ICharacterTokenProvider` asks the server for an access token and gets `needs_reauth`. ESI code that gets a rejected token calls `InvalidateAccessToken` and asks again, which leads to the same check.
+
+Flagged characters show a warning icon and a *Log in again* button, and the Account entry in the navigation rail shows `LOG IN`.
+
 ## ESI calls
 
 The desktop calls ESI directly with NewEdenKit.ESI, using a local file cache. Access tokens come from the server through `ICharacterTokenProvider`; the desktop never holds refresh tokens.
