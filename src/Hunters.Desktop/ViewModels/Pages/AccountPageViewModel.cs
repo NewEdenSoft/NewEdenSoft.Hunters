@@ -8,6 +8,7 @@ using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Client.Sessions;
 using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Contracts.Auth;
+using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Images;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
@@ -16,7 +17,8 @@ namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 /// Log in to a Hunters server with EVE Online and manage the account's characters. The session
 /// is kept in memory only and never saved (docs/decisions.md, D20).
 /// </summary>
-public sealed partial class AccountPageViewModel(DesktopLoginClient logins, IHttpClientFactory httpClients, PortraitCache portraits) : PageViewModel
+public sealed partial class AccountPageViewModel(
+    DesktopLoginClient logins, IHttpClientFactory httpClients, PortraitCache portraits, CharacterPreferences preferences) : PageViewModel
 {
     public const string HttpClientName = "Hunters";
 
@@ -222,7 +224,7 @@ public sealed partial class AccountPageViewModel(DesktopLoginClient logins, IHtt
         if (Session is { } session)
         {
             foreach (var character in session.Account.Characters.OrderByDescending(c => c.IsMain).ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
-                Characters.Add(new CharacterItemViewModel(character, this, portraits));
+                Characters.Add(new CharacterItemViewModel(character, this, portraits, preferences));
         }
 
         NeedsAttention = Characters.Any(c => c.NeedsReauth);
@@ -242,11 +244,14 @@ public sealed partial class CharacterItemViewModel : ObservableObject
 {
     private readonly CharacterInfo _character;
     private readonly AccountPageViewModel _page;
+    private readonly CharacterPreferences _preferences;
 
-    public CharacterItemViewModel(CharacterInfo character, AccountPageViewModel page, PortraitCache portraits)
+    public CharacterItemViewModel(CharacterInfo character, AccountPageViewModel page, PortraitCache portraits, CharacterPreferences preferences)
     {
         _character = character;
         _page = page;
+        _preferences = preferences;
+        Marker = preferences.GetMarker(character.Id, character.Name);
         _ = LoadPortraitAsync(portraits);
     }
 
@@ -275,6 +280,37 @@ public sealed partial class CharacterItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsConfirmingRemove { get; set; }
 
+    /// <summary>How the character is marked on the map.</summary>
+    [ObservableProperty]
+    public partial CharacterMarker Marker { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MarkerGroups))]
+    public partial bool IsPickingMarker { get; private set; }
+
+    /// <summary>The markers to choose from, while the picker is open.</summary>
+    public IReadOnlyList<MarkerGroupViewModel> MarkerGroups => IsPickingMarker
+        ?
+        [
+            new("LETTERS", Choices(CharacterMarker.Letters)),
+            new("NUMBERS", Choices(CharacterMarker.Numbers)),
+            new("ICONS", Choices(CharacterMarker.Icons)),
+        ]
+        : [];
+
+    [RelayCommand]
+    private void ToggleMarkerPicker() => IsPickingMarker = !IsPickingMarker;
+
+    private void SelectMarker(CharacterMarker marker)
+    {
+        _preferences.SetMarker(Id, marker);
+        Marker = marker;
+        IsPickingMarker = false;
+    }
+
+    private List<MarkerChoiceViewModel> Choices(IEnumerable<CharacterMarker> markers) =>
+        [.. markers.Select(m => new MarkerChoiceViewModel(m, m == Marker, new RelayCommand(() => SelectMarker(m))))];
+
     // Created on the UI thread, so the continuation sets the property there too.
     private async Task LoadPortraitAsync(PortraitCache portraits) =>
         Portrait = await portraits.GetCharacterPortraitAsync(_character.Id);
@@ -299,3 +335,7 @@ public sealed partial class CharacterItemViewModel : ObservableObject
     [RelayCommand]
     private void CancelRemove() => IsConfirmingRemove = false;
 }
+
+public sealed record MarkerGroupViewModel(string Label, IReadOnlyList<MarkerChoiceViewModel> Choices);
+
+public sealed record MarkerChoiceViewModel(CharacterMarker Marker, bool IsSelected, IRelayCommand SelectCommand);

@@ -201,6 +201,40 @@
     <Setter Property="Margin" Value="0,0,-5,-5" />
   </Style>
 
+  <!-- Character map markers: <c:MarkerBadge Marker="{Binding Marker}" /> -->
+  <Style Selector="c|MarkerBadge">
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Cut" Value="6" />
+    <Setter Property="Background" Value="{DynamicResource Hud.BgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.PrimaryBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource Hud.DisplayFont}" />
+  </Style>
+  <Style Selector="c|MarkerBadge.selected">
+    <Setter Property="Background" Value="{DynamicResource Hud.PrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Hud.OnPrimaryBrush}" />
+  </Style>
+  <!-- A badge as a button: <Button Classes="marker"><c:MarkerBadge /></Button> -->
+  <Style Selector="Button.marker">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" Background="Transparent" />
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.marker:pointerover c|MarkerBadge">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
+  </Style>
+  <Style Selector="Button.marker:focus-visible c|MarkerBadge">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+
   <!-- Navigation rail: <Button Classes="nav" Classes.selected="{Binding IsSelected}" /> -->
   <Style Selector="TextBlock.nav-heading">
     <Setter Property="Margin" Value="22,8,22,6" />
