@@ -57,5 +57,10 @@ Each desktop feature is a widget that is either a page in the main window or an 
 
 *Rejected:* a global unlock hotkey for all overlays (per-widget settings on the widget's own page are clearer); showing a widget both docked and floating at once (two live views of the same state).
 
+## D18 — EVE login uses the standard ASP.NET Core OAuth handler
+The browser leg (challenge, `state` protection, correlation cookie, callback, error handling) is `AddOAuth`, with login details carried in the protected `state` and two small overrides for EVE (fixed redirect URI, code exchange with Basic authentication and JWT validation). Account logic runs in the handler's events. This replaced a hand-written flow that kept `state` server-side but did not bind it to the browser, leaving the web login open to login CSRF.
+
+*Rejected:* the hand-written flow plus a custom correlation cookie (more security-sensitive code to own); the third-party `AspNet.Security.OAuth.EVEOnline` provider (extra dependency; token validation still needed for refresh).
+
 ## D15 — Desktop is Windows first; platform features behind interfaces
 Overlay, hotkey, credential and log-location code sits behind per-OS interfaces. Windows first, macOS second, Linux X11 best effort, Wayland limited. See [Desktop Client](desktop-client.md#platform-support).

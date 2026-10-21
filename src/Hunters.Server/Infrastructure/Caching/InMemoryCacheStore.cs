@@ -7,6 +7,7 @@ namespace NewEdenSoft.Hunters.Server.Infrastructure.Caching;
 public sealed class InMemoryCacheStore(IMemoryCache cache) : ICacheStore
 {
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _createLocks = new();
+    private readonly Lock _takeLock = new();
 
     public ValueTask<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(cache.TryGetValue(key, out T? value) ? value : default);
@@ -21,6 +22,18 @@ public sealed class InMemoryCacheStore(IMemoryCache cache) : ICacheStore
     {
         cache.Remove(key);
         return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<T?> TakeAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        lock (_takeLock)
+        {
+            if (!cache.TryGetValue(key, out T? value))
+                return ValueTask.FromResult(default(T));
+
+            cache.Remove(key);
+            return ValueTask.FromResult(value);
+        }
     }
 
     public async ValueTask<T> GetOrCreateAsync<T>(

@@ -45,23 +45,27 @@ Environment variables use `__` for nesting (`Hunters__Web__Enabled`).
 | `Hunters:Name` | `Hunters` | Display name in the discovery document |
 | `Hunters:Web:Enabled` | `true` (`false` in Development) | Serve the web app |
 | `Hunters:DataProtection:KeysPath` | `/app/keys` in the image; local app data otherwise | Data Protection key storage |
-| `Hunters:Admission:AccessKey:Enabled` | `false` | Require an access key to log in |
+| `Hunters:Database:MigrateOnStartup` | `true` | Apply database migrations at startup |
+| `Hunters:Sso:ClientId` | — | EVE application client ID |
+| `Hunters:Sso:ClientSecret` | — | EVE application secret |
+| `Hunters:Sso:CallbackUrl` | — | Must match the EVE application's single callback URL: `{public url}/auth/eve/callback` |
+| `Hunters:Sso:Scopes` | location, online, ship, waypoint | Requested scopes |
+| `Hunters:Admission:*` | all off | See [Admission](discovery-and-admission.md) |
+| `Hunters:Admins:{n}` | — | Admin character IDs |
+| `Hunters:Esi:Contact` | repository URL | Contact sent to ESI in the User-Agent |
 | `ConnectionStrings:hunters` | — | PostgreSQL connection string |
 | `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | `false` | Trust forwarded headers from a reverse proxy |
 
-Added in Phase 1:
+## Local development with EVE SSO
 
-| Key | Purpose |
-|---|---|
-| `Hunters:Sso:ClientId` | EVE application client ID |
-| `Hunters:Sso:ClientSecret` | EVE application secret |
-| `Hunters:Sso:CallbackUrl` | Must match the EVE application's single callback URL |
-| `Hunters:Sso:Scopes` | Requested scopes |
-| `Hunters:Admission:*` | See [Admission](discovery-and-admission.md) |
-| `Hunters:Admins` | Admin character IDs |
+1. Register an application at developers.eveonline.com with callback `http://localhost:5173/auth/eve/callback` (the Vite dev server, which Aspire pins to port 5173 and which forwards `/auth` to the server) and the scopes above.
+2. Set the AppHost parameters (`Parameters` section of `src/Hunters.AppHost/appsettings.json`, or user secrets of the AppHost for the client secret). The AppHost passes them to the server as `Hunters__Sso__ClientId`, `Hunters__Sso__ClientSecret`, `Hunters__Sso__CallbackUrl`, `Hunters__Name` and `Hunters__Admins__0`. See the [README](../README.md#2a-local-development-aspire).
+3. `dotnet run --project src/Hunters.AppHost`.
+
+Running the server on its own (without Aspire) reads the same `Hunters:Sso:*` keys from its own configuration, for example user secrets of `src/Hunters.Server`.
 
 ## Self-hosting guide (to write)
 
 1. Register an application at developers.eveonline.com: callback `https://<host>/auth/eve/callback`, scopes from [Authentication](authentication.md#scopes).
-2. Fill in `.env` from `.env.example`.
+2. Fill in `.env` from `.env.example` (`EVE_CLIENT_ID`, `EVE_CLIENT_SECRET`, `HUNTERS_PUBLIC_URL`, `DB_PASSWORD`).
 3. `docker compose up -d`.

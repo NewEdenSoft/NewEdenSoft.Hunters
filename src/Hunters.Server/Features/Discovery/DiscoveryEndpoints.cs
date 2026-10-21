@@ -3,7 +3,7 @@ using NewEdenSoft.Hunters.Contracts;
 using NewEdenSoft.Hunters.Contracts.Discovery;
 using NewEdenSoft.Hunters.Server.Configuration;
 
-namespace NewEdenSoft.Hunters.Server.Discovery;
+namespace NewEdenSoft.Hunters.Server.Features.Discovery;
 
 public static class DiscoveryEndpoints
 {

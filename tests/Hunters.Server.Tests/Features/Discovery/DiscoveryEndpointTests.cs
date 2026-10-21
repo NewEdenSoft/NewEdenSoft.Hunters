@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using NewEdenSoft.Hunters.Contracts;
 using NewEdenSoft.Hunters.Contracts.Discovery;
 
-namespace NewEdenSoft.Hunters.Server.Tests.Discovery;
+namespace NewEdenSoft.Hunters.Server.Tests.Features.Discovery;
 
 public sealed class DiscoveryEndpointTests
 {

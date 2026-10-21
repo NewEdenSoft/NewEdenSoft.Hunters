@@ -12,6 +12,9 @@ public interface ICacheStore
 
     ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default);
 
+    /// <summary>Atomically gets and removes a value, so only one caller receives it (single-use codes).</summary>
+    ValueTask<T?> TakeAsync<T>(string key, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Returns the cached value, or creates, stores and returns it. Concurrent callers for the same
     /// key run the factory only once.

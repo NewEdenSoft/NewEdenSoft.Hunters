@@ -42,6 +42,29 @@ tests/
 
 Build settings: `net10.0`, nullable enabled, warnings as errors, central package management (`Directory.Packages.props`).
 
+## Server layout
+
+The server is organised in vertical feature slices on top of shared infrastructure. The test project mirrors the same folders.
+
+```
+src/Hunters.Server/
+  Program.cs                composes infrastructure and features
+  Configuration/            HuntersOptions (the "Hunters" config section)
+  Features/                 one folder per slice: services, endpoints, and a *Feature.cs with its registrations
+    Accounts/               accounts, characters, access tokens for client ESI calls
+    Admin/                  access keys and account administration
+    Admission/              admission policy and periodic recheck
+    Auth/                   logins (desktop and web), sessions, authentication schemes
+    Discovery/              /.well-known/hunters
+  Infrastructure/           shared, feature-independent building blocks
+    Caching/ Messaging/ Presence/   hot-state interfaces with in-memory implementations
+    Eve/                    EVE SSO (OAuth handler, token client, signing keys, token encryption) and ESI
+    Persistence/            EF Core DbContext, entities, migrations
+    WebHosting/             serving the bundled web app
+```
+
+A feature may use infrastructure and, where needed, another feature's services (for example Auth uses Accounts and Admission). Infrastructure never depends on features.
+
 ## Responsibility split for character data
 
 The server handles **character registration and token rotation only**. All character-scoped ESI calls (location, online, ship, waypoints, …) are made by the clients, desktop and web alike, using access tokens issued by the server. Clients report what other users need to see (for example fleet positions) to the server.

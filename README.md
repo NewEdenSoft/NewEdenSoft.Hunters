@@ -51,6 +51,61 @@ dotnet test
 cd web/hunters-web && npm ci && npm run lint && npm run build
 ```
 
+## Configuration
+
+Logins use EVE SSO, so every server needs its own EVE application.
+
+### 1. Register an EVE application
+
+At [developers.eveonline.com](https://developers.eveonline.com/), create an application with:
+
+| Field | Value |
+|---|---|
+| Connection type | Authentication & API Access |
+| Scopes | `esi-location.read_location.v1`, `esi-location.read_online.v1`, `esi-location.read_ship_type.v1`, `esi-ui.write_waypoint.v1` |
+| Callback URL | Local development: `http://localhost:5173/auth/eve/callback`. Self-hosted: `https://<your host>/auth/eve/callback` |
+
+EVE allows one callback URL per application, so use separate applications for development and for a hosted server.
+
+### 2a. Local development (Aspire)
+
+The AppHost passes these to the server. It reads them from the `Parameters` section of [`src/Hunters.AppHost/appsettings.json`](src/Hunters.AppHost/appsettings.json):
+
+| Parameter | Required | Purpose |
+|---|---|---|
+| `eve-client-id` | Yes | Client ID of your EVE application |
+| `eve-client-secret` | Yes | Secret key of your EVE application |
+| `eve-callback-url` | Yes | Defaults to `http://localhost:5173/auth/eve/callback`; must match the application |
+| `server-name` | No | Name shown to clients |
+| `admin-character-id` | No | EVE character ID of the server admin |
+
+Keep the secret out of git by setting it as a user secret of the AppHost instead; user secrets override `appsettings.json`:
+
+```sh
+dotnet user-secrets --project src/Hunters.AppHost set "Parameters:eve-client-id" "<client id>"
+dotnet user-secrets --project src/Hunters.AppHost set "Parameters:eve-client-secret" "<secret key>"
+```
+
+Restart the AppHost after changing parameters. The web dev server always runs on port 5173 so the callback URL stays valid.
+
+### 2b. Self-hosting (Docker Compose)
+
+Copy [`.env.example`](.env.example) to `.env` and fill in:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `DB_PASSWORD` | Yes | PostgreSQL password |
+| `EVE_CLIENT_ID` | Yes | Client ID of your EVE application |
+| `EVE_CLIENT_SECRET` | Yes | Secret key of your EVE application |
+| `HUNTERS_PUBLIC_URL` | Yes | Public base URL, e.g. `https://hunters.example.com`; the callback is this plus `/auth/eve/callback` |
+| `HUNTERS_NAME` | No | Name shown to clients |
+| `HUNTERS_ADMIN_CHARACTER_ID` | No | EVE character ID of the server admin |
+| `HUNTERS_ACCESS_KEY_ENABLED` | No | `true` to require an access key for new accounts |
+| `HUNTERS_BEHIND_PROXY` | No | `true` behind a reverse proxy that terminates TLS |
+| `HUNTERS_WEB_ENABLED`, `HUNTERS_PORT`, `HUNTERS_TAG` | No | Web app hosting, published port, image tag |
+
+Then `docker compose up -d`. The full server configuration reference, including admission rules, is in [Deployment](docs/deployment.md#configuration-reference).
+
 ## Self-hosting
 
 See [Deployment](docs/deployment.md).

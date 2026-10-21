@@ -43,8 +43,8 @@ Server owners **can** restrict who may log in. Admission is optional: with no ru
 
 | Setting | Meaning |
 |---|---|
-| `Mode` | `All`: every enabled rule must pass. `Any`: at least one must pass. |
-| `AccessKey` | Login requires a key. Keys are stored hashed. Either one shared server key or per-user invite keys with optional expiry, use limit and revocation. |
+| `Mode` | How the affiliation and allow-list rules combine. `All`: every enabled rule must pass. `Any`: at least one must pass. |
+| `AccessKey` | Creating a **new account** requires a key; existing accounts log in without one. Keys are stored hashed and created by admins, each with an optional expiry and use limit, and can be revoked. A use is counted when an account is created with the key. |
 | `Affiliation` | Character must belong to one of the listed corporations or alliances. `Scope` is `FirstCharacter` (the account's main) or `AllCharacters`. |
 | `Characters` | Explicit allow and deny lists. Deny always wins. |
 | `RecheckInterval` | How often existing accounts are rechecked. |
@@ -53,10 +53,24 @@ Server owners **can** restrict who may log in. Admission is optional: with no ru
 
 | Rule | Checked at |
 |---|---|
-| Access key | `begin` (desktop) or login start (web), before the browser goes to EVE. |
-| Affiliation, character lists | After the code exchange, once the character is known. Uses ESI's public `POST /characters/affiliation`. |
-| Recheck | Background job every `RecheckInterval`. If an account no longer qualifies, its sessions are revoked and its SignalR connections closed. |
+| Access key | A key that is supplied is validated at `begin` (desktop) or login start (web), so a wrong key fails before the browser goes to EVE. Whether one is *required* is known only after the code exchange, when it is clear the character has no account yet. |
+| Affiliation, character lists | After the code exchange, once the character is known. Uses ESI's public `POST /characters/affiliation`. If ESI cannot be reached the login is refused (fail closed). |
+| Main character change | With `Scope: FirstCharacter`, the new main must pass the rules. |
+| Recheck | Background job every `RecheckInterval`. If an account no longer qualifies, its sessions are revoked. If ESI cannot be reached the run is skipped, so an ESI outage never locks everyone out. |
+
+A rejected login revokes the freshly issued EVE token and stores nothing.
 
 ## Admins
 
-Admin character IDs are set in configuration (`Hunters__Admins__0=…`). Admins can manage access keys, view and remove accounts, and revoke sessions. An admin page in the web app is planned for later.
+Admin character IDs are set in configuration (`Hunters__Admins__0=…`; blank entries are ignored). An account is an admin while any of its characters is listed.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/admin/access-keys` | List access keys |
+| `POST` | `/api/admin/access-keys` | Create a key (label, optional expiry and use limit). The key is returned once. |
+| `DELETE` | `/api/admin/access-keys/{id}` | Revoke a key |
+| `GET` | `/api/admin/accounts` | List accounts |
+| `POST` | `/api/admin/accounts/{id}/disable`, `/enable` | Disable an account (also ends its sessions and blocks login) or re-enable it |
+| `DELETE` | `/api/admin/accounts/{id}/sessions` | End all sessions of an account |
+
+An admin page in the web app is planned for later.

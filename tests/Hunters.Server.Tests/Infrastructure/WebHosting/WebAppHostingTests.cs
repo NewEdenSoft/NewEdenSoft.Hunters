@@ -1,7 +1,7 @@
 using System.Net;
 using NewEdenSoft.Hunters.Contracts.Discovery;
 
-namespace NewEdenSoft.Hunters.Server.Tests.WebHosting;
+namespace NewEdenSoft.Hunters.Server.Tests.Infrastructure.WebHosting;
 
 public sealed class WebAppHostingTests
 {

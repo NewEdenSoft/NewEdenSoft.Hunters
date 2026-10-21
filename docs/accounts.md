@@ -8,7 +8,7 @@ Character registration and account management come first: every other feature de
 |---|---|
 | `Account` | Id, created, main character, status (active / disabled) |
 | `Character` | EVE character id, account id, name, owner hash, granted scopes, encrypted refresh token, cached access token + expiry, status, row version |
-| `Session` | Id, account id, kind (web / desktop), device name, created, last seen, revoked |
+| `Session` | Id, account id, kind (web / desktop), device name, desktop token hash, created, last seen, revoked |
 | `AccessKey` | Hash, label, expiry, use limit, uses, revoked (see [Admission](discovery-and-admission.md)) |
 
 ## Lifecycle
@@ -57,7 +57,9 @@ Revokes all tokens at EVE, deletes all account data, closes all connections.
 | `GET` | `/api/sessions` | List sessions |
 | `DELETE` | `/api/sessions/{id}` | Revoke session |
 
-Admin endpoints (accounts, access keys, disabling accounts) live under `/api/admin/*`.
+Login endpoints (`/auth/...`) are described in [Authentication](authentication.md). Admin endpoints live under `/api/admin/*`; see [Admission](discovery-and-admission.md#admins).
+
+Errors are RFC 7807 problem responses; login errors carry a machine-readable `code` (`access_key_required`, `admission_denied`, `character_linked_elsewhere`, `needs_reauth`, …), defined in `NewEdenSoft.Hunters.Contracts.Auth.AuthErrorCodes`.
 
 ## UI
 

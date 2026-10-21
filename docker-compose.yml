@@ -7,6 +7,10 @@ services:
       Hunters__Name: ${HUNTERS_NAME:-Hunters}
       Hunters__Web__Enabled: ${HUNTERS_WEB_ENABLED:-true}
       Hunters__Admission__AccessKey__Enabled: ${HUNTERS_ACCESS_KEY_ENABLED:-false}
+      Hunters__Admins__0: ${HUNTERS_ADMIN_CHARACTER_ID:-}
+      Hunters__Sso__ClientId: ${EVE_CLIENT_ID:?EVE_CLIENT_ID must be set}
+      Hunters__Sso__ClientSecret: ${EVE_CLIENT_SECRET:?EVE_CLIENT_SECRET must be set}
+      Hunters__Sso__CallbackUrl: ${HUNTERS_PUBLIC_URL:?HUNTERS_PUBLIC_URL must be set}/auth/eve/callback
       ConnectionStrings__hunters: Host=db;Database=hunters;Username=hunters;Password=${DB_PASSWORD:?DB_PASSWORD must be set}
       # Set to true when running behind a reverse proxy (Caddy, Traefik, nginx).
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${HUNTERS_BEHIND_PROXY:-false}

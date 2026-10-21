@@ -1,4 +1,4 @@
-namespace NewEdenSoft.Hunters.Server.WebHosting;
+namespace NewEdenSoft.Hunters.Server.Infrastructure.WebHosting;
 
 public static class WebAppHostingExtensions
 {
