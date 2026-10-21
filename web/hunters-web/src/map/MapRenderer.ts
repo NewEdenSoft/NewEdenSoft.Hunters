@@ -22,11 +22,11 @@ const REGION_DASH = [18, 8]
 const GATE_DASHES = [[], CONSTELLATION_DASH, REGION_DASH]
 
 /** Sizes on screen (CSS pixels) grow with the zoom (pixels per light year) between these limits. */
-const SYSTEM_RADIUS = { perZoom: 0.06, min: 0.9, max: 4 }
-const GATE_WIDTH = { base: 0.25, perZoom: 0.02, min: 0.4, max: 1.2 }
+const SYSTEM_RADIUS = { perZoom: 0.06, min: 0.9, max: 6.5 }
+const GATE_WIDTH = { base: 0.25, perZoom: 0.02, min: 0.4, max: 2 }
 
 /** Clear space between a system and the gates around it, fading in from {@link MARGIN_FROM_ZOOM}. */
-const SYSTEM_MARGIN = { perZoom: 0.15, max: 3 }
+const SYSTEM_MARGIN = { perZoom: 0.15, max: 5 }
 const MARGIN_FROM_ZOOM = 12
 
 /** Gates are drawn a little transparent so the systems stay the brightest thing on the map. */
