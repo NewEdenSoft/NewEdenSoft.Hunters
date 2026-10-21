@@ -34,10 +34,10 @@ Desktop                                        Server                       EVE 
   │                                                │ 6. exchange with client_id:secret,
   │                                                │    admission, store refresh token,
   │                                                │    create single-use loginCode
-  │◄── 7. 302 http://127.0.0.1:{port}/done?loginId&loginCode ──────│
+  │◄── 7. 302 http://127.0.0.1:{port}/callback?loginId&code ───────│
   │    app serves "You can close this tab"
   │ 8. POST /auth/desktop/redeem {loginId, loginCode, appVerifier} ─►│
-  │◄── {appSession, character, eveAccessToken, expiresAt} ──────────│
+  │◄── {sessionToken, sessionId, characterId, account} ─────────────│
 ```
 
 ### Rules
@@ -52,6 +52,10 @@ Desktop                                        Server                       EVE 
 | `loginCode` | Single use, expires after 60 seconds, stored hashed. |
 | `accessKey` | Sent in the `begin` body, never in a URL. An invalid key fails before the browser opens. Only needed to create a new account. |
 | Errors | After EVE, a failed desktop login redirects to the loopback with `error` and `error_description` instead of `code`. |
+
+### Desktop side
+
+`DesktopLoginClient` in `Hunters.Client` runs the whole flow and works with any server. Its `LoopbackListener` is a plain socket on `127.0.0.1` with a port chosen by the OS, so no URL reservation or admin rights are needed. It answers only `GET /callback`, shows a "you can close this tab" or error page, and ignores other requests and idle connections that browsers open. The app waits up to 10 minutes for the browser, and the user can cancel.
 
 A callback link forwarded from another browser fails the correlation check. Even without it, the `loginCode` would go to the victim's own loopback and could not be redeemed without the app's verifier.
 

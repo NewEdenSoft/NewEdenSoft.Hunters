@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Hunters.Server/Hunters.Server.csproj" />
+    <!-- End-to-end tests of the desktop login client against the server. -->
+    <ProjectReference Include="../../src/Hunters.Client/Hunters.Client.csproj" />
   </ItemGroup>
 
 </Project>

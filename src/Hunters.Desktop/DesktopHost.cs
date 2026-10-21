@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Desktop.Platform;
 using NewEdenSoft.Hunters.Desktop.Platform.Windows;
 using NewEdenSoft.Hunters.Desktop.Settings;
@@ -50,6 +51,10 @@ public static class DesktopHost
             services.AddSingleton<IOverlayPlatform, NoOpOverlayPlatform>();
 
         services.AddSingleton<ViewLocator>();
+
+        // Server connection
+        services.AddSingleton<IBrowserLauncher, SystemBrowserLauncher>();
+        services.AddHttpClient<DesktopLoginClient>(http => http.DefaultRequestHeaders.UserAgent.ParseAdd($"Hunters.Desktop/{typeof(DesktopHost).Assembly.GetName().Version}"));
 
         // Shell
         services.AddSingleton<MainWindow>();
