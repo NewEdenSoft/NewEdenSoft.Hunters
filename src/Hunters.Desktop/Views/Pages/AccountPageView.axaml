@@ -125,18 +125,19 @@
                     </StackPanel>
                     <TextBlock Classes="hint" Foreground="{DynamicResource Hud.WarningBrush}" TextWrapping="Wrap"
                                Text="{Binding StatusText}" IsVisible="{Binding NeedsReauth}" />
-                    <!-- Where the character is, from the tracker -->
-                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !NeedsReauth}"
-                                ToolTip.Tip="{Binding TrackingError}">
+                    <!-- Where the character is, from the tracker. A grid, not a horizontal stack panel, so the
+                         text gets only the width left beside the buttons and trims; the tooltip has all of it. -->
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding !NeedsReauth}"
+                          Background="Transparent" ToolTip.Tip="{Binding TrackingTooltip}">
                       <Ellipse Width="7" Height="7" VerticalAlignment="Center"
                                Fill="{DynamicResource Hud.FgFaintBrush}" IsVisible="{Binding !IsOnline}" />
                       <Ellipse Width="7" Height="7" VerticalAlignment="Center"
                                Fill="{DynamicResource Hud.OkBrush}" IsVisible="{Binding IsOnline}" />
-                      <TextBlock Classes="muted hint" Text="{Binding TrackingText}" TextTrimming="CharacterEllipsis"
-                                 IsVisible="{Binding !HasTrackingProblem}" />
-                      <TextBlock Classes="hint" Foreground="{DynamicResource Hud.WarningBrush}" Text="{Binding TrackingText}"
+                      <TextBlock Grid.Column="1" Classes="muted hint" Text="{Binding TrackingText}"
+                                 TextTrimming="CharacterEllipsis" IsVisible="{Binding !HasTrackingProblem}" />
+                      <TextBlock Grid.Column="1" Classes="hint" Foreground="{DynamicResource Hud.WarningBrush}" Text="{Binding TrackingText}"
                                  TextTrimming="CharacterEllipsis" IsVisible="{Binding HasTrackingProblem}" />
-                    </StackPanel>
+                    </Grid>
                   </StackPanel>
 
                   <!-- Actions -->

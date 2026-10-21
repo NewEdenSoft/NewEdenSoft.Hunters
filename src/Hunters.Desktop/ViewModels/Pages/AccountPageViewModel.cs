@@ -304,12 +304,12 @@ public sealed partial class CharacterItemViewModel : ObservableObject
 
     /// <summary>The user wants this character's location polled. Saved for this computer.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TrackingText), nameof(IsOnline), nameof(HasTrackingProblem))]
+    [NotifyPropertyChangedFor(nameof(TrackingText), nameof(TrackingTooltip), nameof(IsOnline), nameof(HasTrackingProblem))]
     public partial bool IsTracked { get; set; }
 
     /// <summary>What the tracker knows; null while not tracked or not started.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TrackingText), nameof(IsOnline), nameof(HasTrackingProblem), nameof(TrackingError))]
+    [NotifyPropertyChangedFor(nameof(TrackingText), nameof(TrackingTooltip), nameof(IsOnline), nameof(HasTrackingProblem), nameof(TrackingError))]
     public partial TrackedCharacter? Tracked { get; set; }
 
     public bool IsOnline => IsTracked && Tracked?.IsOnline == true;
@@ -318,6 +318,9 @@ public sealed partial class CharacterItemViewModel : ObservableObject
     public bool HasTrackingProblem => IsTracked && Tracked?.Status == TrackingStatus.Failing;
 
     public string? TrackingError => Tracked?.Error;
+
+    /// <summary>The whole line, which may be trimmed in the row, and the error while polling fails.</summary>
+    public string TrackingTooltip => TrackingError is { } error ? $"{TrackingText}\n{error}" : TrackingText;
 
     /// <summary>For example "Online · Jita · Docked · Ishtar", or "Offline · Amarr · Capsule".</summary>
     public string TrackingText
