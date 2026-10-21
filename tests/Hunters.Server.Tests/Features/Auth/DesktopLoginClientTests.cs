@@ -72,6 +72,22 @@ public sealed class DesktopLoginClientTests(PostgresFixture postgres) : IDisposa
     }
 
     [Fact]
+    public async Task Waiting_for_the_browser_can_be_cancelled()
+    {
+        var browser = new FakeBrowser(_factory, identity: null) { NeverFinishes = true };
+        using var cancel = new CancellationTokenSource();
+
+        var login = NewClient(browser).LoginAsync(Server, cancellationToken: cancel.Token);
+        while (!browser.WasOpened)
+            await Task.Delay(10);
+        await cancel.CancelAsync();
+
+        var finished = await Task.WhenAny(login, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.Same(login, finished);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => login);
+    }
+
+    [Fact]
     public async Task Unreachable_server_is_reported()
     {
         var client = new DesktopLoginClient(new HttpClient(), new FakeBrowser(_factory, identity: null));

@@ -19,7 +19,10 @@ public sealed class FakeBrowser(HuntersServerFactory factory, EveIdentity? ident
     /// <summary>The character the user logs in with at EVE on the next visit.</summary>
     public EveIdentity? Identity { get; set; } = identity;
 
-    public bool WasOpened => LoopbackPage is not null;
+    public bool WasOpened { get; private set; }
+
+    /// <summary>The user never finishes in the browser (closed the tab, or the browser shows an error page).</summary>
+    public bool NeverFinishes { get; init; }
 
     /// <summary>Opens an idle connection and requests a favicon first, as real browsers do.</summary>
     public bool OpenSpareConnections { get; init; }
@@ -29,6 +32,10 @@ public sealed class FakeBrowser(HuntersServerFactory factory, EveIdentity? ident
 
     public Task OpenAsync(Uri url, CancellationToken cancellationToken)
     {
+        WasOpened = true;
+        if (NeverFinishes)
+            return Task.CompletedTask;
+
         // The app waits on its listener after opening the browser, so the browser runs on its own.
         var identity = Identity;
         LoopbackPage = Task.Run(() => BrowseAsync(url, identity), CancellationToken.None);

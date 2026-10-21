@@ -10,11 +10,29 @@
       <TextBlock Classes="h1" Text="{Binding Title}" />
     </StackPanel>
 
-    <!-- Status line: busy and errors, shared by every action -->
-    <StackPanel Spacing="6" IsVisible="{Binding IsBusy}" Orientation="Horizontal">
-      <TextBlock Classes="muted hint" VerticalAlignment="Center" Text="{Binding BusyText}" />
-      <Button Classes="hud ghost" Content="CANCEL" Command="{Binding CancelLogInCommand}" IsVisible="{Binding IsWaitingForBrowser}" />
-    </StackPanel>
+    <!-- Browser login in progress (log in, add character, log in again): the rest of the page waits, so cancel is prominent -->
+    <c:HudPanel IsVisible="{Binding IsWaitingForBrowser}">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="label accent" Text="WAITING FOR THE BROWSER" />
+          <TextBlock TextWrapping="Wrap" Text="Finish the EVE login in your browser. Hunters continues when it is done." />
+          <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                     Text="Closed the tab, or the browser shows an error? Cancel and try again." />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="hud primary" VerticalAlignment="Center"
+                Content="CANCEL" Command="{Binding CancelLogInCommand}" />
+      </Grid>
+    </c:HudPanel>
+
+    <!-- Other requests: a short status line -->
+    <TextBlock Classes="muted hint" Text="{Binding BusyText}">
+      <TextBlock.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.And}">
+          <Binding Path="IsBusy" />
+          <Binding Path="!IsWaitingForBrowser" />
+        </MultiBinding>
+      </TextBlock.IsVisible>
+    </TextBlock>
     <TextBlock Classes="hint" Foreground="{DynamicResource Hud.DangerBrush}" TextWrapping="Wrap"
                Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
