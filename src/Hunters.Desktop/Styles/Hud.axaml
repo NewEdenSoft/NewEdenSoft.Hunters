@@ -235,11 +235,30 @@
     <Setter Property="BorderThickness" Value="2" />
   </Style>
 
-  <!-- Rows in a widget's list, divided by a hairline: <Border Classes="widget-row" /> -->
-  <Style Selector="Border.widget-row">
+  <!-- Rows in a widget's list, divided by a hairline: <Button Classes="widget-row" /> -->
+  <Style Selector="Button.widget-row">
     <Setter Property="Padding" Value="12,7" />
+    <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
     <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
+                            HorizontalContentAlignment="Stretch" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.widget-row:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+  </Style>
+  <Style Selector="Button.widget-row:focus-visible">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
   </Style>
 
   <!-- Navigation rail: <Button Classes="nav" Classes.selected="{Binding IsSelected}" /> -->

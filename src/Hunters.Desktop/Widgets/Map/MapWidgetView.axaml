@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
              xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
              xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
              x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.MapWidgetView"
              x:DataType="mw:MapWidgetViewModel">
@@ -98,6 +99,33 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+      </StackPanel>
+    </ContentControl>
+
+    <!-- The focused character, with follow and dismiss -->
+    <ContentControl Theme="{StaticResource MapOverlay}" Padding="8,6" Margin="12"
+                    HorizontalAlignment="Right" VerticalAlignment="Top">
+      <ContentControl.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.And}">
+          <Binding Path="IsLoaded" />
+          <Binding Path="HasFocus" />
+        </MultiBinding>
+      </ContentControl.IsVisible>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <c:MarkerBadge Marker="{Binding FocusedMarker}" Width="20" Height="20" Cut="5" VerticalAlignment="Center" />
+        <TextBlock Classes="label" Foreground="{DynamicResource Hud.FgBrush}" VerticalAlignment="Center" MaxWidth="180"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{Binding FocusedName, Converter={x:Static w:UpperCaseConverter.Instance}}" />
+        <Button Classes="hud toggle" Classes.primary="{Binding IsFollowing}" Classes.ghost="{Binding !IsFollowing}"
+                Command="{Binding ToggleFollowCommand}"
+                ToolTip.Tip="Keep the map on this character as it moves. Dragging the map stops following.">
+          <Panel>
+            <TextBlock Text="FOLLOW" IsVisible="{Binding !IsFollowing}" />
+            <TextBlock Text="FOLLOWING" IsVisible="{Binding IsFollowing}" />
+          </Panel>
+        </Button>
+        <Button Classes="hud toggle ghost" Content="✕" Command="{Binding DismissFocusCommand}"
+                ToolTip.Tip="Stop focusing on this character" AutomationProperties.Name="Dismiss" />
       </StackPanel>
     </ContentControl>
 

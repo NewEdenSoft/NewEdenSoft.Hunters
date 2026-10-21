@@ -28,17 +28,27 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     private readonly ThemeCatalog _catalog;
     private readonly CharacterTracking _tracking;
     private readonly CharacterPreferences _characters;
+    private readonly MapFocus _focus;
+
+    /// <summary>A character focused before its location was known; the map moves there once it is.</summary>
+    private long? _awaitingLocation;
     private CancellationTokenSource? _loading;
     private HuntersSession? _loadedFor;
 
     public MapWidgetViewModel(
-        AccountPageViewModel account, MapPreferences preferences, ThemeCatalog catalog, CharacterTracking tracking, CharacterPreferences characters)
+        AccountPageViewModel account,
+        MapPreferences preferences,
+        ThemeCatalog catalog,
+        CharacterTracking tracking,
+        CharacterPreferences characters,
+        MapFocus focus)
     {
         _account = account;
         _preferences = preferences;
         _catalog = catalog;
         _tracking = tracking;
         _characters = characters;
+        _focus = focus;
 
         LayoutChoices = preferences.CreateLayoutChoices();
         FilterChoices = MapFilters.All
@@ -51,12 +61,35 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             {
                 EnsureLoaded();
                 UpdateMarkers();
+                focus.Clear();
             }
         };
 
         // Tracker events come from its polling threads.
-        tracking.Changed += (_, _) => Dispatcher.UIThread.Post(UpdateMarkers);
-        characters.MarkerChanged += (_, _) => UpdateMarkers();
+        tracking.Changed += (_, e) => Dispatcher.UIThread.Post(() =>
+        {
+            UpdateMarkers();
+            OnCharacterMoved(e);
+        });
+        characters.MarkerChanged += (_, _) =>
+        {
+            UpdateMarkers();
+            OnPropertyChanged(nameof(FocusedMarker));
+        };
+        focus.FocusRequested += (_, id) => FocusOn(id);
+        focus.PropertyChanged += (_, _) =>
+        {
+            if (focus.FocusedCharacterId is null)
+            {
+                FocusTarget = null;
+                _awaitingLocation = null;
+            }
+
+            OnPropertyChanged(nameof(HasFocus));
+            OnPropertyChanged(nameof(FocusedName));
+            OnPropertyChanged(nameof(FocusedMarker));
+            OnPropertyChanged(nameof(IsFollowing));
+        };
         preferences.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MapPreferences.Layout))
@@ -77,6 +110,68 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     /// <summary>The account's tracked characters with a known location, main first.</summary>
     [ObservableProperty]
     public partial IReadOnlyList<MapCharacterMarker> Markers { get; private set; } = [];
+
+    /// <summary>Where the map should go next; a new instance for every request, so the view applies each one.</summary>
+    [ObservableProperty]
+    public partial MapFocusTarget? FocusTarget { get; private set; }
+
+    /// <summary>A character is focused: the map shows its name with a follow button.</summary>
+    public bool HasFocus => FocusedCharacter is not null;
+
+    public string? FocusedName => FocusedCharacter?.Name;
+
+    public CharacterMarker? FocusedMarker => FocusedCharacter is { } c ? _characters.GetMarker(c.Id, c.Name) : null;
+
+    public bool IsFollowing => _focus.FollowedCharacterId is { } id && id == _focus.FocusedCharacterId;
+
+    private Contracts.Account.CharacterInfo? FocusedCharacter =>
+        _focus.FocusedCharacterId is { } id ? _account.Session?.Account.Characters.FirstOrDefault(c => c.Id == id) : null;
+
+    /// <summary>A marker on the map was clicked.</summary>
+    public void FocusCharacter(long characterId) => _focus.Focus(characterId);
+
+    /// <summary>The user dragged the map, taking over from following.</summary>
+    public void StopFollowing() => _focus.StopFollowing();
+
+    [RelayCommand]
+    private void ToggleFollow()
+    {
+        if (_focus.FocusedCharacterId is { } id)
+            _focus.ToggleFollow(id);
+    }
+
+    [RelayCommand]
+    private void DismissFocus() => _focus.Clear();
+
+    private void FocusOn(long characterId)
+    {
+        if (_tracking.Get(characterId)?.Location is { } location)
+        {
+            _awaitingLocation = null;
+            FocusTarget = new MapFocusTarget(location.SolarSystemId, ZoomIn: true);
+        }
+        else
+        {
+            _awaitingLocation = characterId;
+        }
+    }
+
+    private void OnCharacterMoved(TrackedCharacterChangedEventArgs e)
+    {
+        if (e.Current?.Location is not { } location)
+            return;
+
+        if (e.CharacterId == _awaitingLocation)
+        {
+            _awaitingLocation = null;
+            FocusTarget = new MapFocusTarget(location.SolarSystemId, ZoomIn: true);
+        }
+        else if (e.CharacterId == _focus.FollowedCharacterId && e.SystemChanged)
+        {
+            // Following keeps the user's zoom.
+            FocusTarget = new MapFocusTarget(location.SolarSystemId, ZoomIn: false);
+        }
+    }
 
     public bool IsLoaded => Model is not null;
 
@@ -241,3 +336,6 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 public sealed record MapSystemInfo(string Name, string Security, IBrush SecurityBrush, string Region, string? Characters);
 
 public sealed record MapLegendItemViewModel(string Label, IBrush Brush);
+
+/// <summary>A system to move the map to; <paramref name="ZoomIn"/> zooms in far enough to read system names.</summary>
+public sealed record MapFocusTarget(int SolarSystemId, bool ZoomIn);

@@ -11,7 +11,7 @@ namespace NewEdenSoft.Hunters.Desktop.Map;
 public sealed record MapPalette(SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent);
 
 /// <summary>One character's marker; offline characters are drawn dimmed at their last known system.</summary>
-public readonly record struct MapMarker(CharacterMarker Marker, bool IsOnline);
+public readonly record struct MapMarker(long CharacterId, CharacterMarker Marker, bool IsOnline);
 
 /// <summary>The markers of the characters in one system, drawn side by side at the end of one leader line.</summary>
 public sealed record MapMarkerGroup(int SystemIndex, IReadOnlyList<MapMarker> Markers);
@@ -168,46 +168,24 @@ public sealed class MapScene
     /// </summary>
     private void DrawMarkers(SKCanvas canvas, in MapCamera camera, IReadOnlyList<MapMarkerGroup> groups)
     {
-        var radius = SystemRadius(camera.Scale);
-        var edge = radius * MathF.Sqrt(0.5f);
         using var line = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1 };
         using var fill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
         using var border = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1 };
         using var content = new SKPaint { IsAntialias = true };
         using var icon = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeCap = SKStrokeCap.Round, StrokeJoin = SKStrokeJoin.Round };
-        var rows = new List<SKRect>();
 
-        foreach (var group in groups)
+        foreach (var row in LayoutMarkers(camera, groups))
         {
-            var sx = camera.ToScreenX(X(group.SystemIndex));
-            var sy = camera.ToScreenY(Y(group.SystemIndex));
-            var anchorX = sx + radius + MarkerLead;
-            var anchorY = sy - radius - MarkerLead;
-            var rowWidth = group.Markers.Count * (MarkerSize + MarkerGap) - MarkerGap;
-            if (sx > camera.Width || anchorX + rowWidth < 0 || anchorY - MarkerSize > camera.Height || sy < 0)
-                continue;
-
-            // Step up past rows already drawn; the line stays straight up and to the right.
-            var row = new SKRect(anchorX, anchorY - MarkerSize, anchorX + rowWidth, anchorY);
-            for (var step = 0; step < 8 && rows.Any(r => r.IntersectsWith(row)); step++)
-            {
-                var lift = MarkerSize + MarkerGap;
-                anchorX += lift;
-                anchorY -= lift;
-                row.Offset(lift, -lift);
-            }
-
-            rows.Add(row);
-
+            var group = row.Group;
             var anyOnline = group.Markers.Any(m => m.IsOnline);
             line.Color = Faded(_palette.Accent, anyOnline);
-            canvas.DrawLine(sx + edge, sy - edge, anchorX, anchorY, line);
+            canvas.DrawLine(row.LineX, row.LineY, row.AnchorX, row.AnchorY, line);
 
             for (var k = 0; k < group.Markers.Count; k++)
             {
                 var marker = group.Markers[k];
-                var left = anchorX + k * (MarkerSize + MarkerGap);
-                var top = anchorY - MarkerSize;
+                var rect = row.Badge(k);
+                var (left, top) = (rect.Left, rect.Top);
                 using var badge = ChamferPath(left, top, MarkerSize, MarkerCut);
                 fill.Color = _palette.Halo;
                 canvas.DrawPath(badge, fill);
@@ -235,6 +213,68 @@ public sealed class MapScene
                     canvas.DrawText(text, left + (MarkerSize - width) / 2, top + MarkerSize / 2 + _markerFont.Metrics.CapHeight / 2, _markerFont, content);
                 }
             }
+        }
+    }
+
+    /// <summary>The character whose marker badge is under a point on screen, or null.</summary>
+    public long? HitTestMarker(in MapCamera camera, IReadOnlyList<MapMarkerGroup> groups, float screenX, float screenY)
+    {
+        // Rows drawn later are on top, so look from the last.
+        var rows = LayoutMarkers(camera, groups);
+        for (var r = rows.Count - 1; r >= 0; r--)
+        {
+            for (var k = 0; k < rows[r].Group.Markers.Count; k++)
+            {
+                if (rows[r].Badge(k).Contains(screenX, screenY))
+                    return rows[r].Group.Markers[k].CharacterId;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Where each group's line and badges go, in drawing order. Shared by drawing and hit-testing so
+    /// a click finds the badge that was drawn. Groups out of view are left out.
+    /// </summary>
+    private List<MarkerRow> LayoutMarkers(in MapCamera camera, IReadOnlyList<MapMarkerGroup> groups)
+    {
+        var radius = SystemRadius(camera.Scale);
+        var edge = radius * MathF.Sqrt(0.5f);
+        var rows = new List<MarkerRow>();
+        foreach (var group in groups)
+        {
+            var sx = camera.ToScreenX(X(group.SystemIndex));
+            var sy = camera.ToScreenY(Y(group.SystemIndex));
+            var anchorX = sx + radius + MarkerLead;
+            var anchorY = sy - radius - MarkerLead;
+            var rowWidth = group.Markers.Count * (MarkerSize + MarkerGap) - MarkerGap;
+            if (sx > camera.Width || anchorX + rowWidth < 0 || anchorY - MarkerSize > camera.Height || sy < 0)
+                continue;
+
+            // Step up past rows already placed; the line stays straight up and to the right.
+            var bounds = new SKRect(anchorX, anchorY - MarkerSize, anchorX + rowWidth, anchorY);
+            for (var step = 0; step < 8 && rows.Any(r => r.Bounds.IntersectsWith(bounds)); step++)
+            {
+                var lift = MarkerSize + MarkerGap;
+                anchorX += lift;
+                anchorY -= lift;
+                bounds.Offset(lift, -lift);
+            }
+
+            rows.Add(new MarkerRow(group, sx + edge, sy - edge, anchorX, anchorY, bounds));
+        }
+
+        return rows;
+    }
+
+    /// <summary>One group's leader line (from the system's edge to the anchor) and its row of badges.</summary>
+    private readonly record struct MarkerRow(MapMarkerGroup Group, float LineX, float LineY, float AnchorX, float AnchorY, SKRect Bounds)
+    {
+        public SKRect Badge(int k)
+        {
+            var left = AnchorX + k * (MarkerSize + MarkerGap);
+            return new SKRect(left, AnchorY - MarkerSize, left + MarkerSize, AnchorY);
         }
     }
 

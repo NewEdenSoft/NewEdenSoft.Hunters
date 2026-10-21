@@ -14,8 +14,9 @@
       <ItemsControl ItemsSource="{Binding Characters}" Margin="0,4">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="wc:CharacterRowViewModel">
-            <Border Classes="widget-row" Background="Transparent" ToolTip.Tip="{Binding Details}">
-              <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+            <Button Classes="widget-row" Command="{Binding FocusCommand}" ToolTip.Tip="{Binding Details}"
+                    AutomationProperties.Name="{Binding Name, StringFormat='Show {0} on the map'}">
+              <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
                 <c:MarkerBadge Marker="{Binding Marker}" Width="22" Height="22" Cut="5" VerticalAlignment="Center" />
 
                 <Panel Grid.Column="1" Width="36" Height="36" VerticalAlignment="Center">
@@ -43,8 +44,17 @@
                   <TextBlock Classes="muted" FontSize="12.5" Text="{Binding ShipLine}" TextTrimming="CharacterEllipsis"
                              IsVisible="{Binding ShipLine, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 </StackPanel>
+
+                <!-- Follow: keeps the map on this character -->
+                <Button Grid.Column="3" Classes="marker" VerticalAlignment="Center"
+                        Command="{Binding ToggleFollowCommand}"
+                        ToolTip.Tip="Follow on the map"
+                        AutomationProperties.Name="{Binding Name, StringFormat='Follow {0} on the map'}">
+                  <c:MarkerBadge Marker="{x:Static wc:CharacterRowViewModel.FollowIcon}" Width="24" Height="24" Cut="5"
+                                 Classes.selected="{Binding IsFollowed}" />
+                </Button>
               </Grid>
-            </Border>
+            </Button>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>

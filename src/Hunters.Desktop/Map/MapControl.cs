@@ -17,7 +17,8 @@ public readonly record struct MapHover(int Index, Point Position);
 public sealed record MapCharacterMarker(long CharacterId, string Name, int SolarSystemId, CharacterMarker Marker, bool IsOnline);
 
 /// <summary>
-/// Draws the map with Skia (docs/decisions.md, D21) and handles pan (drag), zoom (wheel) and hover.
+/// Draws the map with Skia (docs/decisions.md, D21) and handles pan (drag), zoom (wheel), hover,
+/// clicks on character markers, and animated focus on a system.
 /// The drawing itself is in <see cref="MapScene"/>; this control owns the camera and the input, and
 /// rebuilds the scene when the model, layout, filter or theme colours change. It has no background
 /// of its own, so the map shows over its parent (a panel, or an overlay at the user's opacity).
@@ -60,6 +61,16 @@ public sealed class MapControl : Control
     /// <summary>Zoom per wheel notch: e^0.15, about 16%.</summary>
     private const double WheelStep = 0.15;
 
+    /// <summary>Focusing zooms in at least this far (pixels per light year), so system names show.</summary>
+    public const float FocusScale = 60;
+
+    private const double FocusMilliseconds = 350;
+
+    /// <summary>A press that moves less than this is a click, not a drag.</summary>
+    private const double ClickSlop = 4;
+
+    private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
+
     private static readonly Lazy<MapFonts> Fonts = new(() => new MapFonts(
         LoadTypeface("Saira-Regular.ttf"),
         LoadTypeface("Oxanium-SemiBold.ttf")));
@@ -72,6 +83,10 @@ public sealed class MapControl : Control
     private bool _fitted;
     private int _hovered = -1;
     private Point? _dragFrom;
+    private Point _pressedAt;
+    private bool _panned;
+    private (int SolarSystemId, bool ZoomIn)? _pendingFocus;
+    private FocusAnimation? _animation;
     private IReadOnlyList<MapMarkerGroup> _markerGroups = [];
 
     static MapControl()
@@ -137,6 +152,38 @@ public sealed class MapControl : Control
     /// <summary>The hovered system changed or moved on screen; null when no system is hovered.</summary>
     public event EventHandler<MapHover?>? HoverChanged;
 
+    /// <summary>A character's marker was clicked; the argument is the character id.</summary>
+    public event EventHandler<long>? MarkerClicked;
+
+    /// <summary>The user dragged the map (for example, to stop following a character).</summary>
+    public event EventHandler? UserPanned;
+
+    /// <summary>
+    /// Moves the map to a system with a short animation, zooming in to at least <see cref="FocusScale"/>
+    /// when <paramref name="zoomIn"/> (otherwise keeping the zoom). Before the map is shown, the
+    /// focus waits and is applied without animation.
+    /// </summary>
+    public void FocusOn(int solarSystemId, bool zoomIn)
+    {
+        if (_scene is null || !_fitted || Bounds.Width <= 0 || TopLevel.GetTopLevel(this) is not { } top)
+        {
+            _pendingFocus = (solarSystemId, zoomIn);
+            InvalidateVisual();
+            return;
+        }
+
+        if (!_scene.Model.IndexOf.TryGetValue(solarSystemId, out var index))
+            return;
+
+        var (width, height) = ((float)Bounds.Width, (float)Bounds.Height);
+        var scale = zoomIn ? ClampScale(Math.Max(_scale, FocusScale)) : _scale;
+        _animation = new FocusAnimation(
+            _scale, (width / 2 - _offsetX) / _scale, (height / 2 - _offsetY) / _scale,
+            scale, _scene.X(index), _scene.Y(index));
+        SetHovered(-1);
+        top.RequestAnimationFrame(OnAnimationFrame);
+    }
+
     /// <summary>Zooms out to show the whole map.</summary>
     public void Fit()
     {
@@ -162,7 +209,8 @@ public sealed class MapControl : Control
     /// <summary>Zooms by a factor around a point on the control.</summary>
     public void ZoomAt(Point at, double factor)
     {
-        var scale = Math.Clamp(_scale * (float)factor, _fitScale * 0.5f, _fitScale * 80);
+        _animation = null;
+        var scale = ClampScale(_scale * (float)factor);
         var applied = scale / _scale;
         _offsetX = (float)(at.X - (at.X - _offsetX) * applied);
         _offsetY = (float)(at.Y - (at.Y - _offsetY) * applied);
@@ -177,6 +225,13 @@ public sealed class MapControl : Control
 
         if (!_fitted)
             FitCamera();
+
+        // A focus asked for before the map was shown: jump there.
+        if (_pendingFocus is { } focus && _fitted && _scene.Model.IndexOf.TryGetValue(focus.SolarSystemId, out var index))
+        {
+            _pendingFocus = null;
+            CentreOn(_scene.X(index), _scene.Y(index), focus.ZoomIn ? ClampScale(Math.Max(_scale, FocusScale)) : _scale);
+        }
 
         context.Custom(new DrawOperation(new Rect(Bounds.Size), _scene, Camera(), _hovered, _markerGroups));
     }
@@ -234,7 +289,8 @@ public sealed class MapControl : Control
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             return;
 
-        _dragFrom = e.GetPosition(this);
+        _dragFrom = _pressedAt = e.GetPosition(this);
+        _panned = false;
         e.Pointer.Capture(this);
         e.Handled = true;
     }
@@ -246,7 +302,18 @@ public sealed class MapControl : Control
         if (_dragFrom is not { } from)
         {
             UpdateHover(at);
+            Cursor = MarkerAt(at) is null ? null : HandCursor;
             return;
+        }
+
+        // Small movements while pressing are still a click.
+        if (!_panned)
+        {
+            if (Math.Abs(at.X - _pressedAt.X) < ClickSlop && Math.Abs(at.Y - _pressedAt.Y) < ClickSlop)
+                return;
+            _panned = true;
+            _animation = null;
+            UserPanned?.Invoke(this, EventArgs.Empty);
         }
 
         _offsetX += (float)(at.X - from.X);
@@ -264,7 +331,10 @@ public sealed class MapControl : Control
 
         _dragFrom = null;
         e.Pointer.Capture(null);
-        UpdateHover(e.GetPosition(this));
+        var at = e.GetPosition(this);
+        if (!_panned && MarkerAt(at) is { } characterId)
+            MarkerClicked?.Invoke(this, characterId);
+        UpdateHover(at);
     }
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
@@ -281,6 +351,52 @@ public sealed class MapControl : Control
     }
 
     private MapCamera Camera() => new(_scale, _offsetX, _offsetY, (float)Bounds.Width, (float)Bounds.Height);
+
+    private float ClampScale(float scale) => Math.Clamp(scale, _fitScale * 0.5f, _fitScale * 80);
+
+    private long? MarkerAt(Point at) =>
+        _scene is null || _markerGroups.Count == 0 ? null : _scene.HitTestMarker(Camera(), _markerGroups, (float)at.X, (float)at.Y);
+
+    /// <summary>Puts a world point in the middle of the control at a zoom.</summary>
+    private void CentreOn(float worldX, float worldY, float scale)
+    {
+        _scale = scale;
+        _offsetX = (float)Bounds.Width / 2 - worldX * scale;
+        _offsetY = (float)Bounds.Height / 2 - worldY * scale;
+        InvalidateVisual();
+    }
+
+    private void OnAnimationFrame(TimeSpan time)
+    {
+        if (_animation is not { } a)
+            return;
+
+        a.Start ??= time;
+        var progress = Math.Clamp((time - a.Start.Value).TotalMilliseconds / FocusMilliseconds, 0, 1);
+        var t = (float)(1 - Math.Pow(1 - progress, 3));
+        // The zoom changes geometrically, so zooming in feels even; the centre moves in a straight line.
+        CentreOn(
+            a.FromX + (a.ToX - a.FromX) * t,
+            a.FromY + (a.ToY - a.FromY) * t,
+            a.FromScale * MathF.Pow(a.ToScale / a.FromScale, t));
+
+        if (progress < 1)
+            TopLevel.GetTopLevel(this)?.RequestAnimationFrame(OnAnimationFrame);
+        else
+            _animation = null;
+    }
+
+    /// <summary>From and to: zoom and the world point in the middle.</summary>
+    private sealed class FocusAnimation(float fromScale, float fromX, float fromY, float toScale, float toX, float toY)
+    {
+        public float FromScale => fromScale;
+        public float FromX => fromX;
+        public float FromY => fromY;
+        public float ToScale => toScale;
+        public float ToX => toX;
+        public float ToY => toY;
+        public TimeSpan? Start { get; set; }
+    }
 
     private void RebuildScene()
     {
@@ -299,7 +415,7 @@ public sealed class MapControl : Control
             ? markers
                 .Where(m => model.IndexOf.ContainsKey(m.SolarSystemId))
                 .GroupBy(m => model.IndexOf[m.SolarSystemId])
-                .Select(g => new MapMarkerGroup(g.Key, [.. g.Select(m => new MapMarker(m.Marker, m.IsOnline))]))
+                .Select(g => new MapMarkerGroup(g.Key, [.. g.Select(m => new MapMarker(m.CharacterId, m.Marker, m.IsOnline))]))
                 .ToList()
             : [];
         InvalidateVisual();

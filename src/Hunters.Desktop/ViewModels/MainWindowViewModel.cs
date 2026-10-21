@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 using NewEdenSoft.Hunters.Desktop.Widgets;
 
@@ -9,9 +10,17 @@ namespace NewEdenSoft.Hunters.Desktop.ViewModels;
 /// <summary>Main window shell: navigation rail with widget pages and system pages.</summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
-    public MainWindowViewModel(WidgetManager widgets, AccountPageViewModel account, SettingsPageViewModel settings)
+    public MainWindowViewModel(WidgetManager widgets, AccountPageViewModel account, SettingsPageViewModel settings, MapFocus mapFocus)
     {
         WidgetPages = widgets.Widgets.Select(w => new WidgetPageViewModel(w, widgets)).ToList();
+
+        // Focusing on a character shows the map: a docked map's page is selected (a floating one is already on screen).
+        mapFocus.FocusRequested += (_, _) =>
+        {
+            if (WidgetPages.FirstOrDefault(p => p.Widget.Id == MapWidgetId) is { Widget.IsFloating: false } page && !page.IsSelected)
+                Navigate(page);
+        };
+
         SystemPages = [account, settings];
 
         foreach (var page in WidgetPages)
@@ -19,6 +28,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         Navigate(WidgetPages.FirstOrDefault() ?? (PageViewModel)account);
     }
+
+    /// <summary>The map widget's id, as registered in <see cref="DesktopHost"/>.</summary>
+    public const string MapWidgetId = "map";
 
     public IReadOnlyList<WidgetPageViewModel> WidgetPages { get; }
 

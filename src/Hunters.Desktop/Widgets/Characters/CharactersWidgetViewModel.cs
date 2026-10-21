@@ -4,17 +4,20 @@ using System.ComponentModel;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using NewEdenSoft.Hunters.Client.Tracking;
 using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Images;
+using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 
 namespace NewEdenSoft.Hunters.Desktop.Widgets.Characters;
 
 /// <summary>
 /// The account's characters at a glance: marker, portrait, online, system and ship, live from the
-/// tracker. Main first, then by name, so rows do not move as characters log in and out.
+/// tracker. Main first, then by name, so rows do not move as characters log in and out. Clicking a
+/// row focuses the map on the character; the follow button keeps the map on it.
 /// </summary>
 public sealed partial class CharactersWidgetViewModel : WidgetViewModelBase
 {
@@ -23,10 +26,17 @@ public sealed partial class CharactersWidgetViewModel : WidgetViewModelBase
     private readonly CharacterPreferences _preferences;
     private readonly EveNames _names;
     private readonly PortraitCache _portraits;
+    private readonly MapFocus _focus;
 
     public CharactersWidgetViewModel(
-        AccountPageViewModel account, CharacterTracking tracking, CharacterPreferences preferences, EveNames names, PortraitCache portraits)
+        AccountPageViewModel account,
+        CharacterTracking tracking,
+        CharacterPreferences preferences,
+        EveNames names,
+        PortraitCache portraits,
+        MapFocus focus)
     {
+        _focus = focus;
         _account = account;
         _tracking = tracking;
         _preferences = preferences;
@@ -48,6 +58,12 @@ public sealed partial class CharactersWidgetViewModel : WidgetViewModelBase
         {
             if (Find(id) is { } row)
                 row.IsTracked = preferences.IsTracked(id);
+        };
+
+        focus.PropertyChanged += (_, _) =>
+        {
+            foreach (var row in Characters)
+                row.IsFollowed = row.Id == focus.FollowedCharacterId;
         };
 
         Rebuild();
@@ -82,10 +98,11 @@ public sealed partial class CharactersWidgetViewModel : WidgetViewModelBase
         Characters.Clear();
         foreach (var character in ordered)
         {
-            var row = new CharacterRowViewModel(character, _names)
+            var row = new CharacterRowViewModel(character, _names, _focus)
             {
                 Marker = _preferences.GetMarker(character.Id, character.Name),
                 IsTracked = _preferences.IsTracked(character.Id),
+                IsFollowed = character.Id == _focus.FollowedCharacterId,
             };
             row.LoadPortrait(_portraits);
             row.ShowTracking(_tracking.Get(character.Id));
@@ -95,7 +112,7 @@ public sealed partial class CharactersWidgetViewModel : WidgetViewModelBase
 }
 
 /// <summary>One character in the widget.</summary>
-public sealed partial class CharacterRowViewModel(CharacterInfo character, EveNames names) : ObservableObject
+public sealed partial class CharacterRowViewModel(CharacterInfo character, EveNames names, MapFocus focus) : ObservableObject
 {
     private int _trackingVersion;
 
@@ -113,6 +130,21 @@ public sealed partial class CharacterRowViewModel(CharacterInfo character, EveNa
 
     [ObservableProperty]
     public partial Bitmap? Portrait { get; private set; }
+
+    /// <summary>The follow button's icon.</summary>
+    public static readonly CharacterMarker FollowIcon = new(MarkerKind.Icon, "target");
+
+    /// <summary>The map follows this character.</summary>
+    [ObservableProperty]
+    public partial bool IsFollowed { get; set; }
+
+    /// <summary>Moves the map to the character.</summary>
+    [RelayCommand]
+    private void Focus() => focus.Focus(Id);
+
+    /// <summary>Keeps the map on the character as it moves, or stops.</summary>
+    [RelayCommand]
+    private void ToggleFollow() => focus.ToggleFollow(Id);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOnline), nameof(PlaceLine), nameof(ShipLine), nameof(HasProblem), nameof(Details))]

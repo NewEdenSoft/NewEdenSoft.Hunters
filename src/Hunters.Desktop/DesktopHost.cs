@@ -88,6 +88,7 @@ public static class DesktopHost
         services.AddSingleton<WidgetManager>();
 
         services.AddSingleton<MapPreferences>();
+        services.AddSingleton<MapFocus>();
 
         // System pages
         services.AddSingleton<AccountPageViewModel>();
@@ -98,7 +99,7 @@ public static class DesktopHost
 
         // Widgets, in navigation order
         services.AddWidget<MapWidgetViewModel, MapWidgetView>(
-            "map", "Map", "Known space, coloured by security. Drag to pan, scroll to zoom.", 520, 400, fillsPage: true);
+            MainWindowViewModel.MapWidgetId, "Map", "Known space, coloured by security. Drag to pan, scroll to zoom.", 520, 400, fillsPage: true);
         services.AddWidget<CharactersWidgetViewModel, CharactersWidgetView>(
             "characters", "Characters", "Your characters: online or not, where they are and what they fly.", 300, 280);
         services.AddWidget<NearbyActivityWidgetViewModel, PlaceholderWidgetView>(
