@@ -72,5 +72,10 @@ The desktop app keeps its session token in memory and logs in again at every sta
 
 *Rejected:* storing the session in the OS credential store (Credential Manager, Keychain, Secret Service): convenient, but a stolen token gives full access to the account until revoked, and it needs a credential implementation per OS.
 
+## D21 — The map is 2D, drawn with Canvas 2D (web) and Skia (desktop)
+Both clients draw the map in 2D with an immediate-mode renderer: Canvas 2D in the browser, SkiaSharp on the desktop. Gates are one cached path stroked under the view transform, systems are batched by colour, and labels are placed with level of detail and collision avoidance. The two renderers follow the same model, so layout, hit-testing and label rules can be shared and tested in both languages.
+
+*Rejected:* three.js / React Three Fiber with a 2D/3D camera switch (tried in an earlier version of this project; text labels were painful); SVG or one DOM element per system (too many elements for smooth pan and zoom); graph libraries such as Sigma.js (hard to style to the HUD and to layer our own overlays).
+
 ## D15 — Desktop is Windows first; platform features behind interfaces
 Overlay, hotkey and log-location code sits behind per-OS interfaces. Windows first, macOS second, Linux X11 best effort, Wayland limited. See [Desktop Client](desktop-client.md#platform-support).

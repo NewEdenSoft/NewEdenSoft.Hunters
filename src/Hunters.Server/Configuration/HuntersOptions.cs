@@ -22,6 +22,8 @@ public sealed class HuntersOptions
 
     public AdmissionOptions Admission { get; set; } = new();
 
+    public SdeOptions Sde { get; set; } = new();
+
     /// <summary>EVE character ids whose accounts are server admins. Blank entries are ignored.</summary>
     public string[] Admins { get; set; } = [];
 
@@ -42,6 +44,19 @@ public sealed class DataProtectionSettings
     /// refresh tokens become unreadable. Defaults to a folder under local application data.
     /// </summary>
     public string? KeysPath { get; set; }
+}
+
+/// <summary>The SDE, from which the server builds the map pack.</summary>
+public sealed class SdeOptions
+{
+    /// <summary>
+    /// Directory for the downloaded SDE archive (about 100 MB) and the extracted map data. Keep it on
+    /// a volume to avoid downloading again after a restart. Defaults to a folder under local application data.
+    /// </summary>
+    public string? CachePath { get; set; }
+
+    /// <summary>How often to check CCP for a new SDE build.</summary>
+    public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromHours(6);
 }
 
 public sealed class DatabaseOptions
