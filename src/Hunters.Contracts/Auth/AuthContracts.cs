@@ -16,7 +16,7 @@ public sealed record BeginDesktopLoginResponse(string LoginId, string BrowserUrl
 /// <summary>Exchanges the single-use code delivered to the loopback listener for an app session.</summary>
 public sealed record RedeemDesktopLoginRequest(string LoginId, string LoginCode, string AppVerifier);
 
-/// <param name="SessionToken">Bearer token for this device. Store it in the OS credential store.</param>
+/// <param name="SessionToken">Bearer token for this device. The desktop app keeps it in memory only (see docs/decisions.md, D20).</param>
 public sealed record DesktopLoginResult(string SessionToken, Guid SessionId, bool IsNewAccount, long CharacterId, AccountInfo Account);
 
 public static class AuthPaths
