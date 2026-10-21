@@ -3,11 +3,11 @@ import type { MapLayout } from '../map/model'
 
 // Map settings, kept in this browser like the theme (theme/themes.ts).
 const LAYOUT_KEY = 'hunters.map.layout'
-const DEFAULT_LAYOUT: MapLayout = 'topDown'
+const DEFAULT_LAYOUT: MapLayout = 'flat'
 
 export const mapLayouts: { id: MapLayout; label: string }[] = [
-  { id: 'topDown', label: 'Top-down' },
   { id: 'flat', label: '2D map' },
+  { id: 'topDown', label: 'Top-down' },
 ]
 
 const listeners = new Set<() => void>()

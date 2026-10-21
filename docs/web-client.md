@@ -42,7 +42,7 @@ Each frame: gates are stroked under the view transform: solid within a constella
 
 The layout is a user setting, kept in local storage like the theme (`settings/mapSettings.ts`, key `hunters.map.layout`) and chosen on the map or on the Settings page. The colour filter is in the URL (`/map?colour=…`, default left out), so a view can be linked.
 
-The map pack is fetched by the SDE build named in the discovery document and kept in the TanStack Query cache for the session; IndexedDB persistence comes next. The page offers both layouts in the pack (top-down and CCP's 2D map) while we decide on the default.
+The map pack is fetched by the SDE build named in the discovery document and kept in the TanStack Query cache for the session; IndexedDB persistence comes next. The page offers both layouts in the pack: CCP's 2D map, the default, and top-down.
 
 ## Account page
 
