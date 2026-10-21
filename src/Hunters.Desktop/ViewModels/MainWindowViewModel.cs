@@ -6,12 +6,11 @@ using NewEdenSoft.Hunters.Desktop.Widgets;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels;
 
-/// <summary>Main window shell: navigation rail with view pages, widget pages and system pages.</summary>
+/// <summary>Main window shell: navigation rail with widget pages and system pages.</summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
-    public MainWindowViewModel(WidgetManager widgets, MapPageViewModel map, AccountPageViewModel account, SettingsPageViewModel settings)
+    public MainWindowViewModel(WidgetManager widgets, AccountPageViewModel account, SettingsPageViewModel settings)
     {
-        ViewPages = [map];
         WidgetPages = widgets.Widgets.Select(w => new WidgetPageViewModel(w, widgets)).ToList();
         SystemPages = [account, settings];
 
@@ -20,8 +19,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
         Navigate(WidgetPages.FirstOrDefault() ?? (PageViewModel)account);
     }
-
-    public IReadOnlyList<PageViewModel> ViewPages { get; }
 
     public IReadOnlyList<WidgetPageViewModel> WidgetPages { get; }
 
@@ -34,7 +31,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>The current page when it scrolls in the padded content area.</summary>
     public PageViewModel? ScrollingPage => CurrentPage is { IsFullBleed: false } ? CurrentPage : null;
 
-    /// <summary>The current page when it fills the content area.</summary>
+    /// <summary>The current page when it fills the content area (a docked map).</summary>
     public PageViewModel? FullBleedPage => CurrentPage is { IsFullBleed: true } ? CurrentPage : null;
 
     public bool IsFullBleed => CurrentPage?.IsFullBleed == true;
@@ -65,8 +62,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OnWidgetChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(WidgetState.IsFloating))
-            UpdateDockedActivity();
+        if (e.PropertyName != nameof(WidgetState.IsFloating))
+            return;
+
+        UpdateDockedActivity();
+        // A widget that fills its page scrolls with it while floating (its page shows overlay settings).
+        OnPropertyChanged(nameof(ScrollingPage));
+        OnPropertyChanged(nameof(FullBleedPage));
+        OnPropertyChanged(nameof(IsFullBleed));
     }
 
     /// <summary>Docked widgets are active only while their page is visible. Floating ones are handled by <see cref="WidgetManager"/>.</summary>

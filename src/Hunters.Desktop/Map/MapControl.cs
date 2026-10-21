@@ -15,7 +15,8 @@ public readonly record struct MapHover(int Index, Point Position);
 /// <summary>
 /// Draws the map with Skia (docs/decisions.md, D21) and handles pan (drag), zoom (wheel) and hover.
 /// The drawing itself is in <see cref="MapScene"/>; this control owns the camera and the input, and
-/// rebuilds the scene when the model, layout, filter or theme colours change.
+/// rebuilds the scene when the model, layout, filter or theme colours change. It has no background
+/// of its own, so the map shows over its parent (a panel, or an overlay at the user's opacity).
 /// </summary>
 public sealed class MapControl : Control
 {
@@ -28,8 +29,9 @@ public sealed class MapControl : Control
     public static readonly StyledProperty<MapFilter?> FilterProperty =
         AvaloniaProperty.Register<MapControl, MapFilter?>(nameof(Filter));
 
-    public static readonly StyledProperty<Color> BackgroundColorProperty =
-        AvaloniaProperty.Register<MapControl, Color>(nameof(BackgroundColor), Colors.Black);
+    /// <summary>Outline around region names, usually the page background.</summary>
+    public static readonly StyledProperty<Color> HaloColorProperty =
+        AvaloniaProperty.Register<MapControl, Color>(nameof(HaloColor), Colors.Black);
 
     /// <summary>Gates to hidden systems.</summary>
     public static readonly StyledProperty<Color> GateColorProperty =
@@ -87,10 +89,10 @@ public sealed class MapControl : Control
         set => SetValue(FilterProperty, value);
     }
 
-    public Color BackgroundColor
+    public Color HaloColor
     {
-        get => GetValue(BackgroundColorProperty);
-        set => SetValue(BackgroundColorProperty, value);
+        get => GetValue(HaloColorProperty);
+        set => SetValue(HaloColorProperty, value);
     }
 
     public Color GateColor
@@ -174,7 +176,7 @@ public sealed class MapControl : Control
             _fitted = false;
             RebuildScene();
         }
-        else if (change.Property == FilterProperty || change.Property == BackgroundColorProperty || change.Property == GateColorProperty ||
+        else if (change.Property == FilterProperty || change.Property == HaloColorProperty || change.Property == GateColorProperty ||
                  change.Property == TextColorProperty || change.Property == MutedTextColorProperty || change.Property == HoverColorProperty)
         {
             RebuildScene();
@@ -271,7 +273,7 @@ public sealed class MapControl : Control
     }
 
     private MapPalette Palette() => new(
-        ToSkia(BackgroundColor), ToSkia(GateColor), ToSkia(TextColor), ToSkia(MutedTextColor), ToSkia(TextColor), ToSkia(HoverColor));
+        ToSkia(HaloColor), ToSkia(GateColor), ToSkia(TextColor), ToSkia(MutedTextColor), ToSkia(TextColor), ToSkia(HoverColor));
 
     private void UpdateHover(Point at) =>
         SetHovered(_scene?.HitTest(Camera(), (float)at.X, (float)at.Y) ?? -1);

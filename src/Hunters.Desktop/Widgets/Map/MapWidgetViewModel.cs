@@ -5,14 +5,16 @@ using CommunityToolkit.Mvvm.Input;
 using NewEdenSoft.Hunters.Client.Sessions;
 using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Theming;
+using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 
-namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
+namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 
 /// <summary>
-/// The map of known space. The map pack named by the server's discovery document is downloaded the
-/// first time the page is shown in a session and kept in memory for the session.
+/// The map of known space, as a widget: docked in the main window or floating as an overlay. The
+/// map pack named by the server's discovery document is downloaded the first time the widget is on
+/// screen in a session and kept in memory for the session.
 /// </summary>
-public sealed partial class MapPageViewModel : PageViewModel
+public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 {
     /// <summary>How often to ask again while the server is still building the map pack.</summary>
     private static readonly TimeSpan PreparingRetry = TimeSpan.FromSeconds(10);
@@ -23,7 +25,7 @@ public sealed partial class MapPageViewModel : PageViewModel
     private CancellationTokenSource? _loading;
     private HuntersSession? _loadedFor;
 
-    public MapPageViewModel(AccountPageViewModel account, MapPreferences preferences, ThemeCatalog catalog)
+    public MapWidgetViewModel(AccountPageViewModel account, MapPreferences preferences, ThemeCatalog catalog)
     {
         _account = account;
         _preferences = preferences;
@@ -45,10 +47,6 @@ public sealed partial class MapPageViewModel : PageViewModel
                 OnPropertyChanged(nameof(Layout));
         };
     }
-
-    public override string Title => "Map";
-
-    public override bool IsFullBleed => true;
 
     public MapLayout Layout => _preferences.Layout;
 
@@ -113,7 +111,7 @@ public sealed partial class MapPageViewModel : PageViewModel
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
-        if (e.PropertyName == nameof(IsSelected) && IsSelected)
+        if (e.PropertyName == nameof(IsActive) && IsActive)
             EnsureLoaded();
     }
 
@@ -124,7 +122,7 @@ public sealed partial class MapPageViewModel : PageViewModel
             FilterChoices[i].IsSelected = MapFilters.All[i].Id == value;
     }
 
-    /// <summary>Loads the map for the current session, the first time the page is shown in it.</summary>
+    /// <summary>Loads the map for the current session, the first time the widget is on screen in it.</summary>
     private void EnsureLoaded()
     {
         var session = _account.Session;
@@ -145,7 +143,7 @@ public sealed partial class MapPageViewModel : PageViewModel
             return;
         }
 
-        if (IsSelected && _loadedFor is null)
+        if (IsActive && _loadedFor is null)
             _ = LoadAsync(session);
     }
 

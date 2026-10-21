@@ -16,6 +16,7 @@ using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 using NewEdenSoft.Hunters.Desktop.Views;
 using NewEdenSoft.Hunters.Desktop.Views.Pages;
 using NewEdenSoft.Hunters.Desktop.Widgets;
+using NewEdenSoft.Hunters.Desktop.Widgets.Map;
 using NewEdenSoft.Hunters.Desktop.Widgets.Placeholders;
 
 namespace NewEdenSoft.Hunters.Desktop;
@@ -71,10 +72,7 @@ public static class DesktopHost
         services.AddSingleton<TrayIconService>();
         services.AddSingleton<WidgetManager>();
 
-        // View pages
         services.AddSingleton<MapPreferences>();
-        services.AddSingleton<MapPageViewModel>();
-        services.AddView<MapPageViewModel, MapPageView>();
 
         // System pages
         services.AddSingleton<AccountPageViewModel>();
@@ -84,6 +82,8 @@ public static class DesktopHost
         services.AddView<WidgetPageViewModel, WidgetPageView>();
 
         // Widgets, in navigation order
+        services.AddWidget<MapWidgetViewModel, MapWidgetView>(
+            "map", "Map", "Known space, coloured by security. Drag to pan, scroll to zoom.", 520, 400, fillsPage: true);
         services.AddWidget<NearbyActivityWidgetViewModel, PlaceholderWidgetView>(
             "nearby-activity", "Nearby activity", "Systems near your characters with recent kills and jumps.", 320, 260);
         services.AddWidget<FleetWidgetViewModel, PlaceholderWidgetView>(

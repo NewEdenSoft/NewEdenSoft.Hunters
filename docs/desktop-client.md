@@ -123,7 +123,7 @@ After login the saved overlays are restored, and the main window hides to the tr
 
 | Piece | Role |
 |---|---|
-| `services.AddWidget<TViewModel, TView>(id, title, description, width, height)` | Registers a widget. Its view model is a single instance, so state survives moving between page and overlay. |
+| `services.AddWidget<TViewModel, TView>(id, title, description, width, height, fillsPage)` | Registers a widget. Its view model is a single instance, so state survives moving between page and overlay. With `fillsPage`, the docked widget fills the height of its page instead of scrolling (the map). |
 | `WidgetViewModelBase.IsActive` | True while the widget is on screen (selected page in a visible main window, or a shown overlay). Use it to pause polling. |
 | `WidgetState` | Live layout state per widget, bound by the page and the overlay. |
 | `WidgetManager` | Floats and docks widgets, owns the overlay windows, restores and saves layout. |
@@ -131,7 +131,7 @@ After login the saved overlays are restored, and the main window hides to the tr
 | `IOverlayPlatform` | Click-through and overlay window styles per OS. Windows: `WS_EX_LAYERED \| WS_EX_TRANSPARENT`, `WS_EX_TOOLWINDOW`. |
 | `TrayIconService` | The tray icon and menu. |
 
-Widgets so far are placeholders (Nearby activity, Fleet); their content arrives with the features they show.
+Widgets so far: the [Map](#map), and placeholders for Nearby activity and Fleet, whose content arrives with the features they show.
 
 Widget ideas:
 
@@ -142,7 +142,7 @@ Widget ideas:
 
 ## Map
 
-The **Map** page (under *Views* in the navigation rail) draws known space from the server's map pack, like the [web map](web-client.md#map): the same layouts, sizes, gate styles, colours, labels and colour filters, drawn with SkiaSharp ([D21](decisions.md#d21--the-map-is-2d-drawn-with-canvas-2d-web-and-skia-desktop)). Drag to pan, scroll to zoom; hovering a system shows its name, security and region.
+The **Map** widget draws known space from the server's map pack, like the [web map](web-client.md#map): the same layouts, sizes, gate styles, colours, labels and colour filters, drawn with SkiaSharp ([D21](decisions.md#d21--the-map-is-2d-drawn-with-canvas-2d-web-and-skia-desktop)). Drag to pan, scroll to zoom; hovering a system shows its name, security and region. Docked, it fills its page; popped out, it is an overlay like any widget. The map has no background of its own, so it shows over the overlay's background at the user's opacity. The layout and colour controls hide when the map is smaller than 560 × 360, as in a small overlay.
 
 | Piece | Role |
 |---|---|
@@ -150,13 +150,14 @@ The **Map** page (under *Views* in the navigation rail) draws known space from t
 | `Map/SecurityStatus.cs` | Security as EVE shows it, shared with `ThemeCatalog.SecurityColor`. |
 | `Map/MapFilter.cs` | Colour filters: a colour group per system, or `Hidden`. Security is the first. |
 | `Map/GridIndex.cs` | Uniform grid for the nearest system to the cursor. |
-| `Map/MapScene.cs` | Everything for one layout, filter and theme, built once: gates by style and colour, gradients, label widths, region names. Draws a frame on any `SKCanvas`. |
+| `Map/MapScene.cs` | Everything for one layout, filter and theme, built once: gates by style and colour, gradients, label widths, region names. Draws a frame on any `SKCanvas`; gates go on a layer of their own, so the margins around systems are cut out of the gates only. |
 | `Map/MapControl.cs` | The Avalonia control: camera, pan, zoom and hover. It draws the scene with a custom draw operation on Avalonia's own Skia canvas, so no bitmap is copied. |
+| `Widgets/Map/MapWidgetViewModel.cs` | Loads the map pack while the widget is on screen; the hover panel's system. |
 | `Map/MapPreferences.cs` | The layout setting, saved in the desktop settings (`Map.Layout`) and chosen on the map or the Settings page. CCP's 2D map is the default. |
 
 `MapScene` is immutable: the UI thread builds a new one when the model, layout, filter or theme colours change, and frames are drawn on the render thread from the scene and camera captured with them. Theme colours reach the control as `DynamicResource` bindings, so a theme change rebuilds the scene.
 
-The map pack is downloaded the first time the page is shown in a session and kept in memory for the session. While the server is still preparing it, the page asks again every 10 seconds. A disk cache by SDE build comes later.
+The map pack is downloaded the first time the widget is on screen in a session and kept in memory for the session. While the server is still preparing it, the page asks again every 10 seconds. A disk cache by SDE build comes later.
 
 Next for the map: region focus, activity colouring, route highlight on hover, fleet member markers.
 

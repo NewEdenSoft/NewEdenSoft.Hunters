@@ -2,8 +2,8 @@ using SkiaSharp;
 
 namespace NewEdenSoft.Hunters.Desktop.Map;
 
-/// <summary>Theme colours the map is drawn with.</summary>
-public sealed record MapPalette(SKColor Background, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Hover);
+/// <summary>Theme colours the map is drawn with. <paramref name="Halo"/> outlines region names so they read over gates.</summary>
+public sealed record MapPalette(SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Hover);
 
 /// <summary>Typefaces for system names and region names.</summary>
 public sealed record MapFonts(SKTypeface Label, SKTypeface Region);
@@ -26,7 +26,8 @@ public readonly record struct MapCamera(float Scale, float OffsetX, float Offset
 /// <c>web/hunters-web/src/map/MapRenderer.ts</c>; the sizes and rules are the same.
 /// </summary>
 /// <remarks>
-/// Each frame: gates in view (solid within a constellation, dashed between constellations and
+/// The background is left alone, so the map shows over whatever is behind it: a panel in the main
+/// window, or an overlay at the user's opacity. Each frame: gates in view (solid within a constellation, dashed between constellations and
 /// regions, coloured from one system's colour to the other's) under the view transform; a margin
 /// around each system when zoomed in; systems in view, batched by colour group; then system names
 /// to the bottom right of each system when zoomed in, or region names when zoomed out.
@@ -120,8 +121,13 @@ public sealed class MapScene
 
     public void Draw(SKCanvas canvas, in MapCamera camera, int hovered)
     {
-        canvas.Clear(_palette.Background);
+        // Gates go on a layer of their own, so the margins can be cut out of them without cutting
+        // through what is behind the map.
+        canvas.SaveLayer();
         DrawGates(canvas, camera);
+        DrawMargins(canvas, camera);
+        canvas.Restore();
+
         DrawSystems(canvas, camera, hovered);
         if (camera.Scale >= LabelZoom)
             DrawLabels(canvas, camera, hovered);
@@ -189,24 +195,31 @@ public sealed class MapScene
         canvas.Restore();
     }
 
+    /// <summary>
+    /// Zoomed in, clears a ring around each system so gates stop short of it: one batched cut-out of
+    /// the gate layer, cheaper than shortening every gate per frame.
+    /// </summary>
+    private void DrawMargins(SKCanvas canvas, in MapCamera camera)
+    {
+        var margin = SystemMargin(camera.Scale);
+        if (margin <= 0)
+            return;
+
+        var radius = SystemRadius(camera.Scale) + margin;
+        using var path = new SKPath();
+        foreach (var systems in _byGroup)
+            AddCircles(path, systems, camera, radius, radius + 2);
+        using var paint = new SKPaint { IsAntialias = true, BlendMode = SKBlendMode.DstOut };
+        canvas.DrawPath(path, paint);
+    }
+
     // Systems keep a size in pixels, so they are drawn in screen coordinates.
     private void DrawSystems(SKCanvas canvas, in MapCamera camera, int hovered)
     {
         var radius = SystemRadius(camera.Scale);
-        var margin = SystemMargin(camera.Scale);
-        var pad = radius + margin + 2;
+        var pad = radius + 2;
         using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
         using var path = new SKPath();
-
-        // Zoomed in, clear a ring around each system so gates stop short of it: one batch in the
-        // background colour, cheaper than shortening every gate per frame.
-        if (margin > 0)
-        {
-            foreach (var systems in _byGroup)
-                AddCircles(path, systems, camera, radius + margin, pad);
-            paint.Color = _palette.Background;
-            canvas.DrawPath(path, paint);
-        }
 
         for (var group = 0; group < _byGroup.Length; group++)
         {
@@ -284,7 +297,7 @@ public sealed class MapScene
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 3,
             StrokeJoin = SKStrokeJoin.Round,
-            Color = _palette.Background,
+            Color = _palette.Halo,
         };
         using var fill = new SKPaint { IsAntialias = true, Color = _palette.Region };
 

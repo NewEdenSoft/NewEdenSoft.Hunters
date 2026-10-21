@@ -1,11 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:p="using:NewEdenSoft.Hunters.Desktop.ViewModels.Pages"
+             xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
              xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
-             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
              xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
-             x:Class="NewEdenSoft.Hunters.Desktop.Views.Pages.MapPageView"
-             x:DataType="p:MapPageViewModel">
+             x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.MapWidgetView"
+             x:DataType="mw:MapWidgetViewModel">
 
   <UserControl.Resources>
     <!-- Translucent panels over the map -->
@@ -35,7 +34,7 @@
                   Model="{Binding Model}"
                   Layout="{Binding Layout}"
                   Filter="{Binding Filter}"
-                  BackgroundColor="{DynamicResource Hud.BgColor}"
+                  HaloColor="{DynamicResource Hud.BgColor}"
                   GateColor="{DynamicResource Hud.LineStrongColor}"
                   TextColor="{DynamicResource Hud.FgColor}"
                   MutedTextColor="{DynamicResource Hud.FgMutedColor}"
@@ -45,7 +44,7 @@
     <Canvas IsHitTestVisible="False">
       <ContentControl x:Name="HoverPanel" Theme="{StaticResource MapOverlay}" Padding="12,8"
                       IsVisible="{Binding HoveredSystem, Converter={x:Static ObjectConverters.IsNotNull}}">
-        <StackPanel Spacing="2" DataContext="{Binding HoveredSystem}" x:DataType="p:MapSystemInfo">
+        <StackPanel Spacing="2" DataContext="{Binding HoveredSystem}" x:DataType="mw:MapSystemInfo">
           <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}" FontWeight="SemiBold" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Classes="mono" FontWeight="SemiBold" FontSize="13" Text="{Binding Security}" Foreground="{Binding SecurityBrush}" />
@@ -55,8 +54,8 @@
       </ContentControl>
     </Canvas>
 
-    <!-- Controls -->
-    <ContentControl Theme="{StaticResource MapOverlay}" Padding="12" Margin="12"
+    <!-- Controls; hidden by the code-behind when the map is too small for them (a small overlay) -->
+    <ContentControl x:Name="Controls" Theme="{StaticResource MapOverlay}" Padding="12" Margin="12"
                     HorizontalAlignment="Left" VerticalAlignment="Top"
                     IsVisible="{Binding IsLoaded}">
       <StackPanel Spacing="12">
@@ -87,7 +86,7 @@
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="p:MapLegendItemViewModel">
+            <DataTemplate x:DataType="mw:MapLegendItemViewModel">
               <StackPanel MinWidth="28" Spacing="4">
                 <Border Height="6" Background="{Binding Brush}" />
                 <TextBlock Classes="mono muted" FontSize="10" HorizontalAlignment="Center" Text="{Binding Label}" />
@@ -99,15 +98,12 @@
     </ContentControl>
 
     <!-- Not loaded: logged out, loading, being prepared, or an error -->
-    <c:HudPanel IsVisible="{Binding IsNotLoaded}" MaxWidth="420"
+    <StackPanel IsVisible="{Binding IsNotLoaded}" MaxWidth="360" Margin="16" Spacing="12"
                 HorizontalAlignment="Center" VerticalAlignment="Center">
-      <StackPanel Spacing="12">
-        <TextBlock Classes="label" Text="MAP" />
-        <TextBlock Classes="muted" Text="{Binding StatusText}" TextWrapping="Wrap" IsVisible="{Binding !HasError}" />
-        <TextBlock Foreground="{DynamicResource Hud.DangerBrush}" Text="{Binding StatusText}" TextWrapping="Wrap" IsVisible="{Binding HasError}" />
-        <Button Classes="hud" Content="TRY AGAIN" HorizontalAlignment="Left"
+        <TextBlock Classes="muted" Text="{Binding StatusText}" TextWrapping="Wrap" TextAlignment="Center" IsVisible="{Binding !HasError}" />
+        <TextBlock Foreground="{DynamicResource Hud.DangerBrush}" Text="{Binding StatusText}" TextWrapping="Wrap" TextAlignment="Center" IsVisible="{Binding HasError}" />
+        <Button Classes="hud" Content="TRY AGAIN" HorizontalAlignment="Center"
                 Command="{Binding RetryCommand}" IsVisible="{Binding HasError}" />
-      </StackPanel>
-    </c:HudPanel>
+    </StackPanel>
   </Panel>
 </UserControl>

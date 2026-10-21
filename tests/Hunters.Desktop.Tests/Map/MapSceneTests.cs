@@ -41,12 +41,13 @@ public sealed class MapSceneTests
     [Theory]
     [InlineData(40f)]
     [InlineData(200f)]
-    public void Draws_systems_in_their_filter_colour(float scale)
+    public void Draws_systems_in_their_filter_colour_over_the_background(float scale)
     {
         var filter = MapFilters.Security(_model, _catalog);
         var scene = Scene(filter);
         var camera = new MapCamera(scale, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
         using var surface = SKSurface.Create(new SKImageInfo(400, 300));
+        surface.Canvas.Clear(SKColors.Navy);
 
         scene.Draw(surface.Canvas, camera, hovered: _model.IndexOf[10]);
 
@@ -54,7 +55,27 @@ public sealed class MapSceneTests
         using var pixels = image.PeekPixels();
         var jita = filter.Colours[filter.Groups[_model.IndexOf[10]]];
         Assert.Equal(new SKColor(jita.R, jita.G, jita.B), pixels.GetPixelColor(200, 150));
-        Assert.Equal(Palette.Background, pixels.GetPixelColor(5, 295));
+        Assert.Equal(SKColors.Navy, pixels.GetPixelColor(5, 295));
+    }
+
+    [Fact]
+    public void Margins_cut_gates_but_not_the_background()
+    {
+        var scene = Scene(MapFilters.Security(_model, _catalog));
+        // Zoomed in far enough for the full margin; Jita at (200, 150), Perimeter 200 px to the right.
+        var camera = new MapCamera(Scale: 200, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
+        using var surface = SKSurface.Create(new SKImageInfo(400, 300));
+        surface.Canvas.Clear(SKColors.Navy);
+
+        scene.Draw(surface.Canvas, camera, hovered: -1);
+
+        using var image = surface.Snapshot();
+        using var pixels = image.PeekPixels();
+        var radius = MapScene.SystemRadius(200);
+        // In the margin next to Jita, on the line of the gate to Perimeter: background, not gate.
+        Assert.Equal(SKColors.Navy, pixels.GetPixelColor(200 + (int)radius + 3, 150));
+        // Halfway along the gate: drawn.
+        Assert.NotEqual(SKColors.Navy, pixels.GetPixelColor(300, 150));
     }
 
     private MapScene Scene(MapFilter filter) =>
