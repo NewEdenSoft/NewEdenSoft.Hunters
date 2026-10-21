@@ -59,8 +59,23 @@ Flagged characters show a warning icon and a *Log in again* button, and the Acco
 
 The desktop calls ESI directly with NewEdenKit.ESI, using a local file cache. Access tokens come from the server through `ICharacterTokenProvider`; the desktop never holds refresh tokens.
 
-- Polls location, online status and ship for the user's characters, and reports changes to the server where they are shared (fleet).
+- Polls location, online status and ship for the user's characters (see [Character tracking](#character-tracking)), and reports changes to the server where they are shared (fleet).
 - Sets in-game waypoints.
+
+### Character tracking
+
+`CharacterTracker` (`Hunters.Client/Tracking`) polls ESI for each character it is told to track and keeps the latest state of each: online, location (system, and station or structure when docked), ship, and a status (`Starting`, `Tracking`, `NeedsLogin`, `Failing`). One tracker serves the whole app. Views read the current state from it and subscribe to `Changed`, which is raised only when something other than the timestamp changes. Later, the location reporter for fleets will subscribe the same way.
+
+| Character | Polled | Interval |
+|---|---|---|
+| Online | Online status, location, ship | Location and ship every 5 s (ESI's cache time); online every 60 s |
+| Offline | Online status only; location and ship once at the start, so the last known place is shown | 60 s (ESI's cache time for online) |
+
+- A token ESI rejects (401) is dropped, so the next attempt asks the server for a new one.
+- Failures back off: 5, 10, 20, 40 and 80 s, then every 2 minutes. The last good state is kept, with the error.
+- When the server can no longer refresh a character's token, the session flags the character and the tracker stops polling it, with status `NeedsLogin`. Calling `Track` again after the character logs in restarts it.
+- `Track(ids)` sets exactly which characters are tracked; characters no longer in the list are stopped and removed, with a `Changed` event whose `Current` is null.
+- The ESI calls go through `ILocationEsi`, implemented with NewEdenKit.ESI's `ILocation`, so the tracker is tested with a fake ESI and a fake clock.
 
 ESI's error limit is per IP, so these calls count against the user's own connection rather than the server's.
 
