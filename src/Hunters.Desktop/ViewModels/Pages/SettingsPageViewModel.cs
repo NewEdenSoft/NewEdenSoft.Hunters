@@ -1,6 +1,7 @@
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Settings;
 using NewEdenSoft.Hunters.Desktop.Theming;
 
@@ -11,7 +12,7 @@ public sealed partial class SettingsPageViewModel : PageViewModel
     private readonly ThemeService _themes;
     private readonly ISettingsStore _settings;
 
-    public SettingsPageViewModel(ThemeService themes, ISettingsStore settings)
+    public SettingsPageViewModel(ThemeService themes, ISettingsStore settings, MapPreferences map)
     {
         _themes = themes;
         _settings = settings;
@@ -24,6 +25,7 @@ public sealed partial class SettingsPageViewModel : PageViewModel
             .ToList();
 
         StartInTray = settings.Load().StartInTray;
+        MapLayoutChoices = map.CreateLayoutChoices();
 
         themes.ThemeChanged += (_, theme) => Sync(theme);
         Sync(themes.Current);
@@ -32,6 +34,8 @@ public sealed partial class SettingsPageViewModel : PageViewModel
     public override string Title => "Settings";
 
     public IReadOnlyList<ThemeGroupViewModel> ThemeGroups { get; }
+
+    public IReadOnlyList<ChoiceViewModel> MapLayoutChoices { get; }
 
     [ObservableProperty]
     public partial string CurrentThemeName { get; set; } = "";

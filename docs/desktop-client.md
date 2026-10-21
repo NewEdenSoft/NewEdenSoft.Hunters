@@ -140,9 +140,25 @@ Widget ideas:
 - Route strip
 - Kill ticker
 
-## Map control
+## Map
 
-Custom Skia-drawn control: pan, zoom, region focus, activity colouring, route highlight on hover, fleet member markers.
+The **Map** page (under *Views* in the navigation rail) draws known space from the server's map pack, like the [web map](web-client.md#map): the same layouts, sizes, gate styles, colours, labels and colour filters, drawn with SkiaSharp ([D21](decisions.md#d21--the-map-is-2d-drawn-with-canvas-2d-web-and-skia-desktop)). Drag to pan, scroll to zoom; hovering a system shows its name, security and region.
+
+| Piece | Role |
+|---|---|
+| `Map/MapModel.cs` | The map pack as flat arrays per system index; positions per layout; region label centres. |
+| `Map/SecurityStatus.cs` | Security as EVE shows it, shared with `ThemeCatalog.SecurityColor`. |
+| `Map/MapFilter.cs` | Colour filters: a colour group per system, or `Hidden`. Security is the first. |
+| `Map/GridIndex.cs` | Uniform grid for the nearest system to the cursor. |
+| `Map/MapScene.cs` | Everything for one layout, filter and theme, built once: gates by style and colour, gradients, label widths, region names. Draws a frame on any `SKCanvas`. |
+| `Map/MapControl.cs` | The Avalonia control: camera, pan, zoom and hover. It draws the scene with a custom draw operation on Avalonia's own Skia canvas, so no bitmap is copied. |
+| `Map/MapPreferences.cs` | The layout setting, saved in the desktop settings (`Map.Layout`) and chosen on the map or the Settings page. CCP's 2D map is the default. |
+
+`MapScene` is immutable: the UI thread builds a new one when the model, layout, filter or theme colours change, and frames are drawn on the render thread from the scene and camera captured with them. Theme colours reach the control as `DynamicResource` bindings, so a theme change rebuilds the scene.
+
+The map pack is downloaded the first time the page is shown in a session and kept in memory for the session. While the server is still preparing it, the page asks again every 10 seconds. A disk cache by SDE build comes later.
+
+Next for the map: region focus, activity colouring, route highlight on hover, fleet member markers.
 
 ## Platform support
 

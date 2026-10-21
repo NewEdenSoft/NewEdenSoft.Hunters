@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using NewEdenSoft.Hunters.Desktop.Map;
 
 namespace NewEdenSoft.Hunters.Desktop.Settings;
 
@@ -13,6 +14,14 @@ public sealed record DesktopSettings
 
     /// <summary>Layout of each widget, keyed by widget id.</summary>
     public IReadOnlyDictionary<string, WidgetSettings> Widgets { get; init; } = new Dictionary<string, WidgetSettings>();
+
+    public MapSettings Map { get; init; } = new();
+}
+
+public sealed record MapSettings
+{
+    /// <summary>The map layout; CCP's 2D map unless the user picks another.</summary>
+    public MapLayout Layout { get; init; } = MapLayout.Flat;
 }
 
 /// <summary>Where and how one widget is shown.</summary>

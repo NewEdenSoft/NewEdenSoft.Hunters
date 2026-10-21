@@ -6,11 +6,12 @@ using NewEdenSoft.Hunters.Desktop.Widgets;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels;
 
-/// <summary>Main window shell: navigation rail with widget pages and system pages.</summary>
+/// <summary>Main window shell: navigation rail with view pages, widget pages and system pages.</summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
-    public MainWindowViewModel(WidgetManager widgets, AccountPageViewModel account, SettingsPageViewModel settings)
+    public MainWindowViewModel(WidgetManager widgets, MapPageViewModel map, AccountPageViewModel account, SettingsPageViewModel settings)
     {
+        ViewPages = [map];
         WidgetPages = widgets.Widgets.Select(w => new WidgetPageViewModel(w, widgets)).ToList();
         SystemPages = [account, settings];
 
@@ -20,12 +21,23 @@ public partial class MainWindowViewModel : ViewModelBase
         Navigate(WidgetPages.FirstOrDefault() ?? (PageViewModel)account);
     }
 
+    public IReadOnlyList<PageViewModel> ViewPages { get; }
+
     public IReadOnlyList<WidgetPageViewModel> WidgetPages { get; }
 
     public IReadOnlyList<PageViewModel> SystemPages { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScrollingPage), nameof(FullBleedPage), nameof(IsFullBleed))]
     public partial PageViewModel? CurrentPage { get; private set; }
+
+    /// <summary>The current page when it scrolls in the padded content area.</summary>
+    public PageViewModel? ScrollingPage => CurrentPage is { IsFullBleed: false } ? CurrentPage : null;
+
+    /// <summary>The current page when it fills the content area.</summary>
+    public PageViewModel? FullBleedPage => CurrentPage is { IsFullBleed: true } ? CurrentPage : null;
+
+    public bool IsFullBleed => CurrentPage?.IsFullBleed == true;
 
     /// <summary>Set by the main window as it is shown and hidden to the tray.</summary>
     [ObservableProperty]

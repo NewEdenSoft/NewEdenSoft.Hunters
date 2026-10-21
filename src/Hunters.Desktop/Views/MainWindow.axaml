@@ -48,16 +48,21 @@
         </StackPanel>
 
         <StackPanel Spacing="2">
+          <TextBlock Classes="label nav-heading" Text="VIEWS" />
+          <ItemsControl ItemsSource="{Binding ViewPages}" ItemTemplate="{StaticResource NavItem}" Margin="0,0,0,14" />
           <TextBlock Classes="label nav-heading" Text="WIDGETS" />
           <ItemsControl ItemsSource="{Binding WidgetPages}" ItemTemplate="{StaticResource NavItem}" />
         </StackPanel>
       </DockPanel>
     </Border>
 
-    <!-- Current page -->
-    <ScrollViewer>
-      <ContentControl Margin="36,32" MaxWidth="1040" Content="{Binding CurrentPage}" />
-    </ScrollViewer>
+    <!-- Current page: padded and scrolling, or filling the area (the map) -->
+    <Panel>
+      <ScrollViewer IsVisible="{Binding !IsFullBleed}">
+        <ContentControl Margin="36,32" MaxWidth="1040" Content="{Binding ScrollingPage}" />
+      </ScrollViewer>
+      <ContentControl IsVisible="{Binding IsFullBleed}" Content="{Binding FullBleedPage}" />
+    </Panel>
 
   </DockPanel>
 </Window>

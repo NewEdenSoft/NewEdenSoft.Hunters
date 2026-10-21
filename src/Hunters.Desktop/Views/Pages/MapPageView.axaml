@@ -1,0 +1,113 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:p="using:NewEdenSoft.Hunters.Desktop.ViewModels.Pages"
+             xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+             xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
+             x:Class="NewEdenSoft.Hunters.Desktop.Views.Pages.MapPageView"
+             x:DataType="p:MapPageViewModel">
+
+  <UserControl.Resources>
+    <!-- Translucent panels over the map -->
+    <ControlTheme x:Key="MapOverlay" TargetType="ContentControl">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel>
+            <Border Background="{DynamicResource Hud.SurfaceBrush}" Opacity="0.92"
+                    BorderBrush="{DynamicResource Hud.LineBrush}" BorderThickness="1" />
+            <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}" />
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+
+    <DataTemplate x:Key="Choice" x:DataType="m:ChoiceViewModel">
+      <Button Classes="hud toggle"
+              Classes.primary="{Binding IsSelected}"
+              Classes.ghost="{Binding !IsSelected}"
+              Command="{Binding SelectCommand}"
+              Content="{Binding Label, Converter={x:Static w:UpperCaseConverter.Instance}}" />
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Panel>
+    <m:MapControl x:Name="Map"
+                  Model="{Binding Model}"
+                  Layout="{Binding Layout}"
+                  Filter="{Binding Filter}"
+                  BackgroundColor="{DynamicResource Hud.BgColor}"
+                  GateColor="{DynamicResource Hud.LineStrongColor}"
+                  TextColor="{DynamicResource Hud.FgColor}"
+                  MutedTextColor="{DynamicResource Hud.FgMutedColor}"
+                  HoverColor="{DynamicResource Hud.PrimaryColor}" />
+
+    <!-- Hover panel, placed next to the hovered system by the code-behind -->
+    <Canvas IsHitTestVisible="False">
+      <ContentControl x:Name="HoverPanel" Theme="{StaticResource MapOverlay}" Padding="12,8"
+                      IsVisible="{Binding HoveredSystem, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <StackPanel Spacing="2" DataContext="{Binding HoveredSystem}" x:DataType="p:MapSystemInfo">
+          <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}" FontWeight="SemiBold" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="mono" FontWeight="SemiBold" FontSize="13" Text="{Binding Security}" Foreground="{Binding SecurityBrush}" />
+            <TextBlock Classes="muted" FontSize="13" Text="{Binding Region}" />
+          </StackPanel>
+        </StackPanel>
+      </ContentControl>
+    </Canvas>
+
+    <!-- Controls -->
+    <ContentControl Theme="{StaticResource MapOverlay}" Padding="12" Margin="12"
+                    HorizontalAlignment="Left" VerticalAlignment="Top"
+                    IsVisible="{Binding IsLoaded}">
+      <StackPanel Spacing="12">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="LAYOUT" />
+          <ItemsControl ItemsSource="{Binding LayoutChoices}" ItemTemplate="{StaticResource Choice}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="COLOUR" />
+          <ItemsControl ItemsSource="{Binding FilterChoices}" ItemTemplate="{StaticResource Choice}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+        <ItemsControl ItemsSource="{Binding Legend}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="1" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="p:MapLegendItemViewModel">
+              <StackPanel MinWidth="28" Spacing="4">
+                <Border Height="6" Background="{Binding Brush}" />
+                <TextBlock Classes="mono muted" FontSize="10" HorizontalAlignment="Center" Text="{Binding Label}" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ContentControl>
+
+    <!-- Not loaded: logged out, loading, being prepared, or an error -->
+    <c:HudPanel IsVisible="{Binding IsNotLoaded}" MaxWidth="420"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+      <StackPanel Spacing="12">
+        <TextBlock Classes="label" Text="MAP" />
+        <TextBlock Classes="muted" Text="{Binding StatusText}" TextWrapping="Wrap" IsVisible="{Binding !HasError}" />
+        <TextBlock Foreground="{DynamicResource Hud.DangerBrush}" Text="{Binding StatusText}" TextWrapping="Wrap" IsVisible="{Binding HasError}" />
+        <Button Classes="hud" Content="TRY AGAIN" HorizontalAlignment="Left"
+                Command="{Binding RetryCommand}" IsVisible="{Binding HasError}" />
+      </StackPanel>
+    </c:HudPanel>
+  </Panel>
+</UserControl>

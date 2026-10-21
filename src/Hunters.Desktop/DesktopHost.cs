@@ -1,9 +1,11 @@
+using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Desktop.Images;
+using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Platform;
 using NewEdenSoft.Hunters.Desktop.Platform.Windows;
 using NewEdenSoft.Hunters.Desktop.Settings;
@@ -57,7 +59,9 @@ public static class DesktopHost
         services.AddSingleton<IBrowserLauncher, SystemBrowserLauncher>();
         var userAgent = $"Hunters.Desktop/{typeof(DesktopHost).Assembly.GetName().Version}";
         services.AddHttpClient<DesktopLoginClient>(http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
-        services.AddHttpClient(AccountPageViewModel.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
+        // The server sends the map pack precompressed with Brotli or gzip.
+        services.AddHttpClient(AccountPageViewModel.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent))
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AutomaticDecompression = DecompressionMethods.Brotli | DecompressionMethods.GZip });
         services.AddHttpClient(PortraitCache.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
         services.AddSingleton<PortraitCache>();
 
@@ -66,6 +70,11 @@ public static class DesktopHost
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<TrayIconService>();
         services.AddSingleton<WidgetManager>();
+
+        // View pages
+        services.AddSingleton<MapPreferences>();
+        services.AddSingleton<MapPageViewModel>();
+        services.AddView<MapPageViewModel, MapPageView>();
 
         // System pages
         services.AddSingleton<AccountPageViewModel>();
