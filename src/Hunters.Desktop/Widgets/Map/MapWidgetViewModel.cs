@@ -1,8 +1,11 @@
 using System.ComponentModel;
 using Avalonia.Media;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewEdenSoft.Hunters.Client.Sessions;
+using NewEdenSoft.Hunters.Client.Tracking;
+using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Theming;
 using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
@@ -12,7 +15,8 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// <summary>
 /// The map of known space, as a widget: docked in the main window or floating as an overlay. The
 /// map pack named by the server's discovery document is downloaded the first time the widget is on
-/// screen in a session and kept in memory for the session.
+/// screen in a session and kept in memory for the session. Tracked characters are marked on it at
+/// their systems, with the markers chosen on the Account page.
 /// </summary>
 public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 {
@@ -22,14 +26,19 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     private readonly AccountPageViewModel _account;
     private readonly MapPreferences _preferences;
     private readonly ThemeCatalog _catalog;
+    private readonly CharacterTracking _tracking;
+    private readonly CharacterPreferences _characters;
     private CancellationTokenSource? _loading;
     private HuntersSession? _loadedFor;
 
-    public MapWidgetViewModel(AccountPageViewModel account, MapPreferences preferences, ThemeCatalog catalog)
+    public MapWidgetViewModel(
+        AccountPageViewModel account, MapPreferences preferences, ThemeCatalog catalog, CharacterTracking tracking, CharacterPreferences characters)
     {
         _account = account;
         _preferences = preferences;
         _catalog = catalog;
+        _tracking = tracking;
+        _characters = characters;
 
         LayoutChoices = preferences.CreateLayoutChoices();
         FilterChoices = MapFilters.All
@@ -39,8 +48,15 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         account.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(AccountPageViewModel.Session))
+            {
                 EnsureLoaded();
+                UpdateMarkers();
+            }
         };
+
+        // Tracker events come from its polling threads.
+        tracking.Changed += (_, _) => Dispatcher.UIThread.Post(UpdateMarkers);
+        characters.MarkerChanged += (_, _) => UpdateMarkers();
         preferences.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MapPreferences.Layout))
@@ -57,6 +73,10 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLoaded), nameof(IsNotLoaded))]
     public partial MapModel? Model { get; private set; }
+
+    /// <summary>The account's tracked characters with a known location, main first.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<MapCharacterMarker> Markers { get; private set; } = [];
 
     public bool IsLoaded => Model is not null;
 
@@ -94,11 +114,36 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         }
 
         var security = model.Security[i];
+        var here = Markers.Where(m => m.SolarSystemId == model.Ids[i]).Select(m => m.IsOnline ? m.Name : $"{m.Name} (offline)").ToList();
         HoveredSystem = new MapSystemInfo(
             model.Names[i],
             SecurityStatus.Format(security),
             new SolidColorBrush(ThemeService.ToColor(_catalog.SecurityColor(security))),
-            model.RegionName(i));
+            model.RegionName(i),
+            here.Count == 0 ? null : string.Join(", ", here));
+    }
+
+    private void UpdateMarkers()
+    {
+        if (_account.Session is not { } session)
+        {
+            Markers = [];
+            return;
+        }
+
+        var markers = new List<MapCharacterMarker>();
+        foreach (var character in session.Account.Characters.OrderByDescending(c => c.IsMain).ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
+        {
+            if (_tracking.Get(character.Id) is { Location: { } location } state)
+            {
+                markers.Add(new MapCharacterMarker(
+                    character.Id, character.Name, location.SolarSystemId, _characters.GetMarker(character.Id, character.Name), state.IsOnline == true));
+            }
+        }
+
+        // Unchanged positions (most tracker events) leave the map alone.
+        if (!markers.SequenceEqual(Markers))
+            Markers = markers;
     }
 
     [RelayCommand(CanExecute = nameof(HasError))]
@@ -192,6 +237,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     }
 }
 
-public sealed record MapSystemInfo(string Name, string Security, IBrush SecurityBrush, string Region);
+/// <param name="Characters">The account's tracked characters in the system, or null.</param>
+public sealed record MapSystemInfo(string Name, string Security, IBrush SecurityBrush, string Region, string? Characters);
 
 public sealed record MapLegendItemViewModel(string Label, IBrush Brush);

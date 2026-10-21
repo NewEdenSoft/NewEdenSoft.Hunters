@@ -5,12 +5,16 @@ using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
+using NewEdenSoft.Hunters.Desktop.Characters;
 using SkiaSharp;
 
 namespace NewEdenSoft.Hunters.Desktop.Map;
 
 /// <summary>A hovered system and where it is on screen, relative to the control.</summary>
 public readonly record struct MapHover(int Index, Point Position);
+
+/// <summary>A tracked character to mark on the map: where it is, and how it is marked.</summary>
+public sealed record MapCharacterMarker(long CharacterId, string Name, int SolarSystemId, CharacterMarker Marker, bool IsOnline);
 
 /// <summary>
 /// Draws the map with Skia (docs/decisions.md, D21) and handles pan (drag), zoom (wheel) and hover.
@@ -29,6 +33,10 @@ public sealed class MapControl : Control
     public static readonly StyledProperty<MapFilter?> FilterProperty =
         AvaloniaProperty.Register<MapControl, MapFilter?>(nameof(Filter));
 
+    /// <summary>Characters to mark on the map, at their systems.</summary>
+    public static readonly StyledProperty<IReadOnlyList<MapCharacterMarker>?> MarkersProperty =
+        AvaloniaProperty.Register<MapControl, IReadOnlyList<MapCharacterMarker>?>(nameof(Markers));
+
     /// <summary>Outline around region names, usually the page background.</summary>
     public static readonly StyledProperty<Color> HaloColorProperty =
         AvaloniaProperty.Register<MapControl, Color>(nameof(HaloColor), Colors.Black);
@@ -45,7 +53,7 @@ public sealed class MapControl : Control
     public static readonly StyledProperty<Color> MutedTextColorProperty =
         AvaloniaProperty.Register<MapControl, Color>(nameof(MutedTextColor), Colors.Gray);
 
-    /// <summary>The ring around the hovered system.</summary>
+    /// <summary>The ring around the hovered system, and the character markers.</summary>
     public static readonly StyledProperty<Color> HoverColorProperty =
         AvaloniaProperty.Register<MapControl, Color>(nameof(HoverColor), Colors.Orange);
 
@@ -64,6 +72,7 @@ public sealed class MapControl : Control
     private bool _fitted;
     private int _hovered = -1;
     private Point? _dragFrom;
+    private IReadOnlyList<MapMarkerGroup> _markerGroups = [];
 
     static MapControl()
     {
@@ -87,6 +96,12 @@ public sealed class MapControl : Control
     {
         get => GetValue(FilterProperty);
         set => SetValue(FilterProperty, value);
+    }
+
+    public IReadOnlyList<MapCharacterMarker>? Markers
+    {
+        get => GetValue(MarkersProperty);
+        set => SetValue(MarkersProperty, value);
     }
 
     public Color HaloColor
@@ -163,7 +178,7 @@ public sealed class MapControl : Control
         if (!_fitted)
             FitCamera();
 
-        context.Custom(new DrawOperation(new Rect(Bounds.Size), _scene, Camera(), _hovered));
+        context.Custom(new DrawOperation(new Rect(Bounds.Size), _scene, Camera(), _hovered, _markerGroups));
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -175,6 +190,11 @@ public sealed class MapControl : Control
             // A new map or layout starts zoomed out.
             _fitted = false;
             RebuildScene();
+            GroupMarkers();
+        }
+        else if (change.Property == MarkersProperty)
+        {
+            GroupMarkers();
         }
         else if (change.Property == FilterProperty || change.Property == HaloColorProperty || change.Property == GateColorProperty ||
                  change.Property == TextColorProperty || change.Property == MutedTextColorProperty || change.Property == HoverColorProperty)
@@ -272,6 +292,19 @@ public sealed class MapControl : Control
         InvalidateVisual();
     }
 
+    /// <summary>Markers by system index, in the order given; characters in systems not on the map are left out.</summary>
+    private void GroupMarkers()
+    {
+        _markerGroups = Model is { } model && Markers is { Count: > 0 } markers
+            ? markers
+                .Where(m => model.IndexOf.ContainsKey(m.SolarSystemId))
+                .GroupBy(m => model.IndexOf[m.SolarSystemId])
+                .Select(g => new MapMarkerGroup(g.Key, [.. g.Select(m => new MapMarker(m.Marker, m.IsOnline))]))
+                .ToList()
+            : [];
+        InvalidateVisual();
+    }
+
     private MapPalette Palette() => new(
         ToSkia(HaloColor), ToSkia(GateColor), ToSkia(TextColor), ToSkia(MutedTextColor), ToSkia(TextColor), ToSkia(HoverColor));
 
@@ -307,7 +340,7 @@ public sealed class MapControl : Control
     }
 
     /// <summary>Draws one frame on Avalonia's render thread, from a scene and camera captured on the UI thread.</summary>
-    private sealed class DrawOperation(Rect bounds, MapScene scene, MapCamera camera, int hovered) : ICustomDrawOperation
+    private sealed class DrawOperation(Rect bounds, MapScene scene, MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup> markers) : ICustomDrawOperation
     {
         public Rect Bounds => bounds;
 
@@ -328,7 +361,7 @@ public sealed class MapControl : Control
             var canvas = lease.SkCanvas;
             canvas.Save();
             canvas.ClipRect(new SKRect(0, 0, (float)bounds.Width, (float)bounds.Height));
-            scene.Draw(canvas, camera, hovered);
+            scene.Draw(canvas, camera, hovered, markers);
             canvas.Restore();
         }
     }

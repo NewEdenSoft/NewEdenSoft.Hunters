@@ -34,6 +34,7 @@
                   Model="{Binding Model}"
                   Layout="{Binding Layout}"
                   Filter="{Binding Filter}"
+                  Markers="{Binding Markers}"
                   HaloColor="{DynamicResource Hud.BgColor}"
                   GateColor="{DynamicResource Hud.LineStrongColor}"
                   TextColor="{DynamicResource Hud.FgColor}"
@@ -50,6 +51,9 @@
             <TextBlock Classes="mono" FontWeight="SemiBold" FontSize="13" Text="{Binding Security}" Foreground="{Binding SecurityBrush}" />
             <TextBlock Classes="muted" FontSize="13" Text="{Binding Region}" />
           </StackPanel>
+          <TextBlock FontSize="13" Foreground="{DynamicResource Hud.PrimaryBrush}" MaxWidth="280" TextWrapping="Wrap"
+                     Text="{Binding Characters}"
+                     IsVisible="{Binding Characters, Converter={x:Static ObjectConverters.IsNotNull}}" />
         </StackPanel>
       </ContentControl>
     </Canvas>
