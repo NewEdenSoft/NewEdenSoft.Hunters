@@ -18,6 +18,7 @@ using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 using NewEdenSoft.Hunters.Desktop.Views;
 using NewEdenSoft.Hunters.Desktop.Views.Pages;
 using NewEdenSoft.Hunters.Desktop.Widgets;
+using NewEdenSoft.Hunters.Desktop.Widgets.Characters;
 using NewEdenSoft.Hunters.Desktop.Widgets.Map;
 using NewEdenSoft.Hunters.Desktop.Widgets.Placeholders;
 
@@ -98,6 +99,8 @@ public static class DesktopHost
         // Widgets, in navigation order
         services.AddWidget<MapWidgetViewModel, MapWidgetView>(
             "map", "Map", "Known space, coloured by security. Drag to pan, scroll to zoom.", 520, 400, fillsPage: true);
+        services.AddWidget<CharactersWidgetViewModel, CharactersWidgetView>(
+            "characters", "Characters", "Your characters: online or not, where they are and what they fly.", 300, 280);
         services.AddWidget<NearbyActivityWidgetViewModel, PlaceholderWidgetView>(
             "nearby-activity", "Nearby activity", "Systems near your characters with recent kills and jumps.", 320, 260);
         services.AddWidget<FleetWidgetViewModel, PlaceholderWidgetView>(

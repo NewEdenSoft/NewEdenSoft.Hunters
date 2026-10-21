@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:wc="using:NewEdenSoft.Hunters.Desktop.Widgets.Characters"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+             x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Characters.CharactersWidgetView"
+             x:DataType="wc:CharactersWidgetViewModel">
+  <Panel>
+    <TextBlock Classes="muted" FontSize="13" Margin="16" TextWrapping="Wrap" TextAlignment="Center"
+               HorizontalAlignment="Center" VerticalAlignment="Center"
+               IsVisible="{Binding IsLoggedOut}"
+               Text="Log in on the Account page to see your characters." />
+
+    <ScrollViewer IsVisible="{Binding IsLoggedIn}">
+      <ItemsControl ItemsSource="{Binding Characters}" Margin="0,4">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="wc:CharacterRowViewModel">
+            <Border Classes="widget-row" Background="Transparent" ToolTip.Tip="{Binding Details}">
+              <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+                <c:MarkerBadge Marker="{Binding Marker}" Width="22" Height="22" Cut="5" VerticalAlignment="Center" />
+
+                <Panel Grid.Column="1" Width="36" Height="36" VerticalAlignment="Center">
+                  <Border Classes="portrait">
+                    <Image Source="{Binding Portrait}" Stretch="UniformToFill" />
+                  </Border>
+                  <Border Classes="portrait-badge" IsVisible="{Binding NeedsLogin}">
+                    <PathIcon Classes="warning" Width="10" Height="10" />
+                  </Border>
+                </Panel>
+
+                <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                    <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                             Fill="{DynamicResource Hud.FgFaintBrush}" IsVisible="{Binding !IsOnline}" />
+                    <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                             Fill="{DynamicResource Hud.OkBrush}" IsVisible="{Binding IsOnline}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}"
+                               FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" />
+                  </Grid>
+                  <TextBlock Classes="muted" FontSize="12.5" Text="{Binding PlaceLine}" TextTrimming="CharacterEllipsis"
+                             IsVisible="{Binding !HasProblem}" />
+                  <TextBlock FontSize="12.5" Foreground="{DynamicResource Hud.WarningBrush}" Text="{Binding PlaceLine}"
+                             TextTrimming="CharacterEllipsis" IsVisible="{Binding HasProblem}" />
+                  <TextBlock Classes="muted" FontSize="12.5" Text="{Binding ShipLine}" TextTrimming="CharacterEllipsis"
+                             IsVisible="{Binding ShipLine, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Panel>
+</UserControl>

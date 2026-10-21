@@ -235,6 +235,13 @@
     <Setter Property="BorderThickness" Value="2" />
   </Style>
 
+  <!-- Rows in a widget's list, divided by a hairline: <Border Classes="widget-row" /> -->
+  <Style Selector="Border.widget-row">
+    <Setter Property="Padding" Value="12,7" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+  </Style>
+
   <!-- Navigation rail: <Button Classes="nav" Classes.selected="{Binding IsSelected}" /> -->
   <Style Selector="TextBlock.nav-heading">
     <Setter Property="Margin" Value="22,8,22,6" />
