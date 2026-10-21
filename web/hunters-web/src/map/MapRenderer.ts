@@ -15,8 +15,8 @@ export const LABEL_ZOOM = 28
 const HOVER_RADIUS_PX = 10
 
 /** Dash patterns in CSS pixels: gates between constellations, and between regions. Gates within a constellation are solid. */
-const CONSTELLATION_DASH = [3, 3]
-const REGION_DASH = [10, 7]
+const CONSTELLATION_DASH = [6, 4]
+const REGION_DASH = [18, 8]
 
 /** Gate paths by what they connect, in world coordinates. */
 interface GatePaths {
