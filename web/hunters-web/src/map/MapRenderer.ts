@@ -21,6 +21,14 @@ const REGION_DASH = [18, 8]
 /** Gate styles by what a gate connects: within a constellation, between constellations, between regions. */
 const GATE_DASHES = [[], CONSTELLATION_DASH, REGION_DASH]
 
+/** Sizes on screen (CSS pixels) grow with the zoom (pixels per light year) between these limits. */
+const SYSTEM_RADIUS = { perZoom: 0.06, min: 0.9, max: 4 }
+const GATE_WIDTH = { base: 0.25, perZoom: 0.02, min: 0.4, max: 1.2 }
+
+/** Clear space between a system and the gates around it, fading in from {@link MARGIN_FROM_ZOOM}. */
+const SYSTEM_MARGIN = { perZoom: 0.15, max: 3 }
+const MARGIN_FROM_ZOOM = 12
+
 /** Gates are drawn a little transparent so the systems stay the brightest thing on the map. */
 const GATE_ALPHA = 0.55
 
@@ -215,7 +223,7 @@ export class MapRenderer {
 
     // Gates: in world coordinates, so widths and dashes are divided by the zoom to stay the same on screen.
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offsetX, dpr * offsetY)
-    ctx.lineWidth = 1 / scale
+    ctx.lineWidth = this.gateWidth() / scale
     ctx.globalAlpha = GATE_ALPHA
     const viewLeft = -offsetX / scale
     const viewTop = -offsetY / scale
@@ -248,7 +256,27 @@ export class MapRenderer {
     // Systems: a constant size on screen, so drawn in screen space; one fill per filter colour group.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const radius = this.systemRadius()
-    const pad = radius + 2
+    const margin = this.systemMargin()
+    const pad = radius + margin + 2
+
+    // Zoomed in, clear a ring around each system so gates stop short of it: one batched cut-out of
+    // the gate layer, cheaper than shortening every gate per frame.
+    if (margin > 0) {
+      ctx.globalCompositeOperation = 'destination-out'
+      ctx.beginPath()
+      for (const systems of this.byGroup) {
+        for (const i of systems) {
+          const sx = xy[i * 2] * scale + offsetX
+          const sy = xy[i * 2 + 1] * scale + offsetY
+          if (sx < -pad || sy < -pad || sx > this.width + pad || sy > this.height + pad) continue
+          ctx.moveTo(sx + radius + margin, sy)
+          ctx.arc(sx, sy, radius + margin, 0, Math.PI * 2)
+        }
+      }
+      ctx.fill()
+      ctx.globalCompositeOperation = 'source-over'
+    }
+
     for (let group = 0; group < this.byGroup.length; group++) {
       const systems = this.byGroup[group]
       if (systems.length === 0) continue
@@ -369,7 +397,16 @@ export class MapRenderer {
   }
 
   private systemRadius(): number {
-    return Math.min(Math.max(this.scale * 0.07, 1.4), 4)
+    return clamp(this.scale * SYSTEM_RADIUS.perZoom, SYSTEM_RADIUS.min, SYSTEM_RADIUS.max)
+  }
+
+  /** Gate width in CSS pixels: thin zoomed out, so the map is not a tangle of lines. */
+  private gateWidth(): number {
+    return clamp(GATE_WIDTH.base + this.scale * GATE_WIDTH.perZoom, GATE_WIDTH.min, GATE_WIDTH.max)
+  }
+
+  private systemMargin(): number {
+    return clamp((this.scale - MARGIN_FROM_ZOOM) * SYSTEM_MARGIN.perZoom, 0, SYSTEM_MARGIN.max)
   }
 
   /** Rebuilt when the layout, the filter or the theme colours change. */
@@ -511,6 +548,10 @@ export class MapRenderer {
       y: this.xy[this.hovered * 2 + 1] * this.scale + this.offsetY,
     })
   }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
 }
 
 function groupSystems(filter: MapFilter): Uint32Array[] {
