@@ -54,10 +54,13 @@
       </DockPanel>
     </Border>
 
-    <!-- Current page -->
-    <ScrollViewer>
-      <ContentControl Margin="36,32" MaxWidth="1040" Content="{Binding CurrentPage}" />
-    </ScrollViewer>
+    <!-- Current page: scrolling, or filling the height of the area (a docked map) -->
+    <Panel>
+      <ScrollViewer IsVisible="{Binding !IsFullBleed}">
+        <ContentControl Margin="36,32" MaxWidth="1040" Content="{Binding ScrollingPage}" />
+      </ScrollViewer>
+      <ContentControl Margin="36,32" IsVisible="{Binding IsFullBleed}" Content="{Binding FullBleedPage}" />
+    </Panel>
 
   </DockPanel>
 </Window>

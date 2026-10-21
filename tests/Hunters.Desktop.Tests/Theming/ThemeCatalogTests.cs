@@ -42,6 +42,7 @@ public sealed class ThemeCatalogTests
     [InlineData(0.5, "#efef00")]
     [InlineData(0.45, "#efef00")]
     [InlineData(0.44, "#d77700")]
+    [InlineData(0.03, "#a33a45")]
     [InlineData(0.0, "#8b3061")]
     [InlineData(-0.04, "#8b3061")]
     [InlineData(-0.05, "#8b3061")]

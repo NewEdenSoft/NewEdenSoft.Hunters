@@ -2,6 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:p="using:NewEdenSoft.Hunters.Desktop.ViewModels.Pages"
              xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+             xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
+             xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
              x:Class="NewEdenSoft.Hunters.Desktop.Views.Pages.SettingsPageView"
              x:DataType="p:SettingsPageViewModel">
   <StackPanel Spacing="20">
@@ -50,6 +52,35 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+      </StackPanel>
+    </c:HudPanel>
+
+    <c:HudPanel>
+      <StackPanel Spacing="14">
+        <TextBlock Classes="label" Text="MAP" />
+        <StackPanel Spacing="8">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Layout" />
+            <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                       Text="The 2D map is CCP's flattened layout, as in the in-game 2D map. Top-down shows the star map from above, as in space." />
+          </StackPanel>
+          <ItemsControl ItemsSource="{Binding MapLayoutChoices}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="m:ChoiceViewModel">
+                <Button Classes="hud toggle"
+                        Classes.primary="{Binding IsSelected}"
+                        Classes.ghost="{Binding !IsSelected}"
+                        Command="{Binding SelectCommand}"
+                        Content="{Binding Label, Converter={x:Static w:UpperCaseConverter.Instance}}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
       </StackPanel>
     </c:HudPanel>
 

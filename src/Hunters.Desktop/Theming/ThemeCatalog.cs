@@ -1,4 +1,5 @@
 using System.Text.Json;
+using NewEdenSoft.Hunters.Desktop.Map;
 
 namespace NewEdenSoft.Hunters.Desktop.Theming;
 
@@ -24,14 +25,9 @@ public sealed class ThemeCatalog
     public ThemeDefinition Get(string? id) =>
         Themes.FirstOrDefault(t => t.Id == id) ?? Themes.First(t => t.Id == DefaultThemeId);
 
-    /// <summary>Colour for a system's security status, rounded to one decimal as EVE displays it.</summary>
-    public Rgba SecurityColor(double security)
-    {
-        var rounded = Math.Round(security, 1, MidpointRounding.AwayFromZero);
-        if (rounded < 0)
-            return SecurityNull;
-        return SecuritySteps[(int)Math.Round(Math.Min(rounded, 1) * 10)];
-    }
+    /// <summary>Colour for a system's security status as EVE displays it (<see cref="SecurityStatus.Display"/>).</summary>
+    public Rgba SecurityColor(double security) =>
+        SecurityStatus.Bucket(security) is var bucket && bucket == SecurityStatus.NullBucket ? SecurityNull : SecuritySteps[bucket];
 
     /// <summary>Loads the catalog embedded in this assembly.</summary>
     public static ThemeCatalog LoadEmbedded()

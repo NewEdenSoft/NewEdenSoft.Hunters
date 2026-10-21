@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Settings;
 
 namespace NewEdenSoft.Hunters.Desktop.Tests.Settings;
@@ -37,6 +38,17 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         Assert.Equal("amarr", reloaded.ThemeId);
         Assert.True(reloaded.StartInTray);
         Assert.Equal(new WidgetSettings { IsFloating = true, X = 10, Y = 20, Opacity = 0.5 }, reloaded.Widgets["fleet"]);
+    }
+
+    [Fact]
+    public void Map_layout_defaults_to_the_2d_map_and_is_saved_by_name()
+    {
+        Assert.Equal(MapLayout.Flat, NewStore().Load().Map.Layout);
+
+        NewStore().Update(s => s with { Map = new MapSettings { Layout = MapLayout.TopDown } });
+
+        Assert.Contains("\"TopDown\"", File.ReadAllText(SettingsPath));
+        Assert.Equal(MapLayout.TopDown, NewStore().Load().Map.Layout);
     }
 
     [Fact]

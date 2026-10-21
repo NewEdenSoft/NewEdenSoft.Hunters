@@ -10,6 +10,9 @@ public abstract partial class PageViewModel : ViewModelBase
     /// <summary>Short status chip shown next to the title in the navigation rail.</summary>
     public virtual string? Badge => null;
 
+    /// <summary>The page fills the height of the content area instead of scrolling (a docked map).</summary>
+    public virtual bool IsFullBleed => false;
+
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 }

@@ -5,6 +5,8 @@ using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Client.Http;
 using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Contracts.Auth;
+using NewEdenSoft.Hunters.Contracts.Discovery;
+using NewEdenSoft.Hunters.Contracts.Map;
 
 namespace NewEdenSoft.Hunters.Client.Sessions;
 
@@ -77,6 +79,14 @@ public sealed class HuntersSession : ICharacterTokenProvider
             await TryAsync(() => SendAsync(HttpMethod.Delete, AccountPaths.Session(previous), cancellationToken: cancellationToken));
         return result;
     }
+
+    /// <summary>The server's discovery document; it names the current map pack.</summary>
+    public Task<DiscoveryDocument> GetDiscoveryAsync(CancellationToken cancellationToken = default) =>
+        SendAsync<DiscoveryDocument>(HttpMethod.Get, DiscoveryDocument.Path, cancellationToken: cancellationToken);
+
+    /// <summary>The map pack of one SDE build, as named by <see cref="DiscoveryDocument.MapPack"/>.</summary>
+    public Task<MapPack> GetMapPackAsync(long sdeBuild, CancellationToken cancellationToken = default) =>
+        SendAsync<MapPack>(HttpMethod.Get, MapPaths.Pack(sdeBuild), cancellationToken: cancellationToken);
 
     public async Task SetMainCharacterAsync(long characterId, CancellationToken cancellationToken = default)
     {

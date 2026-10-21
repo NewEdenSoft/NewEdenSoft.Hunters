@@ -1,9 +1,11 @@
+using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Desktop.Images;
+using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Platform;
 using NewEdenSoft.Hunters.Desktop.Platform.Windows;
 using NewEdenSoft.Hunters.Desktop.Settings;
@@ -14,6 +16,7 @@ using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 using NewEdenSoft.Hunters.Desktop.Views;
 using NewEdenSoft.Hunters.Desktop.Views.Pages;
 using NewEdenSoft.Hunters.Desktop.Widgets;
+using NewEdenSoft.Hunters.Desktop.Widgets.Map;
 using NewEdenSoft.Hunters.Desktop.Widgets.Placeholders;
 
 namespace NewEdenSoft.Hunters.Desktop;
@@ -57,7 +60,9 @@ public static class DesktopHost
         services.AddSingleton<IBrowserLauncher, SystemBrowserLauncher>();
         var userAgent = $"Hunters.Desktop/{typeof(DesktopHost).Assembly.GetName().Version}";
         services.AddHttpClient<DesktopLoginClient>(http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
-        services.AddHttpClient(AccountPageViewModel.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
+        // The server sends the map pack precompressed with Brotli or gzip.
+        services.AddHttpClient(AccountPageViewModel.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent))
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AutomaticDecompression = DecompressionMethods.Brotli | DecompressionMethods.GZip });
         services.AddHttpClient(PortraitCache.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
         services.AddSingleton<PortraitCache>();
 
@@ -67,6 +72,8 @@ public static class DesktopHost
         services.AddSingleton<TrayIconService>();
         services.AddSingleton<WidgetManager>();
 
+        services.AddSingleton<MapPreferences>();
+
         // System pages
         services.AddSingleton<AccountPageViewModel>();
         services.AddSingleton<SettingsPageViewModel>();
@@ -75,6 +82,8 @@ public static class DesktopHost
         services.AddView<WidgetPageViewModel, WidgetPageView>();
 
         // Widgets, in navigation order
+        services.AddWidget<MapWidgetViewModel, MapWidgetView>(
+            "map", "Map", "Known space, coloured by security. Drag to pan, scroll to zoom.", 520, 400, fillsPage: true);
         services.AddWidget<NearbyActivityWidgetViewModel, PlaceholderWidgetView>(
             "nearby-activity", "Nearby activity", "Systems near your characters with recent kills and jumps.", 320, 260);
         services.AddWidget<FleetWidgetViewModel, PlaceholderWidgetView>(

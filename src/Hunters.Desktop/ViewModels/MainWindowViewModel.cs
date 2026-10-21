@@ -25,7 +25,16 @@ public partial class MainWindowViewModel : ViewModelBase
     public IReadOnlyList<PageViewModel> SystemPages { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScrollingPage), nameof(FullBleedPage), nameof(IsFullBleed))]
     public partial PageViewModel? CurrentPage { get; private set; }
+
+    /// <summary>The current page when it scrolls in the padded content area.</summary>
+    public PageViewModel? ScrollingPage => CurrentPage is { IsFullBleed: false } ? CurrentPage : null;
+
+    /// <summary>The current page when it fills the content area (a docked map).</summary>
+    public PageViewModel? FullBleedPage => CurrentPage is { IsFullBleed: true } ? CurrentPage : null;
+
+    public bool IsFullBleed => CurrentPage?.IsFullBleed == true;
 
     /// <summary>Set by the main window as it is shown and hidden to the tray.</summary>
     [ObservableProperty]
@@ -53,8 +62,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OnWidgetChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(WidgetState.IsFloating))
-            UpdateDockedActivity();
+        if (e.PropertyName != nameof(WidgetState.IsFloating))
+            return;
+
+        UpdateDockedActivity();
+        // A widget that fills its page scrolls with it while floating (its page shows overlay settings).
+        OnPropertyChanged(nameof(ScrollingPage));
+        OnPropertyChanged(nameof(FullBleedPage));
+        OnPropertyChanged(nameof(IsFullBleed));
     }
 
     /// <summary>Docked widgets are active only while their page is visible. Floating ones are handled by <see cref="WidgetManager"/>.</summary>

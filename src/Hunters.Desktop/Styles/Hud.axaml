@@ -130,6 +130,12 @@
     <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
   </Style>
 
+  <!-- Small choice toggles: <Button Classes="hud toggle" Classes.primary="{Binding IsSelected}" Classes.ghost="{Binding !IsSelected}" /> -->
+  <Style Selector="Button.hud.toggle">
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+
   <!-- Text input: <TextBox Classes="hud" /> -->
   <Style Selector="TextBox.hud">
     <Setter Property="FontFamily" Value="{StaticResource Hud.MonoFont}" />

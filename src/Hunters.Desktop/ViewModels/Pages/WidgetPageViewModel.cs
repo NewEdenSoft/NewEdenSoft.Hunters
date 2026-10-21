@@ -27,6 +27,9 @@ public sealed partial class WidgetPageViewModel : PageViewModel
 
     public override string? Badge => Widget.IsFloating ? "OVERLAY" : null;
 
+    /// <summary>Docked widgets that fill their page; floating, the page shows overlay settings, which scroll.</summary>
+    public override bool IsFullBleed => Widget.Definition.FillsPage && !Widget.IsFloating;
+
     /// <summary>The widget content while docked; null while it floats, so only one view of it exists.</summary>
     public WidgetViewModelBase? DockedContent => Widget.IsFloating ? null : Widget.Content;
 
@@ -47,6 +50,7 @@ public sealed partial class WidgetPageViewModel : PageViewModel
         {
             OnPropertyChanged(nameof(Badge));
             OnPropertyChanged(nameof(DockedContent));
+            OnPropertyChanged(nameof(IsFullBleed));
         }
     }
 }
