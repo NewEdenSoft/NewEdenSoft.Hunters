@@ -20,6 +20,8 @@ TestResults/
 node_modules/
 dist/
 .vite/
+# TanStack Router plugin scratch files
+.tanstack/
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*

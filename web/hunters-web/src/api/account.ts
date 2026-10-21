@@ -30,3 +30,22 @@ export const accountQuery = queryOptions({
   queryFn: ({ signal }) => api<AccountInfo>('/api/account', { signal }),
   staleTime: 30_000,
 })
+
+export function setMainCharacter(characterId: number): Promise<void> {
+  return api('/api/account/main', { method: 'PUT', body: JSON.stringify({ characterId }) })
+}
+
+/** Removes the character from the account; the server revokes its token at EVE. */
+export function removeCharacter(characterId: number): Promise<void> {
+  return api(`/api/characters/${characterId}`, { method: 'DELETE' })
+}
+
+/** Deletes the account with all characters and sessions, including this one. */
+export function deleteAccount(): Promise<void> {
+  return api('/api/account', { method: 'DELETE' })
+}
+
+/** True when the server cannot get tokens for the character until the user logs in with it again. */
+export function needsReauth(character: CharacterInfo): boolean {
+  return character.status !== 'Active'
+}

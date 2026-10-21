@@ -19,6 +19,14 @@ React + TypeScript (Vite), served by its own server (see [Deployment](deployment
 
 When a query gets a 401 while the app is open (session revoked or ended elsewhere), the query cache is cleared and the app returns to `/login`.
 
+## Account page
+
+The same actions as the [desktop Account page](desktop-client.md#account-page), with portraits from EVE's image server:
+
+- **Add character** and **Log in again** are form posts to `/auth/web/login` with `returnUrl=/account`. With the session cookie, the server links the character to the signed-in account. A failed login comes back as `/login?error=…`; while signed in, `/login` forwards it to `/account?error=…`, which shows the message.
+- **Make main**, **Remove** and **Delete account** are TanStack Query mutations that refresh the account query when they finish. Remove and Delete account ask for confirmation. After deleting the account, the cache is cleared and the app goes to `/login`.
+- Characters with status `NeedsReauth` or `MissingScopes` get the warning icon and *Log in again*. The web app does not request access tokens yet, so for now only the server's status flags a character.
+
 ## Session
 
 Cookie session on the server's origin. Login and adding characters use the web flow in [Authentication](authentication.md#web-login).
