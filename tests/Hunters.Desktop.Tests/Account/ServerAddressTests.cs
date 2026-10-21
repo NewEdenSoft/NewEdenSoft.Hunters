@@ -10,6 +10,9 @@ public sealed class ServerAddressTests
     [InlineData("https://hunters.example.com/some/page?x=1#top", "https://hunters.example.com/")]
     [InlineData("http://localhost:5173", "http://localhost:5173/")]
     [InlineData("hunters.example.com:8443", "https://hunters.example.com:8443/")]
+    [InlineData("localhost:5173", "http://localhost:5173/")]
+    [InlineData("127.0.0.1:5259", "http://127.0.0.1:5259/")]
+    [InlineData("https://localhost:7001", "https://localhost:7001/")]
     public void Accepts_addresses_users_type(string input, string expected)
     {
         Assert.True(ServerAddress.TryParse(input, out var server));

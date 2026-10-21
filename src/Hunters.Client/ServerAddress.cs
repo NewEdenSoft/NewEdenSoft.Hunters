@@ -5,8 +5,8 @@ public static class ServerAddress
 {
     /// <summary>
     /// Accepts <c>hunters.example.com</c>, <c>https://hunters.example.com/</c> or
-    /// <c>http://localhost:5173</c>. Without a scheme, <c>https</c> is assumed. Paths, queries and
-    /// fragments are dropped.
+    /// <c>localhost:5173</c>. Without a scheme, <c>https</c> is assumed, except for loopback
+    /// addresses (local development), which use <c>http</c>. Paths, queries and fragments are dropped.
     /// </summary>
     public static bool TryParse(string? input, out Uri server)
     {
@@ -16,7 +16,7 @@ public static class ServerAddress
             return false;
 
         if (!text.Contains("://", StringComparison.Ordinal))
-            text = "https://" + text;
+            text = (IsLoopback(text) ? "http://" : "https://") + text;
 
         if (!Uri.TryCreate(text, UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp)
@@ -29,4 +29,7 @@ public static class ServerAddress
         server = new Uri(uri.GetLeftPart(UriPartial.Authority) + "/");
         return true;
     }
+
+    private static bool IsLoopback(string address) =>
+        Uri.TryCreate("http://" + address, UriKind.Absolute, out var uri) && uri.IsLoopback;
 }
