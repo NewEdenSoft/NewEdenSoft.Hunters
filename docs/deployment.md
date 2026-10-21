@@ -48,7 +48,7 @@ Environment variables use `__` for nesting (`Hunters__Web__Enabled`).
 | `Hunters:Database:MigrateOnStartup` | `true` | Apply database migrations at startup |
 | `Hunters:Sso:ClientId` | — | EVE application client ID |
 | `Hunters:Sso:ClientSecret` | — | EVE application secret |
-| `Hunters:Sso:CallbackUrl` | — | Must match the EVE application's single callback URL: `{public url}/auth/eve/callback` |
+| `Hunters:Sso:CallbackUrl` | — | Must match the EVE application's single callback URL: `{public url}/auth/eve/callback`. Its origin is also the public address in desktop login links |
 | `Hunters:Sso:Scopes` | location, online, ship, waypoint | Requested scopes |
 | `Hunters:Admission:*` | all off | See [Admission](discovery-and-admission.md) |
 | `Hunters:Admins:{n}` | — | Admin character IDs |

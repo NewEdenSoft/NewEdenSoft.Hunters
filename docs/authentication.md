@@ -46,6 +46,7 @@ Desktop                                        Server                       EVE 
 |---|---|
 | `loginId` | Public (appears in browser URL). Expires after 5 minutes. The browser link works once. |
 | Correlation | Opening the browser link sets the OAuth correlation cookie, so only that browser can complete the callback. |
+| Browser link | Built from the public origin of `Hunters:Sso:CallbackUrl`, not from the address the app used. The link and the EVE callback are then always on the same origin, even when the app reaches the server directly while browsers go through the Vite dev server or a reverse proxy. |
 | `port` | Registered in step 2. The server only redirects to `127.0.0.1:{registered port}`, never to a URL supplied in the browser. |
 | `appChallenge` / `appVerifier` | Binds the login to the app instance that started it. This is between the app and the server only; it is not EVE PKCE. A local process that intercepts the `loginCode` cannot redeem it. |
 | `loginCode` | Single use, expires after 60 seconds, stored hashed. |

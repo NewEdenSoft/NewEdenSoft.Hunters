@@ -122,6 +122,20 @@ public sealed class DesktopLoginTests(PostgresFixture postgres) : IDisposable
     }
 
     [Fact]
+    public async Task Browser_link_uses_the_public_origin_of_the_callback()
+    {
+        // The app reaches the server at its own address (here the test host); the browser must
+        // go to the public address EVE returns to, e.g. the Vite dev server or a reverse proxy.
+        using var factory = new HuntersServerFactory().WithDatabase(postgres.ConnectionString)
+            .With("Hunters:Sso:CallbackUrl", "https://hunters.example.com/auth/eve/callback");
+
+        var begin = await factory.CreateClient().PostAsJsonAsync(AuthPaths.DesktopBegin, new BeginDesktopLoginRequest(50000, new string('a', 43)));
+        var started = (await begin.Content.ReadFromJsonAsync<BeginDesktopLoginResponse>())!;
+
+        Assert.Equal($"https://hunters.example.com/auth/desktop/{started.LoginId}", started.BrowserUrl);
+    }
+
+    [Fact]
     public async Task Callback_with_unknown_state_shows_expired_page()
     {
         var response = await _factory.CreateNonRedirectingClient().GetAsync($"{AuthPaths.EveCallback}?code=x&state=unknown");
