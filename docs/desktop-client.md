@@ -37,7 +37,7 @@ Until this is built, the Account page is just another page and the rest of the a
 
 ### Account page
 
-Once logged in, the Account page shows the server and the account's characters (main first), with:
+Once logged in, the Account page shows the server and the account's characters (main first, with portraits from EVE's public [image server](https://developers.eveonline.com/docs/services/image-server/), kept in memory while the app runs), with:
 
 | Action | Notes |
 |---|---|

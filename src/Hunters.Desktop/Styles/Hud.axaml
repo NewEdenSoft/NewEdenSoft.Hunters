@@ -176,6 +176,24 @@
   <Style Selector="Border.character-row.attention">
     <Setter Property="BorderBrush" Value="{DynamicResource Hud.WarningBrush}" />
   </Style>
+  <Style Selector="Border.portrait">
+    <Setter Property="Background" Value="{DynamicResource Hud.BgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineStrongBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+  <Style Selector="Border.character-row.attention Border.portrait">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.WarningBrush}" />
+  </Style>
+  <Style Selector="Border.portrait-badge">
+    <Setter Property="Background" Value="{DynamicResource Hud.BgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.WarningBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Padding" Value="2" />
+    <Setter Property="HorizontalAlignment" Value="Right" />
+    <Setter Property="VerticalAlignment" Value="Bottom" />
+    <Setter Property="Margin" Value="0,0,-5,-5" />
+  </Style>
 
   <!-- Navigation rail: <Button Classes="nav" Classes.selected="{Binding IsSelected}" /> -->
   <Style Selector="TextBlock.nav-heading">
