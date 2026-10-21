@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { discoveryQuery } from '../../api/discovery'
+import { Label } from '../../components/ui/Label'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { Panel } from '../../components/ui/Panel'
+import { Status } from '../../components/ui/Status'
 
 export const Route = createFileRoute('/_authed/')({
   component: HomePage,
@@ -11,28 +15,25 @@ function HomePage() {
 
   return (
     <>
-      <section className="hero">
-        <span className="label accent">NewEdenSoft · Hunters</span>
-        <h1>
-          A tactical HUD for <span className="accent glow">hunting in New Eden</span>
-        </h1>
-      </section>
+      <PageHeader label="NewEdenSoft · Hunters">
+        A tactical HUD for <span className="text-primary text-shadow-glow">hunting in New Eden</span>
+      </PageHeader>
 
-      <section className="panel">
-        <span className="label">Server</span>
-        {discovery.isPending && <p className="muted">Connecting…</p>}
+      <Panel>
+        <Label>Server</Label>
+        {discovery.isPending && <p className="text-fg-muted">Connecting…</p>}
         {discovery.isError && (
-          <p role="alert" className="status status-danger">
+          <Status tone="danger" role="alert">
             Could not reach the server: {discovery.error.message}
-          </p>
+          </Status>
         )}
         {discovery.isSuccess && (
-          <p className="status status-ok">
-            Connected to <strong>{discovery.data.name}</strong>{' '}
-            <span className="mono muted">API {discovery.data.apiVersion}</span>
-          </p>
+          <Status tone="ok">
+            Connected to <strong>{discovery.data.name}</strong>
+            <span className="font-mono text-fg-muted">API {discovery.data.apiVersion}</span>
+          </Status>
         )}
-      </section>
+      </Panel>
     </>
   )
 }

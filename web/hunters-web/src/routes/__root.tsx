@@ -1,6 +1,11 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, Link, Outlet, useRouter, type ErrorComponentProps } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
+import { Button } from '../components/ui/Button'
+import { Label } from '../components/ui/Label'
+import { Panel } from '../components/ui/Panel'
+import { Status } from '../components/ui/Status'
+import { buttonClass, cn, wrap } from '../components/ui/styles'
 
 export interface RouterContext {
   queryClient: QueryClient
@@ -45,34 +50,32 @@ function RootLayout() {
 function RouteError({ error }: ErrorComponentProps) {
   const router = useRouter()
   return (
-    <main className="wrap page">
-      <section className="panel">
-        <span className="label">Something went wrong</span>
-        <p role="alert" className="status status-danger">
+    <main className={cn(wrap, 'py-10')}>
+      <Panel>
+        <Label>Something went wrong</Label>
+        <Status tone="danger" role="alert">
           {error instanceof Error ? error.message : String(error)}
-        </p>
-        <div className="row">
-          <button type="button" className="btn" onClick={() => void router.invalidate()}>
-            Try again
-          </button>
+        </Status>
+        <div>
+          <Button onClick={() => void router.invalidate()}>Try again</Button>
         </div>
-      </section>
+      </Panel>
     </main>
   )
 }
 
 function NotFound() {
   return (
-    <main className="wrap page">
-      <section className="panel">
-        <span className="label">Not found</span>
+    <main className={cn(wrap, 'py-10')}>
+      <Panel>
+        <Label>Not found</Label>
         <p>There is nothing at this address.</p>
-        <div className="row">
-          <Link to="/" className="btn">
+        <div>
+          <Link to="/" className={buttonClass()}>
             Home
           </Link>
         </div>
-      </section>
+      </Panel>
     </main>
   )
 }

@@ -1,5 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ThemePicker } from '../../components/ThemePicker'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { Panel } from '../../components/ui/Panel'
 import { useTheme } from '../../theme/useTheme'
 
 export const Route = createFileRoute('/_authed/settings')({
@@ -11,13 +13,10 @@ function SettingsPage() {
 
   return (
     <>
-      <section className="hero">
-        <span className="label accent">System</span>
-        <h1>Settings</h1>
-      </section>
-      <section className="panel">
+      <PageHeader label="System">Settings</PageHeader>
+      <Panel>
         <ThemePicker current={theme} onSelect={selectTheme} />
-      </section>
+      </Panel>
     </>
   )
 }

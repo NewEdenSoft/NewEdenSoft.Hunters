@@ -1,4 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { Label } from '../../components/ui/Label'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { Panel } from '../../components/ui/Panel'
 
 export const Route = createFileRoute('/_authed/account')({
   component: AccountPage,
@@ -8,14 +11,11 @@ export const Route = createFileRoute('/_authed/account')({
 function AccountPage() {
   return (
     <>
-      <section className="hero">
-        <span className="label accent">System</span>
-        <h1>Account</h1>
-      </section>
-      <section className="panel">
-        <span className="label">Characters</span>
-        <p className="muted">Character management is coming next.</p>
-      </section>
+      <PageHeader label="System">Account</PageHeader>
+      <Panel>
+        <Label>Characters</Label>
+        <p className="text-fg-muted">Character management is coming next.</p>
+      </Panel>
     </>
   )
 }

@@ -2,6 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { accountQuery } from '../api/account'
 import { discoveryQuery } from '../api/discovery'
+import { Button } from '../components/ui/Button'
+import { Label } from '../components/ui/Label'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Panel } from '../components/ui/Panel'
+import { Status } from '../components/ui/Status'
 
 interface LoginSearch {
   /** Where to go after logging in; a path on this site. */
@@ -35,40 +40,42 @@ function LoginPage() {
   const discovery = useQuery(discoveryQuery)
 
   return (
-    <main className="wrap page login">
-      <section className="hero">
-        <span className="label accent">NewEdenSoft · Hunters</span>
-        <h1>
-          Log in to <span className="accent glow">{discovery.data?.name ?? 'Hunters'}</span>
-        </h1>
-      </section>
+    <main className="mx-auto grid w-full max-w-160 gap-6 px-4 pt-10 pb-18">
+      <PageHeader label="NewEdenSoft · Hunters">
+        Log in to <span className="text-primary text-shadow-glow">{discovery.data?.name ?? 'Hunters'}</span>
+      </PageHeader>
 
-      <section className="panel">
-        <span className="label">Log in</span>
-        <p className="muted">Log in with your EVE Online character. You are sent to EVE Online and back.</p>
+      <Panel>
+        <Label>Log in</Label>
+        <p className="text-fg-muted">Log in with your EVE Online character. You are sent to EVE Online and back.</p>
 
         {error && (
-          <p role="alert" className="status status-danger">
+          <Status tone="danger" role="alert">
             {message ?? 'The login failed. Try again.'}
-          </p>
+          </Status>
         )}
 
         {/* A plain form post: the server starts the EVE login and redirects the browser. */}
-        <form method="post" action="/auth/web/login" className="form">
+        <form method="post" action="/auth/web/login" className="grid gap-3.5">
           {returnUrl && <input type="hidden" name="returnUrl" value={returnUrl} />}
           {discovery.data?.admission.requiresAccessKey && (
-            <label className="field">
-              <span className="label">Access key (only for a new account)</span>
-              <input name="accessKey" type="password" autoComplete="off" className="input" />
+            <label className="grid max-w-105 gap-1.5">
+              <Label>Access key (only for a new account)</Label>
+              <input
+                name="accessKey"
+                type="password"
+                autoComplete="off"
+                className="border border-line-strong bg-bg px-2.5 py-2 font-mono text-fg outline-none hover:border-primary focus:border-primary"
+              />
             </label>
           )}
-          <div className="row">
-            <button type="submit" className="btn primary">
+          <div>
+            <Button type="submit" variant="primary">
               Log in with EVE Online
-            </button>
+            </Button>
           </div>
         </form>
-      </section>
+      </Panel>
     </main>
   )
 }
