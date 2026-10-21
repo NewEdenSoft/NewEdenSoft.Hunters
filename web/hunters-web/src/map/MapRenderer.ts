@@ -10,15 +10,20 @@ export interface MapHover {
   y: number
 }
 
-/** Zoom (pixels per light year) from which system names are drawn. */
+/** Zoom (pixels per light year) from which system names are drawn; below it, region names are. */
 export const LABEL_ZOOM = 28
 
 const HOVER_RADIUS_PX = 10
 const LABEL_FONT_PX = 11
+const REGION_FONT_PX = 12
+/** Clear space around a region name, so neighbouring names never read as one. */
+const REGION_GAP_PX = 14
 const LABEL_CELL_PX = 6
 
 interface Palette {
   gate: string
+  halo: string
+  region: string
   label: string
   labelHover: string
   hover: string
@@ -51,6 +56,7 @@ export class MapRenderer {
   private gates: Path2D
   private palette: Palette
   private labelFont = ''
+  private regionFont = ''
 
   private dpr = 1
   private width = 0
@@ -75,6 +81,8 @@ export class MapRenderer {
     this.byBucket = groupByBucket(model)
     this.palette = resolvePalette()
     this.labelFont = `${LABEL_FONT_PX}px ${getComputedStyle(document.body).fontFamily}`
+    const displayFont = getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim()
+    this.regionFont = `600 ${REGION_FONT_PX}px ${displayFont || getComputedStyle(document.body).fontFamily}`
 
     canvas.addEventListener('wheel', this.onWheel, { passive: false })
     canvas.addEventListener('pointerdown', this.onPointerDown)
@@ -193,6 +201,55 @@ export class MapRenderer {
     }
 
     if (scale >= LABEL_ZOOM) this.drawLabels(radius)
+    else this.drawRegionLabels()
+  }
+
+  /**
+   * Region names at the centre of their systems, when zoomed out too far for system names. Larger
+   * regions are placed first; a name that would overlap one already drawn is skipped.
+   */
+  private drawRegionLabels(): void {
+    const { ctx, scale, offsetX, offsetY, palette } = this
+    ctx.font = this.regionFont
+    ctx.letterSpacing = '2px'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 3
+    ctx.strokeStyle = palette.halo
+    ctx.fillStyle = palette.region
+
+    const taken = new Set<number>()
+    const height = REGION_FONT_PX + 4
+    for (const region of this.model.regions) {
+      const centre = region.centre[this.layout]
+      if (!centre) continue
+      const x = centre.x * scale + offsetX
+      const y = centre.y * scale + offsetY
+      const text = region.name.toUpperCase()
+      const width = ctx.measureText(text).width
+      if (x + width / 2 < 0 || x - width / 2 > this.width || y < -height || y > this.height + height) continue
+
+      const x0 = Math.floor((x - width / 2 - REGION_GAP_PX) / LABEL_CELL_PX)
+      const x1 = Math.floor((x + width / 2 + REGION_GAP_PX) / LABEL_CELL_PX)
+      const y0 = Math.floor((y - height / 2 - REGION_GAP_PX / 2) / LABEL_CELL_PX)
+      const y1 = Math.floor((y + height / 2 + REGION_GAP_PX / 2) / LABEL_CELL_PX)
+      let free = true
+      for (let cx = x0; cx <= x1 && free; cx++)
+        for (let cy = y0; cy <= y1; cy++)
+          if (taken.has(cx * 100_000 + cy)) {
+            free = false
+            break
+          }
+      if (!free) continue
+      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) taken.add(cx * 100_000 + cy)
+
+      ctx.strokeText(text, x, y)
+      ctx.fillText(text, x, y)
+    }
+
+    ctx.letterSpacing = '0px'
+    ctx.textAlign = 'start'
   }
 
   /** System names to the bottom right of each system in view, skipping any that would overlap one already drawn. */
@@ -365,6 +422,8 @@ function groupByBucket(model: MapModel): Uint32Array[] {
 function resolvePalette(): Palette {
   return {
     gate: resolveColor('var(--line-strong)'),
+    halo: resolveColor('var(--bg)'),
+    region: resolveColor('var(--fg)'),
     label: resolveColor('var(--fg-muted)'),
     labelHover: resolveColor('var(--fg)'),
     hover: resolveColor('var(--primary)'),

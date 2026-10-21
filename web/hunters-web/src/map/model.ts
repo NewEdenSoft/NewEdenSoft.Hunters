@@ -30,8 +30,23 @@ export interface MapModel {
   /** Gate endpoints as pairs of system indexes. */
   gates: Uint32Array
   regionNames: Map<number, string>
+  /** Regions for labels, largest (most systems) first. */
+  regions: MapRegionLabel[]
   indexOf: Map<number, number>
 }
+
+export interface MapRegionLabel {
+  id: number
+  name: string
+  /**
+   * Where to put the region's name per layout: the mean position of its systems, or null when the
+   * region is too scattered for one label to mean anything (Pochven in the top-down layout).
+   */
+  centre: Record<MapLayout, { x: number; y: number } | null>
+}
+
+/** A region is labelled only if its systems spread at most this many times the median region's spread. */
+const MAX_REGION_SPREAD = 2
 
 export function buildMapModel(pack: MapPack): MapModel {
   const count = pack.systems.length
@@ -79,8 +94,47 @@ export function buildMapModel(pack: MapPack): MapModel {
     bounds: { topDown: boundsOf(topDown), flat: boundsOf(flat) },
     gates: gates.subarray(0, g),
     regionNames: new Map(pack.regions.map((r) => [r.id, r.name])),
+    regions: regionLabels(pack, regionIds, { topDown, flat }),
     indexOf,
   }
+}
+
+function regionLabels(pack: MapPack, regionIds: Int32Array, positions: Record<MapLayout, Float32Array>): MapRegionLabel[] {
+  const members = new Map<number, number[]>()
+  regionIds.forEach((regionId, i) => {
+    const list = members.get(regionId)
+    if (list) list.push(i)
+    else members.set(regionId, [i])
+  })
+
+  const regions = pack.regions.filter((r) => members.has(r.id))
+  const centres = { topDown: labelCentres(regions, members, positions.topDown), flat: labelCentres(regions, members, positions.flat) }
+
+  return regions
+    .map((r, i) => ({ id: r.id, name: r.name, centre: { topDown: centres.topDown[i], flat: centres.flat[i] } }))
+    .sort((a, b) => members.get(b.id)!.length - members.get(a.id)!.length)
+}
+
+/** Mean position of each region's systems, or null for regions spread much wider than the median region. */
+function labelCentres(regions: { id: number }[], members: Map<number, number[]>, xy: Float32Array) {
+  const stats = regions.map((r) => {
+    const systems = members.get(r.id)!
+    let x = 0
+    let y = 0
+    for (const i of systems) {
+      x += xy[i * 2]
+      y += xy[i * 2 + 1]
+    }
+    x /= systems.length
+    y /= systems.length
+    let squares = 0
+    for (const i of systems) squares += (xy[i * 2] - x) ** 2 + (xy[i * 2 + 1] - y) ** 2
+    return { x, y, spread: Math.sqrt(squares / systems.length) }
+  })
+
+  const spreads = stats.map((s) => s.spread).sort((a, b) => a - b)
+  const median = spreads[Math.floor(spreads.length / 2)] ?? 0
+  return stats.map((s) => (s.spread <= median * MAX_REGION_SPREAD ? { x: s.x, y: s.y } : null))
 }
 
 export function boundsOf(xy: Float32Array): Bounds {
