@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NewEdenSoft.Hunters.Client.Auth;
+using NewEdenSoft.Hunters.Desktop.Images;
 using NewEdenSoft.Hunters.Desktop.Platform;
 using NewEdenSoft.Hunters.Desktop.Platform.Windows;
 using NewEdenSoft.Hunters.Desktop.Settings;
@@ -57,6 +58,8 @@ public static class DesktopHost
         var userAgent = $"Hunters.Desktop/{typeof(DesktopHost).Assembly.GetName().Version}";
         services.AddHttpClient<DesktopLoginClient>(http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
         services.AddHttpClient(AccountPageViewModel.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
+        services.AddHttpClient(PortraitCache.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
+        services.AddSingleton<PortraitCache>();
 
         // Shell
         services.AddSingleton<MainWindow>();

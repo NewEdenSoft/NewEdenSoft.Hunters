@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -7,6 +8,7 @@ using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Client.Sessions;
 using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Contracts.Auth;
+using NewEdenSoft.Hunters.Desktop.Images;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 
@@ -14,7 +16,7 @@ namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 /// Log in to a Hunters server with EVE Online and manage the account's characters. The session
 /// is kept in memory only and never saved (docs/decisions.md, D20).
 /// </summary>
-public sealed partial class AccountPageViewModel(DesktopLoginClient logins, IHttpClientFactory httpClients) : PageViewModel
+public sealed partial class AccountPageViewModel(DesktopLoginClient logins, IHttpClientFactory httpClients, PortraitCache portraits) : PageViewModel
 {
     public const string HttpClientName = "Hunters";
 
@@ -220,7 +222,7 @@ public sealed partial class AccountPageViewModel(DesktopLoginClient logins, IHtt
         if (Session is { } session)
         {
             foreach (var character in session.Account.Characters.OrderByDescending(c => c.IsMain).ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
-                Characters.Add(new CharacterItemViewModel(character, this));
+                Characters.Add(new CharacterItemViewModel(character, this, portraits));
         }
 
         NeedsAttention = Characters.Any(c => c.NeedsReauth);
@@ -236,41 +238,59 @@ public sealed partial class AccountPageViewModel(DesktopLoginClient logins, IHtt
 }
 
 /// <summary>A character on the signed-in account.</summary>
-public sealed partial class CharacterItemViewModel(CharacterInfo character, AccountPageViewModel page) : ObservableObject
+public sealed partial class CharacterItemViewModel : ObservableObject
 {
-    public long Id => character.Id;
+    private readonly CharacterInfo _character;
+    private readonly AccountPageViewModel _page;
 
-    public string Name => character.Name;
+    public CharacterItemViewModel(CharacterInfo character, AccountPageViewModel page, PortraitCache portraits)
+    {
+        _character = character;
+        _page = page;
+        _ = LoadPortraitAsync(portraits);
+    }
 
-    public bool IsMain => character.IsMain;
+    public long Id => _character.Id;
 
-    public bool CanMakeMain => !character.IsMain;
+    public string Name => _character.Name;
+
+    public bool IsMain => _character.IsMain;
+
+    public bool CanMakeMain => !_character.IsMain;
 
     /// <summary>The server cannot get tokens for this character until the user logs in with it again.</summary>
-    public bool NeedsReauth => character.Status != CharacterStatus.Active;
+    public bool NeedsReauth => _character.Status != CharacterStatus.Active;
 
-    public string? StatusText => character.Status switch
+    public string? StatusText => _character.Status switch
     {
         CharacterStatus.NeedsReauth => "Access expired or was revoked. Log in with this character again.",
         CharacterStatus.MissingScopes => "The server needs more permissions. Log in with this character again.",
         _ => null,
     };
 
+    /// <summary>Null until downloaded, or when the image server cannot be reached.</summary>
+    [ObservableProperty]
+    public partial Bitmap? Portrait { get; private set; }
+
     [ObservableProperty]
     public partial bool IsConfirmingRemove { get; set; }
 
-    [RelayCommand]
-    private Task ReauthAsync() => page.ReauthAsync(this);
+    // Created on the UI thread, so the continuation sets the property there too.
+    private async Task LoadPortraitAsync(PortraitCache portraits) =>
+        Portrait = await portraits.GetCharacterPortraitAsync(_character.Id);
 
     [RelayCommand]
-    private Task MakeMainAsync() => page.MakeMainAsync(this);
+    private Task ReauthAsync() => _page.ReauthAsync(this);
+
+    [RelayCommand]
+    private Task MakeMainAsync() => _page.MakeMainAsync(this);
 
     /// <summary>First click asks for confirmation, the second removes.</summary>
     [RelayCommand]
     private Task RemoveAsync()
     {
         if (IsConfirmingRemove)
-            return page.RemoveAsync(this);
+            return _page.RemoveAsync(this);
 
         IsConfirmingRemove = true;
         return Task.CompletedTask;
