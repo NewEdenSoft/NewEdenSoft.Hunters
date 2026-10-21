@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using NewEdenSoft.Hunters.Contracts;
 using NewEdenSoft.Hunters.Contracts.Discovery;
 using NewEdenSoft.Hunters.Server.Configuration;
+using NewEdenSoft.Hunters.Server.Features.Map;
 
 namespace NewEdenSoft.Hunters.Server.Features.Discovery;
 
@@ -12,7 +13,7 @@ public static class DiscoveryEndpoints
 
     public static IEndpointRouteBuilder MapDiscovery(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet(DiscoveryDocument.Path, (IOptionsSnapshot<HuntersOptions> options) =>
+        endpoints.MapGet(DiscoveryDocument.Path, (IOptionsSnapshot<HuntersOptions> options, MapPackStore maps) =>
             {
                 var hunters = options.Value;
                 return new DiscoveryDocument(
@@ -20,7 +21,7 @@ public static class DiscoveryEndpoints
                     ApiVersion: HuntersApi.Version,
                     MinClientVersion: MinClientVersion,
                     Admission: new AdmissionInfo(RequiresAccessKey: hunters.Admission.AccessKey.Enabled),
-                    MapPack: null,
+                    MapPack: maps.Current is { } pack ? new MapPackInfo(pack.Build) : null,
                     Features: []);
             })
             .WithName("GetDiscoveryDocument")

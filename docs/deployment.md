@@ -27,8 +27,10 @@ Services:
 
 | Service | Image | Volumes |
 |---|---|---|
-| `hunters` | `ghcr.io/newedensoft/hunters-server` (or built locally) | `dpkeys` → `/app/keys` |
+| `hunters` | `ghcr.io/newedensoft/hunters-server` (or built locally) | `dpkeys` → `/app/keys`, `sde` → `/app/sde` |
 | `db` | `postgres:17` | `pgdata` |
+
+The `sde` volume caches CCP's SDE archive (about 100 MB), from which the server builds the map. Losing it only means downloading it again at the next start.
 
 **The `dpkeys` volume must persist.** Refresh tokens are encrypted with the Data Protection keys stored there; losing the keys makes every stored token unreadable and forces all users to log in again.
 
@@ -51,6 +53,8 @@ Environment variables use `__` for nesting (`Hunters__Web__Enabled`).
 | `Hunters:Sso:CallbackUrl` | — | Must match the EVE application's single callback URL: `{public url}/auth/eve/callback`. Its origin is also the public address in desktop login links |
 | `Hunters:Sso:Scopes` | location, online, ship, waypoint | Requested scopes |
 | `Hunters:Admission:*` | all off | See [Admission](discovery-and-admission.md) |
+| `Hunters:Sde:CachePath` | `/app/sde` in the image; local app data otherwise | SDE archive and extracted map data |
+| `Hunters:Sde:RefreshInterval` | `06:00:00` | How often to check CCP for a new SDE build |
 | `Hunters:Admins:{n}` | — | Admin character IDs |
 | `Hunters:Esi:Contact` | repository URL | Contact sent to ESI in the User-Agent |
 | `ConnectionStrings:hunters` | — | PostgreSQL connection string |

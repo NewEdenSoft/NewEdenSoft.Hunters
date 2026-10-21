@@ -22,7 +22,10 @@ Character registration and account management come first; every other feature bu
 8. ✅ Integration tests with a fake EVE SSO against PostgreSQL (Testcontainers). Self-hosting README still to write.
 
 ## Phase 2 — Static map
-Map pack builder (SDE → 2D projection), map rendering in desktop and web, "you are here".
+1. ✅ Server: map pack builder from the SDE (known space, two 2D layouts), endpoint, discovery.
+2. Web: map pack cache (IndexedDB), canvas map with systems and gates, security colouring, pan/zoom, hover.
+3. Desktop: map pack cache, Skia map control as a widget.
+4. "You are here".
 
 ## Phase 3 — Activity
 ESI kills/jumps worker with history, zKillboard ingest pipeline with subscriptions, activity colouring, filters.
