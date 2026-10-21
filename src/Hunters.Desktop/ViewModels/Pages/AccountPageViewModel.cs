@@ -329,22 +329,12 @@ public sealed partial class CharacterItemViewModel : ObservableObject
         {
             if (!IsTracked)
                 return "Not tracked";
-            if (Tracked is not { Location: { } location } state)
+            if (CharacterWhereabouts.From(Tracked, _names) is not { } where)
                 return Tracked?.Status == TrackingStatus.Failing ? "Location unavailable, retrying" : "Locating…";
 
-            var parts = new List<string> { state.IsOnline == true ? "Online" : "Offline" };
-            parts.Add(_names.Get(location.SolarSystemId) ?? "Unknown system");
-            if (location.IsDocked)
-                parts.Add(location.StationId is { } station && _names.Get(station) is { } stationName ? $"Docked at {stationName}" : "Docked");
-            if (state.Ship is { } ship)
-            {
-                var type = _names.Get(ship.TypeId);
-                parts.Add(type is null ? ship.Name : ship.Name == type || string.IsNullOrWhiteSpace(ship.Name) ? type : $"{type} “{ship.Name}”");
-            }
-
-            if (state.Status == TrackingStatus.Failing)
-                parts.Add("retrying");
-            return string.Join(" · ", parts);
+            string?[] parts = [Tracked!.IsOnline == true ? "Online" : "Offline", where.System, where.Docked, where.Ship,
+                Tracked.Status == TrackingStatus.Failing ? "retrying" : null];
+            return string.Join(" · ", parts.OfType<string>());
         }
     }
 
@@ -353,12 +343,7 @@ public sealed partial class CharacterItemViewModel : ObservableObject
     {
         // A slow lookup must not overwrite a newer state.
         var version = ++_trackingVersion;
-        if (state is { Location: { } location })
-        {
-            // Player structures are not public; their names cannot be looked up.
-            long?[] ids = [location.SolarSystemId, location.StationId, state.Ship?.TypeId];
-            await _names.ResolveAsync(ids.OfType<long>());
-        }
+        await CharacterWhereabouts.ResolveNamesAsync(state, _names);
 
         if (version == _trackingVersion)
             Tracked = state;

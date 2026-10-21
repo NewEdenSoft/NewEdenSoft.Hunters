@@ -150,7 +150,7 @@ After login the saved overlays are restored, and the main window hides to the tr
 | `IOverlayPlatform` | Click-through and overlay window styles per OS. Windows: `WS_EX_LAYERED \| WS_EX_TRANSPARENT`, `WS_EX_TOOLWINDOW`. |
 | `TrayIconService` | The tray icon and menu. |
 
-Widgets so far: the [Map](#map), and placeholders for Nearby activity and Fleet, whose content arrives with the features they show.
+Widgets so far: the [Map](#map), [Characters](#characters-widget), and placeholders for Nearby activity and Fleet, whose content arrives with the features they show.
 
 Widget ideas:
 
@@ -158,6 +158,10 @@ Widget ideas:
 - Fleet members
 - Route strip
 - Kill ticker
+
+## Characters widget
+
+The account's characters at a glance, small enough for an overlay: each row has the character's [marker](#account-page), portrait, an online dot, name, system (with *Docked* when docked) and ship, live from the [tracker](#character-tracking). Characters that are not tracked say so, and characters that need a new login are flagged in amber. The order is main first, then by name, and stays put as characters log in and out. The tooltip has the full station name and the last tracking error. The Account page and the widget describe a character with the same `CharacterWhereabouts`.
 
 ## Map
 
