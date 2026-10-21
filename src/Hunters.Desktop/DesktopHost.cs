@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NewEdenSoft.Hunters.Client.Auth;
+using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Images;
 using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Platform;
@@ -65,6 +66,7 @@ public static class DesktopHost
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AutomaticDecompression = DecompressionMethods.Brotli | DecompressionMethods.GZip });
         services.AddHttpClient(PortraitCache.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
         services.AddSingleton<PortraitCache>();
+        services.AddSingleton<CharacterPreferences>();
 
         // Shell
         services.AddSingleton<MainWindow>();

@@ -48,6 +48,8 @@ Once logged in, the Account page shows the server and the account's characters (
 | Delete account | Asks for confirmation. Deletes the account, characters and sessions on the server and logs out. |
 | Log out | Revokes this session on the server. |
 
+**Map markers.** Each character has a marker that will show it on the map: a letter (A to Z), a number (1 to 9) or an icon (target, star, diamond, triangle, bolt, shield, eye, heart). Clicking the badge at the start of a character's row opens a picker below it. The default is the first letter of the character's name. Markers are saved in this computer's desktop settings by character id (`Characters.{id}.Marker`) and are not shared with the server or other devices. `CharacterPreferences` reads and saves them and raises `MarkerChanged`; `MarkerBadge` draws one. Icons are SVG path data in a 24 x 24 box (`MarkerIcons`), so Avalonia and the map's Skia renderer draw the same shapes.
+
 **Needs re-auth.** Access tokens expire after about 20 minutes and the server refreshes them on request, so the user never sees that. A refresh token stops working when the user revokes the app at EVE, a password changes, or EVE expires it; the server only finds out when it next refreshes. The desktop does not poll for this. A character is flagged when:
 
 - the account snapshot from the server says `NeedsReauth` or `MissingScopes` (on login, refresh, or after any account change), or

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Map;
 
 namespace NewEdenSoft.Hunters.Desktop.Settings;
@@ -16,6 +17,15 @@ public sealed record DesktopSettings
     public IReadOnlyDictionary<string, WidgetSettings> Widgets { get; init; } = new Dictionary<string, WidgetSettings>();
 
     public MapSettings Map { get; init; } = new();
+
+    /// <summary>Per-character choices, keyed by character id.</summary>
+    public IReadOnlyDictionary<long, CharacterSettings> Characters { get; init; } = new Dictionary<long, CharacterSettings>();
+}
+
+public sealed record CharacterSettings
+{
+    /// <summary>The character's map marker; null uses the default (the first letter of its name).</summary>
+    public CharacterMarker? Marker { get; init; }
 }
 
 public sealed record MapSettings
