@@ -18,11 +18,31 @@ const HOVER_RADIUS_PX = 10
 const CONSTELLATION_DASH = [6, 4]
 const REGION_DASH = [18, 8]
 
-/** Gate paths by what they connect, in world coordinates. */
-interface GatePaths {
-  constellation: Path2D
-  region: Path2D
-  solid: Path2D
+/** Gate styles by what a gate connects: within a constellation, between constellations, between regions. */
+const GATE_DASHES = [[], CONSTELLATION_DASH, REGION_DASH]
+
+/** Gates are drawn a little transparent so the systems stay the brightest thing on the map. */
+const GATE_ALPHA = 0.55
+
+/** A gate between two colours: its ends in world coordinates and a gradient from one colour to the other. */
+interface GradientGate {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  gradient: CanvasGradient
+}
+
+/**
+ * Gates ready to draw, in world coordinates, coloured by the filter colours of their two systems.
+ * Gates whose ends share a colour are batched into one path per colour and style; the rest (about
+ * a quarter with the security filter) each get a gradient, created once and reused every frame.
+ */
+interface GateLayer {
+  /** Per colour, one path per gate style. */
+  plain: { colour: string; paths: Path2D[] }[]
+  /** Per gate style. */
+  gradients: GradientGate[][]
 }
 const LABEL_FONT_PX = 11
 const REGION_FONT_PX = 12
@@ -45,8 +65,9 @@ interface Palette {
  * Draws the map on a canvas with Canvas 2D (docs/decisions.md, D21) and handles pan, zoom and hover.
  * Framework-agnostic: React hosts it and listens to {@link onHover}.
  *
- * Each frame: gates as three cached paths (within a constellation solid, between constellations and
- * between regions dashed) stroked under the view transform; systems in view,
+ * Each frame: gates (solid within a constellation, dashed between constellations and regions,
+ * coloured from one system's colour to the other's) from cached paths and gradients under the view
+ * transform; systems in view,
  * batched by security colour; then, when zoomed in, names to the bottom right of each system,
  * skipping any that would overlap. Frames are drawn only when something changes.
  */
@@ -67,7 +88,7 @@ export class MapRenderer {
   private byGroup: Uint32Array[]
   private xy: Float32Array
   private grid: GridIndex
-  private gates: GatePaths
+  private gates: GateLayer
   private palette: Palette
   private labelFont = ''
   private regionFont = ''
@@ -91,10 +112,10 @@ export class MapRenderer {
     this.layout = layout
     this.xy = model.positions[layout]
     this.grid = new GridIndex(this.xy, 1)
-    this.gates = this.buildGatePaths()
     this.filter = filter
     this.byGroup = groupSystems(filter)
     this.palette = resolvePalette(filter)
+    this.gates = this.buildGates()
     this.labelFont = `${LABEL_FONT_PX}px ${getComputedStyle(document.body).fontFamily}`
     const displayFont = getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim()
     this.regionFont = `600 ${REGION_FONT_PX}px ${displayFont || getComputedStyle(document.body).fontFamily}`
@@ -112,6 +133,7 @@ export class MapRenderer {
     // Theme colours are CSS variables; re-read them when the theme changes.
     this.themeObserver = new MutationObserver(() => {
       this.palette = resolvePalette(this.filter)
+      this.gates = this.buildGates()
       this.requestDraw()
     })
     this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-hunters-theme', 'style'] })
@@ -124,7 +146,7 @@ export class MapRenderer {
     this.layout = layout
     this.xy = this.model.positions[layout]
     this.grid = new GridIndex(this.xy, 1)
-    this.gates = this.buildGatePaths()
+    this.gates = this.buildGates()
     this.setHovered(-1)
     this.fit()
   }
@@ -135,6 +157,7 @@ export class MapRenderer {
     this.filter = filter
     this.byGroup = groupSystems(filter)
     this.palette = resolvePalette(filter)
+    this.gates = this.buildGates()
     if (this.hovered >= 0 && filter.groups[this.hovered] === HIDDEN) this.setHovered(-1)
     this.requestDraw()
   }
@@ -190,17 +213,37 @@ export class MapRenderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
 
-    // Gates: paths in world coordinates, so widths and dashes are divided by the zoom to stay the
-    // same on screen.
+    // Gates: in world coordinates, so widths and dashes are divided by the zoom to stay the same on screen.
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offsetX, dpr * offsetY)
     ctx.lineWidth = 1 / scale
-    ctx.strokeStyle = palette.gate
-    ctx.stroke(this.gates.solid)
-    ctx.setLineDash(CONSTELLATION_DASH.map((d) => d / scale))
-    ctx.stroke(this.gates.constellation)
-    ctx.setLineDash(REGION_DASH.map((d) => d / scale))
-    ctx.stroke(this.gates.region)
+    ctx.globalAlpha = GATE_ALPHA
+    const viewLeft = -offsetX / scale
+    const viewTop = -offsetY / scale
+    const viewRight = (this.width - offsetX) / scale
+    const viewBottom = (this.height - offsetY) / scale
+    for (let style = 0; style < GATE_DASHES.length; style++) {
+      ctx.setLineDash(GATE_DASHES[style].map((d) => d / scale))
+      for (const { colour, paths } of this.gates.plain) {
+        ctx.strokeStyle = colour
+        ctx.stroke(paths[style])
+      }
+      for (const gate of this.gates.gradients[style]) {
+        if (
+          Math.max(gate.x1, gate.x2) < viewLeft ||
+          Math.min(gate.x1, gate.x2) > viewRight ||
+          Math.max(gate.y1, gate.y2) < viewTop ||
+          Math.min(gate.y1, gate.y2) > viewBottom
+        )
+          continue
+        ctx.strokeStyle = gate.gradient
+        ctx.beginPath()
+        ctx.moveTo(gate.x1, gate.y1)
+        ctx.lineTo(gate.x2, gate.y2)
+        ctx.stroke()
+      }
+    }
     ctx.setLineDash([])
+    ctx.globalAlpha = 1
 
     // Systems: a constant size on screen, so drawn in screen space; one fill per filter colour group.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -329,22 +372,41 @@ export class MapRenderer {
     return Math.min(Math.max(this.scale * 0.07, 1.4), 4)
   }
 
-  private buildGatePaths(): GatePaths {
-    const paths: GatePaths = { solid: new Path2D(), constellation: new Path2D(), region: new Path2D() }
+  /** Rebuilt when the layout, the filter or the theme colours change. */
+  private buildGates(): GateLayer {
     const { gates, regionIds, constellationIds } = this.model
+    const { groups } = this.filter
+    const plain = new Map<string, Path2D[]>()
+    const gradients: GradientGate[][] = GATE_DASHES.map(() => [])
+
     for (let g = 0; g < gates.length; g += 2) {
       const from = gates[g]
       const to = gates[g + 1]
-      const path =
-        regionIds[from] !== regionIds[to]
-          ? paths.region
-          : constellationIds[from] !== constellationIds[to]
-            ? paths.constellation
-            : paths.solid
-      path.moveTo(this.xy[from * 2], this.xy[from * 2 + 1])
-      path.lineTo(this.xy[to * 2], this.xy[to * 2 + 1])
+      const style = regionIds[from] !== regionIds[to] ? 2 : constellationIds[from] !== constellationIds[to] ? 1 : 0
+      const x1 = this.xy[from * 2]
+      const y1 = this.xy[from * 2 + 1]
+      const x2 = this.xy[to * 2]
+      const y2 = this.xy[to * 2 + 1]
+
+      // A gate to a hidden system keeps the neutral gate colour.
+      const hidden = groups[from] === HIDDEN || groups[to] === HIDDEN
+      const fromColour = hidden ? this.palette.gate : this.palette.groups[groups[from]]
+      const toColour = hidden ? this.palette.gate : this.palette.groups[groups[to]]
+
+      if (fromColour === toColour) {
+        let paths = plain.get(fromColour)
+        if (!paths) plain.set(fromColour, (paths = GATE_DASHES.map(() => new Path2D())))
+        paths[style].moveTo(x1, y1)
+        paths[style].lineTo(x2, y2)
+      } else {
+        const gradient = this.ctx.createLinearGradient(x1, y1, x2, y2)
+        gradient.addColorStop(0, fromColour)
+        gradient.addColorStop(1, toColour)
+        gradients[style].push({ x1, y1, x2, y2, gradient })
+      }
     }
-    return paths
+
+    return { plain: [...plain].map(([colour, paths]) => ({ colour, paths })), gradients }
   }
 
   private resize(): void {
