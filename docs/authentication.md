@@ -73,6 +73,10 @@ A callback link forwarded from another browser fails the correlation check. Even
 
 Same flow, with the existing app session attached to `begin`. The new character is linked to the same account.
 
+Logging in again with a character that is already on the account is how **re-auth** works: its token is replaced and its status returns to Active.
+
+Every desktop redeem issues a new app session. After adding a character, the desktop switches to the new session and revokes the one it replaces.
+
 ## App sessions
 
 - The desktop receives an app session (revocable per device) on redeem. It keeps the session in memory only, so each start of the app needs a login, and revokes it when it quits. See [D20](decisions.md#d20--desktop-sessions-are-memory-only).

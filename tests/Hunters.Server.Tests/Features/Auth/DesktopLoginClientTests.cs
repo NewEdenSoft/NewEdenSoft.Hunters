@@ -1,11 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
-using Microsoft.AspNetCore.WebUtilities;
 using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Contracts.Auth;
-using NewEdenSoft.Hunters.Server.Infrastructure.Eve;
 using NewEdenSoft.Hunters.Server.Tests.Fakes;
 
 namespace NewEdenSoft.Hunters.Server.Tests.Features.Auth;
@@ -74,6 +72,22 @@ public sealed class DesktopLoginClientTests(PostgresFixture postgres) : IDisposa
     }
 
     [Fact]
+    public async Task Waiting_for_the_browser_can_be_cancelled()
+    {
+        var browser = new FakeBrowser(_factory, identity: null) { NeverFinishes = true };
+        using var cancel = new CancellationTokenSource();
+
+        var login = NewClient(browser).LoginAsync(Server, cancellationToken: cancel.Token);
+        while (!browser.WasOpened)
+            await Task.Delay(10);
+        await cancel.CancelAsync();
+
+        var finished = await Task.WhenAny(login, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.Same(login, finished);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => login);
+    }
+
+    [Fact]
     public async Task Unreachable_server_is_reported()
     {
         var client = new DesktopLoginClient(new HttpClient(), new FakeBrowser(_factory, identity: null));
@@ -93,51 +107,5 @@ public sealed class DesktopLoginClientTests(PostgresFixture postgres) : IDisposa
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
-    }
-
-    /// <summary>
-    /// Follows the browser URL through the server and the (fake) EVE login, then delivers the
-    /// server's redirect to the app's real loopback listener. Without an identity the user
-    /// cancels at EVE.
-    /// </summary>
-    private sealed class FakeBrowser(HuntersServerFactory factory, EveIdentity? identity) : IBrowserLauncher
-    {
-        private readonly HttpClient _browser = factory.CreateNonRedirectingClient();
-
-        public bool WasOpened => LoopbackPage is not null;
-
-        /// <summary>Opens an idle connection and requests a favicon first, as real browsers do.</summary>
-        public bool OpenSpareConnections { get; init; }
-
-        /// <summary>The page the app's listener showed at the end, once the browser has read it.</summary>
-        public Task<string>? LoopbackPage { get; private set; }
-
-        public Task OpenAsync(Uri url, CancellationToken cancellationToken)
-        {
-            // The app waits on its listener after opening the browser, so the browser runs on its own.
-            LoopbackPage = Task.Run(() => BrowseAsync(url), CancellationToken.None);
-            return Task.CompletedTask;
-        }
-
-        private async Task<string> BrowseAsync(Uri url)
-        {
-            var toEve = await _browser.GetAsync(url.PathAndQuery);
-            var state = Uri.EscapeDataString(QueryHelpers.ParseQuery(toEve.Headers.Location!.Query)["state"].ToString());
-
-            var callback = await _browser.GetAsync(identity is null
-                ? $"{AuthPaths.EveCallback}?error=access_denied&state={state}"
-                : $"{AuthPaths.EveCallback}?code={factory.Sso.IssueCode(identity)}&state={state}");
-            var loopback = callback.Headers.Location!;
-
-            using var real = new HttpClient();
-            using var idle = new TcpClient();
-            if (OpenSpareConnections)
-            {
-                await idle.ConnectAsync(IPAddress.Loopback, loopback.Port);
-                Assert.Equal(HttpStatusCode.NotFound, (await real.GetAsync(new Uri(loopback, "/favicon.ico"))).StatusCode);
-            }
-
-            return await real.GetStringAsync(loopback);
-        }
     }
 }

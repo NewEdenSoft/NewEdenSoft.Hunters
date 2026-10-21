@@ -2,7 +2,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:p="using:NewEdenSoft.Hunters.Desktop.ViewModels.Pages"
              xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
-             xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
              x:Class="NewEdenSoft.Hunters.Desktop.Views.Pages.AccountPageView"
              x:DataType="p:AccountPageViewModel">
   <StackPanel Spacing="20">
@@ -11,8 +10,34 @@
       <TextBlock Classes="h1" Text="{Binding Title}" />
     </StackPanel>
 
+    <!-- Browser login in progress (log in, add character, log in again): the rest of the page waits, so cancel is prominent -->
+    <c:HudPanel IsVisible="{Binding IsWaitingForBrowser}">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="label accent" Text="WAITING FOR THE BROWSER" />
+          <TextBlock TextWrapping="Wrap" Text="Finish the EVE login in your browser. Hunters continues when it is done." />
+          <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                     Text="Closed the tab, or the browser shows an error? Cancel and try again." />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="hud primary" VerticalAlignment="Center"
+                Content="CANCEL" Command="{Binding CancelLogInCommand}" />
+      </Grid>
+    </c:HudPanel>
+
+    <!-- Other requests: a short status line -->
+    <TextBlock Classes="muted hint" Text="{Binding BusyText}">
+      <TextBlock.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.And}">
+          <Binding Path="IsBusy" />
+          <Binding Path="!IsWaitingForBrowser" />
+        </MultiBinding>
+      </TextBlock.IsVisible>
+    </TextBlock>
+    <TextBlock Classes="hint" Foreground="{DynamicResource Hud.DangerBrush}" TextWrapping="Wrap"
+               Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
     <!-- Logged out: server address and login -->
-    <c:HudPanel IsVisible="{Binding !IsLoggedIn}">
+    <c:HudPanel IsVisible="{Binding IsLoggedOut}">
       <StackPanel Spacing="14" MaxWidth="520" HorizontalAlignment="Left">
         <StackPanel Spacing="4">
           <TextBlock Classes="label" Text="LOG IN" />
@@ -32,29 +57,97 @@
                    PasswordChar="•" PlaceholderText="Only needed for a new account on some servers" />
         </StackPanel>
 
-        <TextBlock Classes="hint" Foreground="{DynamicResource Hud.DangerBrush}" TextWrapping="Wrap"
-                   Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
-
-        <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="hud primary" Content="LOG IN WITH EVE ONLINE" Command="{Binding LogInCommand}" />
-          <Button Classes="hud ghost" Content="CANCEL" Command="{Binding CancelLogInCommand}" IsVisible="{Binding IsLoggingIn}" />
-          <TextBlock Classes="muted hint" VerticalAlignment="Center" IsVisible="{Binding IsLoggingIn}"
-                     Text="Waiting for the browser…" />
-        </StackPanel>
+        <Button Classes="hud primary" HorizontalAlignment="Left" Content="LOG IN WITH EVE ONLINE" Command="{Binding LogInCommand}" />
       </StackPanel>
     </c:HudPanel>
 
-    <!-- Logged in -->
+    <!-- Logged in: server -->
     <c:HudPanel IsVisible="{Binding IsLoggedIn}">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Spacing="4">
-          <TextBlock Classes="label accent" Text="{Binding Session.Greeting, Converter={x:Static w:UpperCaseConverter.Instance}}" />
-          <TextBlock Classes="h2" Text="{Binding Session.CharacterName}" />
-          <TextBlock Classes="muted mono hint" Text="{Binding Session.ServerHost}" />
+          <TextBlock Classes="label accent" Text="CONNECTED" />
+          <TextBlock Classes="h3 mono" Text="{Binding ServerHost}" />
         </StackPanel>
-        <Button Grid.Column="1" Classes="hud danger" VerticalAlignment="Center"
-                Content="LOG OUT" Command="{Binding LogOutCommand}" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="hud ghost" Content="REFRESH" Command="{Binding RefreshCommand}" IsEnabled="{Binding IsIdle}" />
+          <Button Classes="hud danger" Content="LOG OUT" Command="{Binding LogOutCommand}" IsEnabled="{Binding IsIdle}" />
+        </StackPanel>
       </Grid>
+    </c:HudPanel>
+
+    <!-- Logged in: characters -->
+    <c:HudPanel IsVisible="{Binding IsLoggedIn}">
+      <StackPanel Spacing="14">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="label" Text="CHARACTERS" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Classes="hud" Content="ADD CHARACTER" Command="{Binding AddCharacterCommand}" IsEnabled="{Binding IsIdle}" />
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding NeedsAttention}">
+          <PathIcon Classes="warning" />
+          <TextBlock Classes="hint" Foreground="{DynamicResource Hud.WarningBrush}" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Some characters need a new login before Hunters can use them." />
+        </StackPanel>
+
+        <ItemsControl ItemsSource="{Binding Characters}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="p:CharacterItemViewModel">
+              <Border Classes="character-row" Classes.attention="{Binding NeedsReauth}">
+                <Grid ColumnDefinitions="22,*,Auto" ColumnSpacing="12">
+                  <PathIcon Classes="warning" IsVisible="{Binding NeedsReauth}" ToolTip.Tip="{Binding StatusText}" />
+                  <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Classes="h3" Text="{Binding Name}" VerticalAlignment="Center" />
+                      <Border Classes="badge" IsVisible="{Binding IsMain}">
+                        <TextBlock Text="MAIN" />
+                      </Border>
+                    </StackPanel>
+                    <TextBlock Classes="hint" Foreground="{DynamicResource Hud.WarningBrush}" TextWrapping="Wrap"
+                               Text="{Binding StatusText}" IsVisible="{Binding NeedsReauth}" />
+                  </StackPanel>
+
+                  <!-- Actions -->
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                              IsVisible="{Binding !IsConfirmingRemove}"
+                              IsEnabled="{Binding $parent[ItemsControl].((p:AccountPageViewModel)DataContext).IsIdle}">
+                    <Button Classes="hud primary" Content="LOG IN AGAIN" Command="{Binding ReauthCommand}" IsVisible="{Binding NeedsReauth}" />
+                    <Button Classes="hud ghost" Content="MAKE MAIN" Command="{Binding MakeMainCommand}" IsVisible="{Binding CanMakeMain}" />
+                    <Button Classes="hud ghost" Content="REMOVE" Command="{Binding RemoveCommand}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                              IsVisible="{Binding IsConfirmingRemove}">
+                    <TextBlock Classes="muted hint" VerticalAlignment="Center" Text="Remove from account?" />
+                    <Button Classes="hud danger" Content="REMOVE" Command="{Binding RemoveCommand}" />
+                    <Button Classes="hud ghost" Content="KEEP" Command="{Binding CancelRemoveCommand}" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </c:HudPanel>
+
+    <!-- Logged in: delete account -->
+    <c:HudPanel IsVisible="{Binding IsLoggedIn}">
+      <StackPanel Spacing="12">
+        <TextBlock Classes="label" Foreground="{DynamicResource Hud.DangerBrush}" Text="DELETE ACCOUNT" />
+        <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                   Text="Deletes your account on this server with all its characters and sessions, and revokes the server's access to your characters at EVE. This cannot be undone." />
+        <Button Classes="hud danger" HorizontalAlignment="Left" Content="DELETE ACCOUNT"
+                IsVisible="{Binding !IsConfirmingDelete}" IsEnabled="{Binding IsIdle}"
+                Command="{Binding ConfirmDeleteCommand}" />
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsConfirmingDelete}">
+          <TextBlock VerticalAlignment="Center" Text="Delete everything?" />
+          <Button Classes="hud danger" Content="DELETE EVERYTHING" Command="{Binding DeleteAccountCommand}" />
+          <Button Classes="hud ghost" Content="CANCEL" Command="{Binding CancelDeleteCommand}" />
+        </StackPanel>
+      </StackPanel>
     </c:HudPanel>
   </StackPanel>
 </UserControl>

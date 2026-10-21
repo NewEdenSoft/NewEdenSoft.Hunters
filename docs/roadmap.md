@@ -16,8 +16,8 @@ Character registration and account management come first; every other feature bu
 2. ✅ Accounts: account creation, add character, main character, ownership-change handling, character status, remove character, sessions list and revoke, delete account. See [Accounts](accounts.md).
 3. ✅ Tokens: access-token endpoint, single-flight refresh, persist-before-return, encryption at rest.
 4. ✅ Admission (optional): access keys, affiliation, character lists, periodic recheck. Admin endpoints for keys and accounts.
-5. `Hunters.Client`: ✅ loopback login. To do: server profiles (address only; sessions stay in memory, [D20](decisions.md#d20--desktop-sessions-are-memory-only)), `ICharacterTokenProvider`, NewEdenKit.ESI with file cache.
-6. Desktop: ✅ login from the Account page (session kept in memory). To do: saved servers, trust prompt, account screen, character list with live location from its own ESI calls, and the app behind login ([D19](decisions.md#d19--both-apps-are-behind-login)), revoke the session on quit.
+5. `Hunters.Client`: ✅ loopback login, ✅ `HuntersSession` (account, character management, `ICharacterTokenProvider`). To do: server profiles (address only; sessions stay in memory, [D20](decisions.md#d20--desktop-sessions-are-memory-only)), NewEdenKit.ESI with file cache.
+6. Desktop: ✅ login, ✅ character management (add, re-auth, make main, remove, delete account, log out). To do: saved servers, trust prompt, live location from its own ESI calls, the app behind login ([D19](decisions.md#d19--both-apps-are-behind-login)), revoke the session on quit.
 7. Web: login, account screen, character list with live location from its own ESI calls, all behind login.
 8. ✅ Integration tests with a fake EVE SSO against PostgreSQL (Testcontainers). Self-hosting README still to write.
 

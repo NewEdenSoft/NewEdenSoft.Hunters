@@ -1,22 +1,30 @@
+using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewEdenSoft.Hunters.Client;
 using NewEdenSoft.Hunters.Client.Auth;
+using NewEdenSoft.Hunters.Client.Sessions;
+using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Contracts.Auth;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 
 /// <summary>
-/// Log in to a Hunters server with EVE Online. The session is kept in memory only and never
-/// saved (docs/decisions.md, D20). Saved servers and character management follow.
+/// Log in to a Hunters server with EVE Online and manage the account's characters. The session
+/// is kept in memory only and never saved (docs/decisions.md, D20).
 /// </summary>
-public sealed partial class AccountPageViewModel(DesktopLoginClient logins) : PageViewModel
+public sealed partial class AccountPageViewModel(DesktopLoginClient logins, IHttpClientFactory httpClients) : PageViewModel
 {
-    private CancellationTokenSource? _login;
+    public const string HttpClientName = "Hunters";
+
+    private CancellationTokenSource? _browserLogin;
 
     public override string Title => "Account";
 
-    public override string? Badge => Session is null ? null : "ONLINE";
+    public override string? Badge => Session is null ? null : NeedsAttention ? "LOG IN" : "ONLINE";
+
+    // Logged out
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LogInCommand))]
@@ -25,78 +33,249 @@ public sealed partial class AccountPageViewModel(DesktopLoginClient logins) : Pa
     [ObservableProperty]
     public partial string AccessKey { get; set; } = "";
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(LogInCommand))]
-    public partial bool IsLoggingIn { get; private set; }
+    // State
 
-    public bool IsIdle => !IsLoggingIn;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLoggedIn), nameof(IsLoggedOut), nameof(Badge), nameof(ServerHost))]
+    public partial HuntersSession? Session { get; private set; }
+
+    public bool IsLoggedIn => Session is not null;
+
+    public bool IsLoggedOut => Session is null;
+
+    public string? ServerHost => Session?.Server.Authority;
+
+    /// <summary>Set while a request runs; disables the actions.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIdle), nameof(IsBusy))]
+    [NotifyCanExecuteChangedFor(nameof(LogInCommand))]
+    public partial string? BusyText { get; private set; }
+
+    public bool IsBusy => BusyText is not null;
+
+    public bool IsIdle => BusyText is null;
+
+    /// <summary>True while the browser is open for a login; the login can be cancelled.</summary>
+    [ObservableProperty]
+    public partial bool IsWaitingForBrowser { get; private set; }
 
     [ObservableProperty]
     public partial string? ErrorMessage { get; private set; }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsLoggedIn), nameof(Badge))]
-    public partial LoggedInSession? Session { get; private set; }
+    // Logged in
 
-    public bool IsLoggedIn => Session is not null;
+    public ObservableCollection<CharacterItemViewModel> Characters { get; } = [];
+
+    /// <summary>A character needs a new login: its refresh token expired or was revoked, or scopes are missing.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Badge))]
+    public partial bool NeedsAttention { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsConfirmingDelete { get; set; }
 
     [RelayCommand(CanExecute = nameof(CanLogIn))]
     private async Task LogInAsync()
     {
-        ErrorMessage = null;
         if (!ServerAddress.TryParse(ServerUrl, out var server))
         {
             ErrorMessage = "Enter a server address, for example hunters.example.com.";
             return;
         }
 
-        _login = new CancellationTokenSource();
-        IsLoggingIn = true;
+        await RunBrowserLoginAsync(async ct =>
+        {
+            var result = await logins.LoginAsync(server, AccessKey, Environment.MachineName, cancellationToken: ct);
+            AccessKey = "";
+            SetSession(new HuntersSession(httpClients.CreateClient(HttpClientName), server, result));
+        });
+    }
+
+    private bool CanLogIn() => IsIdle && !string.IsNullOrWhiteSpace(ServerUrl);
+
+    [RelayCommand]
+    private void CancelLogIn() => _browserLogin?.Cancel();
+
+    [RelayCommand]
+    private Task AddCharacterAsync() => RunBrowserLoginAsync(async ct =>
+    {
+        if (Session is { } session)
+            await session.AddCharacterAsync(logins, Environment.MachineName, ct);
+    });
+
+    internal Task ReauthAsync(CharacterItemViewModel character) => RunBrowserLoginAsync(async ct =>
+    {
+        if (Session is not { } session)
+            return;
+
+        var result = await session.AddCharacterAsync(logins, Environment.MachineName, ct);
+        if (result.CharacterId != character.Id)
+        {
+            var picked = result.Account.Characters.FirstOrDefault(c => c.Id == result.CharacterId)?.Name ?? "another character";
+            ErrorMessage = $"You logged in with {picked}, not {character.Name}. Choose {character.Name} on the EVE login page.";
+        }
+    });
+
+    internal Task MakeMainAsync(CharacterItemViewModel character) =>
+        RunAsync("Updating…", ct => Session!.SetMainCharacterAsync(character.Id, ct));
+
+    internal Task RemoveAsync(CharacterItemViewModel character) =>
+        RunAsync($"Removing {character.Name}…", ct => Session!.RemoveCharacterAsync(character.Id, ct));
+
+    [RelayCommand]
+    private Task RefreshAsync() => RunAsync("Refreshing…", ct => Session!.RefreshAsync(ct));
+
+    [RelayCommand]
+    private void ConfirmDelete() => IsConfirmingDelete = true;
+
+    [RelayCommand]
+    private void CancelDelete() => IsConfirmingDelete = false;
+
+    [RelayCommand]
+    private Task DeleteAccountAsync() => RunAsync("Deleting account…", ct => Session!.DeleteAccountAsync(ct));
+
+    [RelayCommand]
+    private Task LogOutAsync() => RunAsync("Logging out…", ct => Session!.LogOutAsync(ct));
+
+    /// <summary>Runs a login in the browser; the user can cancel while it waits.</summary>
+    private async Task RunBrowserLoginAsync(Func<CancellationToken, Task> login)
+    {
+        if (IsBusy)
+            return;
+
+        using var cancel = new CancellationTokenSource();
+        _browserLogin = cancel;
+        IsWaitingForBrowser = true;
         try
         {
-            var result = await logins.LoginAsync(server, AccessKey, Environment.MachineName, cancellationToken: _login.Token);
-            var character = result.Account.Characters.FirstOrDefault(c => c.Id == result.CharacterId);
-            Session = new LoggedInSession(server, result.SessionToken, result.CharacterId, character?.Name ?? $"Character {result.CharacterId}", result.IsNewAccount);
-            AccessKey = "";
+            await RunAsync("Waiting for the browser…", _ => login(cancel.Token));
         }
-        catch (OperationCanceledException) when (_login.IsCancellationRequested)
+        finally
+        {
+            IsWaitingForBrowser = false;
+            _browserLogin = null;
+        }
+    }
+
+    private async Task RunAsync(string busyText, Func<CancellationToken, Task> action)
+    {
+        if (IsBusy)
+            return;
+
+        ErrorMessage = null;
+        BusyText = busyText;
+        try
+        {
+            await action(CancellationToken.None);
+        }
+        catch (OperationCanceledException)
         {
             // Cancelled by the user.
         }
         catch (HuntersLoginException e)
         {
-            ErrorMessage = Describe(e);
+            ErrorMessage = Describe(e.Code, e.Message);
+        }
+        catch (HuntersApiException e)
+        {
+            ErrorMessage = Describe(e.Code, e.Message);
         }
         finally
         {
-            IsLoggingIn = false;
-            _login.Dispose();
-            _login = null;
+            BusyText = null;
+            IsConfirmingDelete = false;
         }
     }
 
-    private bool CanLogIn() => !IsLoggingIn && !string.IsNullOrWhiteSpace(ServerUrl);
+    private void SetSession(HuntersSession? session)
+    {
+        if (Session is { } previous)
+        {
+            previous.AccountChanged -= OnAccountChanged;
+            previous.Ended -= OnSessionEnded;
+        }
 
-    [RelayCommand]
-    private void CancelLogIn() => _login?.Cancel();
+        Session = session;
+        if (session is not null)
+        {
+            session.AccountChanged += OnAccountChanged;
+            session.Ended += OnSessionEnded;
+        }
 
-    /// <summary>Forgets the session on this device. Server-side revocation comes with session management.</summary>
-    [RelayCommand]
-    private void LogOut() => Session = null;
+        SyncCharacters();
+    }
 
-    private static string Describe(HuntersLoginException e) => e.Code switch
+    // Session events can come from background work (access token requests), so they are marshalled to the UI thread.
+    private void OnAccountChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(SyncCharacters);
+
+    private void OnSessionEnded(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        if (ReferenceEquals(sender, Session))
+            SetSession(null);
+    });
+
+    private void SyncCharacters()
+    {
+        Characters.Clear();
+        if (Session is { } session)
+        {
+            foreach (var character in session.Account.Characters.OrderByDescending(c => c.IsMain).ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
+                Characters.Add(new CharacterItemViewModel(character, this));
+        }
+
+        NeedsAttention = Characters.Any(c => c.NeedsReauth);
+    }
+
+    private static string Describe(string? code, string message) => code switch
     {
         AuthErrorCodes.AccessKeyRequired => "This server needs an access key to create an account. Enter one and log in again.",
         AuthErrorCodes.AccessKeyInvalid => "That access key is not valid.",
         AuthErrorCodes.LoginCancelled => "The login was cancelled in the browser.",
-        _ => e.Message,
+        _ => message,
     };
 }
 
-public sealed record LoggedInSession(Uri Server, string SessionToken, long CharacterId, string CharacterName, bool IsNewAccount)
+/// <summary>A character on the signed-in account.</summary>
+public sealed partial class CharacterItemViewModel(CharacterInfo character, AccountPageViewModel page) : ObservableObject
 {
-    public string ServerHost => Server.Authority;
+    public long Id => character.Id;
 
-    public string Greeting => IsNewAccount ? "Account created" : "Logged in";
+    public string Name => character.Name;
+
+    public bool IsMain => character.IsMain;
+
+    public bool CanMakeMain => !character.IsMain;
+
+    /// <summary>The server cannot get tokens for this character until the user logs in with it again.</summary>
+    public bool NeedsReauth => character.Status != CharacterStatus.Active;
+
+    public string? StatusText => character.Status switch
+    {
+        CharacterStatus.NeedsReauth => "Access expired or was revoked. Log in with this character again.",
+        CharacterStatus.MissingScopes => "The server needs more permissions. Log in with this character again.",
+        _ => null,
+    };
+
+    [ObservableProperty]
+    public partial bool IsConfirmingRemove { get; set; }
+
+    [RelayCommand]
+    private Task ReauthAsync() => page.ReauthAsync(this);
+
+    [RelayCommand]
+    private Task MakeMainAsync() => page.MakeMainAsync(this);
+
+    /// <summary>First click asks for confirmation, the second removes.</summary>
+    [RelayCommand]
+    private Task RemoveAsync()
+    {
+        if (IsConfirmingRemove)
+            return page.RemoveAsync(this);
+
+        IsConfirmingRemove = true;
+        return Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    private void CancelRemove() => IsConfirmingRemove = false;
 }
