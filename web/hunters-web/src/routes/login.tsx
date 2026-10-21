@@ -22,12 +22,16 @@ export const Route = createFileRoute('/login')({
     error: typeof search.error === 'string' ? search.error : undefined,
     message: typeof search.message === 'string' ? search.message : undefined,
   }),
-  // Already logged in: skip the login page.
+  // Already logged in: skip the login page. A failed login while signed in was an attempt to add a
+  // character or log in again, so its error is shown on the account page instead.
   beforeLoad: async ({ context, search }) => {
     const signedIn = await context.queryClient.fetchQuery(accountQuery).then(
       () => true,
       () => false,
     )
+    if (signedIn && search.error) {
+      throw redirect({ to: '/account', search: { error: search.error, message: search.message } })
+    }
     if (signedIn) {
       throw redirect({ href: search.redirect ?? '/' })
     }
