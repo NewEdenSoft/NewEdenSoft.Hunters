@@ -2,6 +2,23 @@
 
 React + TypeScript (Vite), served by its own server (see [Deployment](deployment.md)). Not server agnostic.
 
+## Stack and structure
+
+- **TanStack Router** with file-based routes in `src/routes`. The Vite plugin generates `src/routeTree.gen.ts`, which is committed so type checking works on a fresh checkout. Do not edit it.
+- **Tailwind CSS v4** (Vite plugin) for styling, with the HUD colours from `design/themes.json` as theme colours. Shared pieces (`Panel`, `Button`, `Label`, `Status`, `PageHeader`) are in `src/components/ui`. See [Design](design.md#components).
+- **TanStack Query** for all server state. Query options live next to the API types in `src/api` (`accountQuery`, `discoveryQuery`); routes and components use them through the router context's `queryClient` or the query hooks.
+- `src/api/http.ts`: `api()` calls the server on the same origin with the session cookie and throws `ApiError` (status, problem `code`, `title`) on failure.
+
+| Route | File | Access |
+|---|---|---|
+| `/login` | `routes/login.tsx` | Public. Form post to `/auth/web/login`; shows `?error` from a failed EVE login; skips to `?redirect` when already logged in. |
+| layout | `routes/_authed.tsx` | Loads the account before every page below; a 401 redirects to `/login?redirect=…`. App bar with navigation and log out. |
+| `/` | `routes/_authed/index.tsx` | Home. |
+| `/account` | `routes/_authed/account.tsx` | Account and characters. |
+| `/settings` | `routes/_authed/settings.tsx` | Theme picker. |
+
+When a query gets a 401 while the app is open (session revoked or ended elsewhere), the query cache is cleared and the app returns to `/login`.
+
 ## Session
 
 Cookie session on the server's origin. Login and adding characters use the web flow in [Authentication](authentication.md#web-login).

@@ -40,10 +40,13 @@ All are bundled with the apps (no external font requests), under the SIL Open Fo
 
 | Component | Desktop | Web |
 |---|---|---|
-| Panel with corner brackets | `HudPanel` | `.panel` |
-| Chamfered button | `Button.hud` (+ `primary`, `ghost`, `danger`), drawn by `ChamferBorder` | `.btn` (+ `primary`, `ghost`, `danger`) |
-| Theme swatch | `Button.swatch` | `.swatch` |
-| Section label | `TextBlock.label` | `.label` |
+| Panel with corner brackets | `HudPanel` | `<Panel>` |
+| Chamfered button | `Button.hud` (+ `primary`, `ghost`, `danger`), drawn by `ChamferBorder` | `<Button variant>` (`primary`, `ghost`, `danger`); `buttonClass()` for links styled as buttons |
+| Theme swatch | `Button.swatch` | in `ThemePicker` |
+| Section label | `TextBlock.label` | `<Label>` |
+| Status line | — | `<Status tone>` (`ok`, `danger`) |
+
+Web components live in `web/hunters-web/src/components/ui` and are styled with Tailwind utilities.
 
 ## Implementation
 
@@ -52,5 +55,6 @@ All are bundled with the apps (no external font requests), under the SIL Open Fo
 | Theme source | `themes.json` embedded as a resource | `themes.json` imported at build time |
 | Derived colours | `ThemePalette` computes OKLab mixes in C# | `installTokens()` emits CSS `color-mix(in oklab, …)` |
 | Applying a theme | `ThemeService.Apply` writes `Hud.{Name}Color` / `Hud.{Name}Brush` resources; views use `DynamicResource` | `applyTheme` sets `--primary`, `--secondary`, `--tint` |
+| Using colours | `{DynamicResource Hud.PrimaryBrush}` | Tailwind classes (`bg-surface`, `text-fg-muted`, `border-line`, `text-primary`, …); `index.css` maps them to the token variables with `@theme inline`, so they follow the theme at runtime. Also `chamfer`, `chamfer-sm`, `shadow-glow`, `text-shadow-glow`. |
 | Fluent controls | `SystemAccentColor*` follow the theme | — |
 | Saved choice | `desktop-settings.json` in local app data | `localStorage` |
