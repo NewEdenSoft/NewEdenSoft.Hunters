@@ -1,5 +1,4 @@
 import type { MapPack } from '../api/map'
-import { securityBucket } from './security'
 
 /** Which 2D layout to draw: the 3D map seen from above, or CCP's flattened 2D map. */
 export type MapLayout = 'topDown' | 'flat'
@@ -22,8 +21,6 @@ export interface MapModel {
   names: string[]
   regionIds: Int32Array
   security: Float32Array
-  /** Colour bucket per system, see {@link securityBucket}. */
-  buckets: Uint8Array
   /** Interleaved x, y in light years, per layout. */
   positions: Record<MapLayout, Float32Array>
   bounds: Record<MapLayout, Bounds>
@@ -53,7 +50,6 @@ export function buildMapModel(pack: MapPack): MapModel {
   const ids = new Int32Array(count)
   const regionIds = new Int32Array(count)
   const security = new Float32Array(count)
-  const buckets = new Uint8Array(count)
   const topDown = new Float32Array(count * 2)
   const flat = new Float32Array(count * 2)
   const names: string[] = new Array(count)
@@ -64,7 +60,6 @@ export function buildMapModel(pack: MapPack): MapModel {
     names[i] = s.name
     regionIds[i] = s.regionId
     security[i] = s.security
-    buckets[i] = securityBucket(s.security)
     topDown[i * 2] = s.topDown.x
     topDown[i * 2 + 1] = s.topDown.y
     flat[i * 2] = s.flat.x
@@ -89,7 +84,6 @@ export function buildMapModel(pack: MapPack): MapModel {
     names,
     regionIds,
     security,
-    buckets,
     positions: { topDown, flat },
     bounds: { topDown: boundsOf(topDown), flat: boundsOf(flat) },
     gates: gates.subarray(0, g),

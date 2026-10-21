@@ -28,11 +28,17 @@ When a query gets a 401 while the app is open (session revoked or ended elsewher
 |---|---|
 | `model.ts` | The map pack as typed arrays per system index: positions per layout, security buckets, gate index pairs, bounds. |
 | `security.ts` | Security as EVE shows it (above 0.0 and below 0.05 shows as 0.1) and its colour bucket. |
+| `filters.ts` | Colour filters: how each system is coloured, or hidden. Security is the first. |
+| `MapLegend.tsx` | The active filter's legend. |
 | `gridIndex.ts` | Uniform grid for the nearest system to the cursor. |
 | `MapRenderer.ts` | Canvas 2D renderer: view transform, pan (drag), zoom (wheel, pinch), hover; draws only when something changes. |
 | `MapView.tsx` | Hosts the renderer; shows the hover panel. |
 
-Each frame: gates are one `Path2D` built once per layout and stroked under the view transform; systems in view are filled in one batch per security colour; from zoom 28 px/ly, names are drawn to the bottom right of each system, skipping any that would overlap a name already drawn (the hovered system's name always wins). Below that zoom, region names are drawn instead, centred on the mean position of each region's systems, larger regions first and with clear space between names. A region whose systems spread more than twice as wide as the median region gets no label in that layout (Pochven in the top-down layout), since its centre would sit inside other regions. Theme colours are CSS `color-mix()` expressions, which Canvas cannot read, so they are resolved to `rgba()` once and again when the theme changes.
+Each frame: gates are one `Path2D` built once per layout and stroked under the view transform; systems in view are filled in one batch per colour group of the active filter; from zoom 28 px/ly, names are drawn to the bottom right of each system, skipping any that would overlap a name already drawn (the hovered system's name always wins). Below that zoom, region names are drawn instead, centred on the mean position of each region's systems, larger regions first and with clear space between names. A region whose systems spread more than twice as wide as the median region gets no label in that layout (Pochven in the top-down layout), since its centre would sit inside other regions. Theme colours are CSS `color-mix()` expressions, which Canvas cannot read, so they are resolved to `rgba()` once and again when the theme changes.
+
+**Colour filters.** A filter turns the map into a colour group per system (or `HIDDEN`), the group colours (CSS, theme variables allowed) and a legend. The renderer only draws groups, so new ways of colouring the map (activity, a route, fleet members) are new filters, not renderer changes. Hidden systems are not drawn, labelled or hoverable; their gates still are. The hover panel always shows the system's real security in its security colour, whatever the filter.
+
+The layout and filter are in the URL (`/map?layout=flat&colour=…`, defaults left out), so a view can be linked and survives a reload.
 
 The map pack is fetched by the SDE build named in the discovery document and kept in the TanStack Query cache for the session; IndexedDB persistence comes next. The page offers both layouts in the pack (top-down and CCP's 2D map) while we decide on the default.
 

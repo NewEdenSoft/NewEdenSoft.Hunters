@@ -1,27 +1,46 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { discoveryQuery } from '../../api/discovery'
 import { mapPackQuery } from '../../api/map'
 import { Button } from '../../components/ui/Button'
 import { Label } from '../../components/ui/Label'
 import { Panel } from '../../components/ui/Panel'
 import { Status } from '../../components/ui/Status'
-import { cn } from '../../components/ui/styles'
+import { createFilter, mapFilters, type MapFilterId } from '../../map/filters'
+import { MapLegend } from '../../map/MapLegend'
 import { buildMapModel, type MapLayout } from '../../map/model'
 import { MapView } from '../../map/MapView'
-
-export const Route = createFileRoute('/_authed/map')({
-  staticData: { fullBleed: true },
-  component: MapPage,
-})
 
 const layouts: { id: MapLayout; label: string }[] = [
   { id: 'topDown', label: 'Top-down' },
   { id: 'flat', label: '2D map' },
 ]
 
+interface MapSearch {
+  layout?: MapLayout
+  colour?: MapFilterId
+}
+
+export const Route = createFileRoute('/_authed/map')({
+  staticData: { fullBleed: true },
+  // The view is in the URL, so it can be linked and survives a reload. Defaults are left out.
+  validateSearch: (search: Record<string, unknown>): MapSearch => ({
+    layout: layouts.some((l) => l.id === search.layout) && search.layout !== 'topDown' ? (search.layout as MapLayout) : undefined,
+    colour:
+      mapFilters.some((f) => f.id === search.colour) && search.colour !== mapFilters[0].id
+        ? (search.colour as MapFilterId)
+        : undefined,
+  }),
+  component: MapPage,
+})
+
 function MapPage() {
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const layout = search.layout ?? 'topDown'
+  const colour = search.colour ?? mapFilters[0].id
+
   // Discovery names the current map pack; it is missing while the server is still loading the SDE.
   const discovery = useQuery({
     ...discoveryQuery,
@@ -30,9 +49,9 @@ function MapPage() {
   const sdeBuild = discovery.data?.mapPack?.sdeBuild
   const pack = useQuery({ ...mapPackQuery(sdeBuild ?? 0), enabled: sdeBuild !== undefined })
   const model = useMemo(() => (pack.data ? buildMapModel(pack.data) : null), [pack.data])
-  const [layout, setLayout] = useState<MapLayout>('topDown')
+  const filter = useMemo(() => (model ? createFilter(colour, model) : null), [colour, model])
 
-  if (!model) {
+  if (!model || !filter) {
     const error = discovery.error ?? pack.error
     return (
       <div className="grid size-full place-items-center p-4">
@@ -52,22 +71,56 @@ function MapPage() {
     )
   }
 
+  const setSearch = (change: Partial<{ layout: MapLayout; colour: MapFilterId }>) =>
+    void navigate({
+      search: (previous) => {
+        const next = { ...previous, ...change }
+        return {
+          layout: next.layout === 'topDown' ? undefined : next.layout,
+          colour: next.colour === mapFilters[0].id ? undefined : next.colour,
+        }
+      },
+      replace: true,
+    })
+
   return (
     <div className="relative size-full">
-      <MapView model={model} layout={layout} />
-      <div className="absolute top-3 left-3 flex gap-1 border border-line bg-surface/90 p-1 backdrop-blur-sm">
-        {layouts.map((l) => (
-          <Button
-            key={l.id}
-            variant={l.id === layout ? 'primary' : 'ghost'}
-            className={cn('px-3 py-1.5 text-[0.6875rem]')}
-            aria-pressed={l.id === layout}
-            onClick={() => setLayout(l.id)}
-          >
-            {l.label}
-          </Button>
-        ))}
+      <MapView model={model} layout={layout} filter={filter} />
+
+      <div className="absolute top-3 left-3 grid max-w-[calc(100%-1.5rem)] gap-3 border border-line bg-surface/90 p-3 backdrop-blur-sm">
+        <ControlGroup label="Layout">
+          {layouts.map((l) => (
+            <Toggle key={l.id} active={l.id === layout} onClick={() => setSearch({ layout: l.id })}>
+              {l.label}
+            </Toggle>
+          ))}
+        </ControlGroup>
+        <ControlGroup label="Colour">
+          {mapFilters.map((f) => (
+            <Toggle key={f.id} active={f.id === colour} onClick={() => setSearch({ colour: f.id })}>
+              {f.label}
+            </Toggle>
+          ))}
+        </ControlGroup>
+        <MapLegend filter={filter} />
       </div>
     </div>
+  )
+}
+
+function ControlGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label>{label}</Label>
+      <div className="flex flex-wrap gap-1">{children}</div>
+    </div>
+  )
+}
+
+function Toggle({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <Button variant={active ? 'primary' : 'ghost'} className="px-3 py-1.5 text-[0.6875rem]" aria-pressed={active} onClick={onClick}>
+      {children}
+    </Button>
   )
 }

@@ -1,7 +1,6 @@
-import { securityBucketColor } from '../theme/themes'
+import { HIDDEN, type MapFilter } from './filters'
 import { GridIndex } from './gridIndex'
 import type { MapLayout, MapModel } from './model'
-import { BUCKET_COUNT } from './security'
 
 /** A hovered system and where it is on screen (CSS pixels, relative to the canvas). */
 export interface MapHover {
@@ -27,7 +26,8 @@ interface Palette {
   label: string
   labelHover: string
   hover: string
-  systems: string[]
+  /** Resolved colours of the filter's groups. */
+  groups: string[]
 }
 
 /**
@@ -44,13 +44,15 @@ export class MapRenderer {
   private readonly canvas: HTMLCanvasElement
   private readonly ctx: CanvasRenderingContext2D
   private readonly model: MapModel
-  private readonly byBucket: Uint32Array[]
   private readonly labelWidths = new Map<number, number>()
   private readonly pointers = new Map<number, { x: number; y: number }>()
   private readonly resizeObserver: ResizeObserver
   private readonly themeObserver: MutationObserver
 
   private layout: MapLayout
+  private filter: MapFilter
+  /** System indexes per colour group of the filter. */
+  private byGroup: Uint32Array[]
   private xy: Float32Array
   private grid: GridIndex
   private gates: Path2D
@@ -70,7 +72,7 @@ export class MapRenderer {
   private frame = 0
   private pinchDistance = 0
 
-  constructor(canvas: HTMLCanvasElement, model: MapModel, layout: MapLayout) {
+  constructor(canvas: HTMLCanvasElement, model: MapModel, layout: MapLayout, filter: MapFilter) {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')!
     this.model = model
@@ -78,8 +80,9 @@ export class MapRenderer {
     this.xy = model.positions[layout]
     this.grid = new GridIndex(this.xy, 1)
     this.gates = this.buildGatePath()
-    this.byBucket = groupByBucket(model)
-    this.palette = resolvePalette()
+    this.filter = filter
+    this.byGroup = groupSystems(filter)
+    this.palette = resolvePalette(filter)
     this.labelFont = `${LABEL_FONT_PX}px ${getComputedStyle(document.body).fontFamily}`
     const displayFont = getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim()
     this.regionFont = `600 ${REGION_FONT_PX}px ${displayFont || getComputedStyle(document.body).fontFamily}`
@@ -96,7 +99,7 @@ export class MapRenderer {
 
     // Theme colours are CSS variables; re-read them when the theme changes.
     this.themeObserver = new MutationObserver(() => {
-      this.palette = resolvePalette()
+      this.palette = resolvePalette(this.filter)
       this.requestDraw()
     })
     this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-hunters-theme', 'style'] })
@@ -112,6 +115,16 @@ export class MapRenderer {
     this.gates = this.buildGatePath()
     this.setHovered(-1)
     this.fit()
+  }
+
+  /** Changes how systems are coloured (or hidden). */
+  setFilter(filter: MapFilter): void {
+    if (filter === this.filter) return
+    this.filter = filter
+    this.byGroup = groupSystems(filter)
+    this.palette = resolvePalette(filter)
+    if (this.hovered >= 0 && filter.groups[this.hovered] === HIDDEN) this.setHovered(-1)
+    this.requestDraw()
   }
 
   /** Zooms out to show the whole map. */
@@ -171,12 +184,12 @@ export class MapRenderer {
     ctx.strokeStyle = palette.gate
     ctx.stroke(this.gates)
 
-    // Systems: a constant size on screen, so drawn in screen space; one fill per security colour.
+    // Systems: a constant size on screen, so drawn in screen space; one fill per filter colour group.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const radius = this.systemRadius()
     const pad = radius + 2
-    for (let bucket = 0; bucket < BUCKET_COUNT; bucket++) {
-      const systems = this.byBucket[bucket]
+    for (let group = 0; group < this.byGroup.length; group++) {
+      const systems = this.byGroup[group]
       if (systems.length === 0) continue
       ctx.beginPath()
       for (const i of systems) {
@@ -186,7 +199,7 @@ export class MapRenderer {
         ctx.moveTo(sx + radius, sy)
         ctx.arc(sx, sy, radius, 0, Math.PI * 2)
       }
-      ctx.fillStyle = palette.systems[bucket]
+      ctx.fillStyle = palette.groups[group]
       ctx.fill()
     }
 
@@ -281,7 +294,7 @@ export class MapRenderer {
     // The hovered system always gets its label first.
     if (this.hovered >= 0) place(this.hovered, this.palette.labelHover, true)
     for (let i = 0; i < this.model.count; i++) {
-      if (i !== this.hovered) place(i, this.palette.label, false)
+      if (i !== this.hovered && this.filter.groups[i] !== HIDDEN) place(i, this.palette.label, false)
     }
   }
 
@@ -386,7 +399,8 @@ export class MapRenderer {
   private updateHover(x: number, y: number): void {
     const worldX = (x - this.offsetX) / this.scale
     const worldY = (y - this.offsetY) / this.scale
-    this.setHovered(this.grid.nearest(worldX, worldY, HOVER_RADIUS_PX / this.scale))
+    const nearest = this.grid.nearest(worldX, worldY, HOVER_RADIUS_PX / this.scale)
+    this.setHovered(nearest >= 0 && this.filter.groups[nearest] !== HIDDEN ? nearest : -1)
   }
 
   private setHovered(index: number): void {
@@ -413,13 +427,15 @@ export class MapRenderer {
   }
 }
 
-function groupByBucket(model: MapModel): Uint32Array[] {
-  const lists: number[][] = Array.from({ length: BUCKET_COUNT }, () => [])
-  for (let i = 0; i < model.count; i++) lists[model.buckets[i]].push(i)
+function groupSystems(filter: MapFilter): Uint32Array[] {
+  const lists: number[][] = filter.colours.map(() => [])
+  filter.groups.forEach((group, i) => {
+    if (group !== HIDDEN) lists[group].push(i)
+  })
   return lists.map((list) => Uint32Array.from(list))
 }
 
-function resolvePalette(): Palette {
+function resolvePalette(filter: MapFilter): Palette {
   return {
     gate: resolveColor('var(--line-strong)'),
     halo: resolveColor('var(--bg)'),
@@ -427,7 +443,7 @@ function resolvePalette(): Palette {
     label: resolveColor('var(--fg-muted)'),
     labelHover: resolveColor('var(--fg)'),
     hover: resolveColor('var(--primary)'),
-    systems: Array.from({ length: BUCKET_COUNT }, (_, bucket) => securityBucketColor(bucket)),
+    groups: filter.colours.map(resolveColor),
   }
 }
 

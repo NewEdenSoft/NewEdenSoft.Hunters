@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { securityColor } from '../theme/themes'
+import type { MapFilter } from './filters'
 import { MapRenderer, type MapHover } from './MapRenderer'
 import type { MapLayout, MapModel } from './model'
 import { formatSecurity } from './security'
@@ -7,18 +8,19 @@ import { formatSecurity } from './security'
 interface MapViewProps {
   model: MapModel
   layout: MapLayout
+  filter: MapFilter
 }
 
 /** Hosts the canvas renderer and shows a panel with the hovered system's name. */
-export function MapView({ model, layout }: MapViewProps) {
+export function MapView({ model, layout, filter }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<MapRenderer | null>(null)
   const [hover, setHover] = useState<MapHover | null>(null)
 
-  // The renderer lives as long as the model; the layout is applied below without recreating it.
-  const initialLayout = useRef(layout)
+  // The renderer lives as long as the model; layout and filter changes are applied below without recreating it.
+  const initial = useRef({ layout, filter })
   useEffect(() => {
-    const renderer = new MapRenderer(canvasRef.current!, model, initialLayout.current)
+    const renderer = new MapRenderer(canvasRef.current!, model, initial.current.layout, initial.current.filter)
     renderer.onHover = setHover
     rendererRef.current = renderer
     return () => {
@@ -30,6 +32,10 @@ export function MapView({ model, layout }: MapViewProps) {
   useEffect(() => {
     rendererRef.current?.setLayout(layout)
   }, [layout])
+
+  useEffect(() => {
+    rendererRef.current?.setFilter(filter)
+  }, [filter])
 
   return (
     <div className="relative size-full overflow-hidden">
