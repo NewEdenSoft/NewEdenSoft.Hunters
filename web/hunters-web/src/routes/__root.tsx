@@ -79,3 +79,10 @@ function NotFound() {
     </main>
   )
 }
+
+declare module '@tanstack/react-router' {
+  interface StaticDataRouteOption {
+    /** The page fills the window below the app bar (the map) instead of the centred column. */
+    fullBleed?: boolean
+  }
+}

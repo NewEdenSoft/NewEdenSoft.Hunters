@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { createFileRoute, Link, Outlet, redirect } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, redirect, useMatches } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { accountQuery } from '../api/account'
 import { ApiError } from '../api/http'
@@ -28,10 +28,12 @@ export const Route = createFileRoute('/_authed')({
 function AuthedLayout() {
   const { data: account } = useSuspenseQuery(accountQuery)
   const main = account.characters.find((c) => c.id === account.mainCharacterId)
+  // Pages like the map fill the window below the app bar instead of the centred column.
+  const fullBleed = useMatches({ select: (matches) => matches.some((m) => m.staticData.fullBleed) })
 
   return (
-    <>
-      <header className="sticky top-0 z-10 border-b border-line bg-bg/90 backdrop-blur-md">
+    <div className={cn('flex flex-col', fullBleed ? 'h-dvh' : 'min-h-dvh')}>
+      <header className="sticky top-0 z-10 shrink-0 border-b border-line bg-bg/90 backdrop-blur-md">
         <div className={cn(wrap, 'flex flex-wrap items-center gap-x-7 gap-y-2.5 py-2.5')}>
           <Link
             to="/"
@@ -43,6 +45,7 @@ function AuthedLayout() {
             <NavLink to="/" exact>
               Home
             </NavLink>
+            <NavLink to="/map">Map</NavLink>
             <NavLink to="/account">Account</NavLink>
             <NavLink to="/settings">Settings</NavLink>
           </nav>
@@ -57,14 +60,20 @@ function AuthedLayout() {
           </div>
         </div>
       </header>
-      <main className={cn(wrap, 'grid gap-6 pt-10 pb-18')}>
-        <Outlet />
-      </main>
-    </>
+      {fullBleed ? (
+        <main className="relative min-h-0 flex-1">
+          <Outlet />
+        </main>
+      ) : (
+        <main className={cn(wrap, 'grid gap-6 pt-10 pb-18')}>
+          <Outlet />
+        </main>
+      )}
+    </div>
   )
 }
 
-function NavLink({ to, exact, children }: { to: '/' | '/account' | '/settings'; exact?: boolean; children: ReactNode }) {
+function NavLink({ to, exact, children }: { to: '/' | '/map' | '/account' | '/settings'; exact?: boolean; children: ReactNode }) {
   return (
     <Link
       to={to}

@@ -14,10 +14,27 @@ React + TypeScript (Vite), served by its own server (see [Deployment](deployment
 | `/login` | `routes/login.tsx` | Public. Form post to `/auth/web/login`; shows `?error` from a failed EVE login; skips to `?redirect` when already logged in. |
 | layout | `routes/_authed.tsx` | Loads the account before every page below; a 401 redirects to `/login?redirect=…`. App bar with navigation and log out. |
 | `/` | `routes/_authed/index.tsx` | Home. |
+| `/map` | `routes/_authed/map.tsx` | The map (full window below the app bar, `staticData.fullBleed`). |
 | `/account` | `routes/_authed/account.tsx` | Account and characters. |
 | `/settings` | `routes/_authed/settings.tsx` | Theme picker. |
 
 When a query gets a 401 while the app is open (session revoked or ended elsewhere), the query cache is cleared and the app returns to `/login`.
+
+## Map
+
+`src/map` holds the map, independent of React except for `MapView` ([D21](decisions.md#d21--the-map-is-2d-drawn-with-canvas-2d-web-and-skia-desktop)):
+
+| File | Role |
+|---|---|
+| `model.ts` | The map pack as typed arrays per system index: positions per layout, security buckets, gate index pairs, bounds. |
+| `security.ts` | Security as EVE shows it (above 0.0 and below 0.05 shows as 0.1) and its colour bucket. |
+| `gridIndex.ts` | Uniform grid for the nearest system to the cursor. |
+| `MapRenderer.ts` | Canvas 2D renderer: view transform, pan (drag), zoom (wheel, pinch), hover; draws only when something changes. |
+| `MapView.tsx` | Hosts the renderer; shows the hover panel. |
+
+Each frame: gates are one `Path2D` built once per layout and stroked under the view transform; systems in view are filled in one batch per security colour; from zoom 28 px/ly, names are drawn to the bottom right of each system, skipping any that would overlap a name already drawn (the hovered system's name always wins). Theme colours are CSS `color-mix()` expressions, which Canvas cannot read, so they are resolved to `rgba()` once and again when the theme changes.
+
+The map pack is fetched by the SDE build named in the discovery document and kept in the TanStack Query cache for the session; IndexedDB persistence comes next. The page offers both layouts in the pack (top-down and CCP's 2D map) while we decide on the default.
 
 ## Account page
 
