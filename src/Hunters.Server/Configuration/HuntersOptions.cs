@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using NewEdenSoft.Hunters.Contracts.Auth;
 
 namespace NewEdenSoft.Hunters.Server.Configuration;
 
@@ -76,6 +77,18 @@ public sealed class SsoOptions
     public string[] Issuers { get; set; } = ["https://login.eveonline.com", "login.eveonline.com"];
 
     public bool IsConfigured => ClientId.Length > 0 && ClientSecret.Length > 0 && CallbackUrl.Length > 0;
+
+    /// <summary>
+    /// The public base URL browsers use, taken from <see cref="CallbackUrl"/> (everything before
+    /// <c>/auth/eve/callback</c>). Browser links built from it share the callback's origin, so the
+    /// OAuth correlation cookie always matches, behind dev proxies and reverse proxies alike.
+    /// Null when the callback URL is missing or does not end in the callback path.
+    /// </summary>
+    public string? PublicBaseUrl =>
+        Uri.TryCreate(CallbackUrl, UriKind.Absolute, out var callback)
+        && callback.AbsolutePath.EndsWith(AuthPaths.EveCallback, StringComparison.OrdinalIgnoreCase)
+            ? callback.GetLeftPart(UriPartial.Authority) + callback.AbsolutePath[..^AuthPaths.EveCallback.Length]
+            : null;
 }
 
 public sealed class AdmissionOptions

@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
+using NewEdenSoft.Hunters.Server.Configuration;
 using NewEdenSoft.Hunters.Contracts.Auth;
 using NewEdenSoft.Hunters.Server.Infrastructure.Eve;
 
@@ -15,11 +17,14 @@ public static class AuthEndpoints
     {
         var auth = endpoints.MapGroup("").AllowAnonymous().WithTags("Auth");
 
-        auth.MapPost(AuthPaths.DesktopBegin, async (BeginDesktopLoginRequest request, HttpContext http, LoginService logins) =>
+        auth.MapPost(AuthPaths.DesktopBegin, async (BeginDesktopLoginRequest request, HttpContext http, LoginService logins, IOptions<HuntersOptions> options) =>
         {
             // With a valid bearer token this adds a character to the signed-in account.
             var current = await CurrentSessionAsync(http);
-            var (response, error) = await logins.BeginDesktopAsync(request, current?.AccountId, BaseUrl(http.Request), http.RequestAborted);
+            // The browser link uses the callback's public origin, not the address the app used:
+            // the app may reach the server directly or through a proxy that rewrites the host.
+            var baseUrl = options.Value.Sso.PublicBaseUrl ?? BaseUrl(http.Request);
+            var (response, error) = await logins.BeginDesktopAsync(request, current?.AccountId, baseUrl, http.RequestAborted);
             return error is null ? Results.Ok(response) : Problem(error);
         });
 
