@@ -52,7 +52,23 @@ Clients receive an activity snapshot on connect, then live updates.
 
 The intel service ([D22](decisions.md#d22--a-separate-intel-service-with-a-derived-store), `src/Hunters.Intel/Activity`) collects ESI's public `universe/system_kills` (ship, pod and NPC kills) and `universe/system_jumps` for everyone. Each list covers the hour ending at its `Last-Modified` time and lists only systems with activity (about 3,000 systems with kills and 5,000 with jumps an hour). `SystemActivityService` fetches both at startup and again 30 seconds after ESI's `Expires` (never sooner than a minute), retries failures after 1, 2, 4, 8 and then every 15 minutes, and stores each hour once.
 
-Each hour is one raw row per list (`intel.SystemKills`, `intel.SystemJumps`), keyed by the end of its hour, with the systems and counts as parallel integer arrays: about 2,200 rows for 90 days instead of tens of millions with one per system. Hours older than `Hunters:Activity:Retention` (90 days: about 13 samples for each hour of the week) are deleted after each poll. These raw rows are the input for the derived activity tables (current activity, deltas, hour-of-week curves per system and region), which come next.
+Each hour is one raw row per list (`intel.SystemKills`, `intel.SystemJumps`), keyed by the end of its hour, with the systems and counts as parallel integer arrays: about 2,200 rows for 90 days instead of tens of millions with one per system. The raw rows are the source of truth; everything below is derived from them and can be rebuilt.
+
+### Derived activity tables
+
+After storing a new hour the collector signals `ActivityAggregator`, which also runs at startup and at least hourly. In one transaction (with a Postgres advisory lock, so a rebuild and the service take turns) it:
+
+1. **Expires** hours older than `Hunters:Activity:Retention` (90 days: about 13 samples for each hour of the week): subtracts them from the sums below, then deletes them.
+2. **Applies** each new hour (a raw row's `Applied` flag) to its **hour of week**: 0 = Monday 00:00 UTC … 167 = Sunday 23:00. An hour ending at `Last-Modified` 20:00:48 mostly covers 19:00, so its bucket is that of `PeriodEnd − 30 min`.
+   - `SystemActivityWeek` and `RegionActivityWeek`: per system or region and hour of week, the **sums** of NPC, ship and pod kills and jumps (one `INSERT … ON CONFLICT` per hour; regions summed from the SDE catalogue). Only rows with activity exist; a missing row is zero.
+   - `ActivityWeekSamples`: how many kill and jump hours each hour of week holds. The **average** for an hour of week is sum ÷ samples, so quiet hours count as zeros without being stored.
+3. **Replaces** `SystemActivityCurrent` and `RegionActivityCurrent` (about 8,000 rows), with per metric:
+   - `LastHour`, `PreviousHour` (null unless the second-newest hour ended about an hour earlier, so a delta across downtime or a gap isn't shown) and `Day` (the hours ending in the last 24 hours; `KillsDayHours`/`JumpsDayHours` say how many there were)
+   - `Typical`: the average for the latest hour's hour of week ("usual for this hour")
+   - **peak now**, for the hour after the latest data: `PeakRatio` (its average ÷ the busiest hour's, 0–1), `HoursToPeak` (hours until the next hour at `Hunters:Activity:PeakThreshold` or more, 0 = now, looking 24 hours ahead) and `PeakHourOfWeek`. These stay null until every hour of the week has `PeakMinWeeks` samples, and for systems whose busiest hour averages under `PeakMinAverage`, so a single kill in a quiet system doesn't light up as a peak.
+4. Bumps the `activity` row of `intel.Versions`, which tells readers (the API server) to reload.
+
+A new hour takes about 3 seconds at full size. `rebuild-activity` (see [Deployment](deployment.md)) clears the derived tables and applies every raw hour again, for when these rules change; incremental updates and a rebuild give the same tables.
 
 ## Live kill feed
 

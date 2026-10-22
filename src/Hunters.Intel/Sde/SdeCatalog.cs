@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using NewEdenSoft.Hunters.Sde;
 
 namespace NewEdenSoft.Hunters.Intel.Sde;
@@ -14,44 +15,45 @@ public sealed record CatalogType(int Id, string Name, int GroupId, int CategoryI
 
 /// <summary>
 /// The SDE data the intel service works with: systems (with their regions and 3D positions) for region
-/// curves and distances, and item types for hunting profiles. Built from one SDE build; immutable.
+/// curves and distances, and item types for hunting profiles. Built from one SDE build; immutable, with
+/// frozen dictionaries because it is read for every system of every hour and every killmail.
 /// </summary>
 public sealed class SdeCatalog
 {
-    private readonly Dictionary<string, CatalogType> _typesByName;
+    private readonly FrozenDictionary<string, CatalogType> _typesByName;
 
     private SdeCatalog(SdeMapData map, SdeTypeData types)
     {
         MapBuild = map.Build;
         TypeBuild = types.Build;
-        Systems = map.Systems.ToDictionary(
+        Systems = map.Systems.ToFrozenDictionary(
             s => s.Id,
             s => new CatalogSystem(s.Id, s.Name, s.RegionId, s.ConstellationId, s.Security,
                 s.X / SdeUnits.MetresPerLightYear, s.Y / SdeUnits.MetresPerLightYear, s.Z / SdeUnits.MetresPerLightYear));
-        Regions = map.Regions.ToDictionary(r => r.Id, r => r.Name);
+        Regions = map.Regions.ToFrozenDictionary(r => r.Id, r => r.Name);
 
         var categoryOfGroup = types.Groups.ToDictionary(g => g.Id, g => g.CategoryId);
-        Groups = types.Groups.ToDictionary(g => g.Id);
-        Types = types.Types.ToDictionary(t => t.Id, t => new CatalogType(t.Id, t.Name, t.GroupId, categoryOfGroup.GetValueOrDefault(t.GroupId)));
+        Groups = types.Groups.ToFrozenDictionary(g => g.Id);
+        Types = types.Types.ToFrozenDictionary(t => t.Id, t => new CatalogType(t.Id, t.Name, t.GroupId, categoryOfGroup.GetValueOrDefault(t.GroupId)));
 
         // Published types win when names repeat (old and test copies of a type keep their names).
         _typesByName = types.Types
             .OrderByDescending(t => t.Published)
             .GroupBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => Types[g.First().Id], StringComparer.OrdinalIgnoreCase);
+            .ToFrozenDictionary(g => g.Key, g => Types[g.First().Id], StringComparer.OrdinalIgnoreCase);
     }
 
     public long MapBuild { get; }
 
     public long TypeBuild { get; }
 
-    public IReadOnlyDictionary<int, CatalogSystem> Systems { get; }
+    public FrozenDictionary<int, CatalogSystem> Systems { get; }
 
-    public IReadOnlyDictionary<int, string> Regions { get; }
+    public FrozenDictionary<int, string> Regions { get; }
 
-    public IReadOnlyDictionary<int, CatalogType> Types { get; }
+    public FrozenDictionary<int, CatalogType> Types { get; }
 
-    public IReadOnlyDictionary<int, SdeGroup> Groups { get; }
+    public FrozenDictionary<int, SdeGroup> Groups { get; }
 
     public static SdeCatalog Build(SdeMapData map, SdeTypeData types) => new(map, types);
 

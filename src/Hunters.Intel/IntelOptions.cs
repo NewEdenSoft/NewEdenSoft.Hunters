@@ -35,6 +35,15 @@ public sealed class ActivityOptions
 
     /// <summary>How long raw hourly snapshots are kept. 90 days gives about 13 samples per hour of the week.</summary>
     public TimeSpan Retention { get; set; } = TimeSpan.FromDays(90);
+
+    /// <summary>An hour counts as a system's peak when its average is at least this share of the busiest hour's.</summary>
+    public double PeakThreshold { get; set; } = 0.8;
+
+    /// <summary>Peaks are only given once each hour of the week has this many samples (weeks of data).</summary>
+    public int PeakMinWeeks { get; set; } = 3;
+
+    /// <summary>Peaks are only given when the busiest hour averages at least this much, so near-silent systems get none.</summary>
+    public double PeakMinAverage { get; set; } = 1;
 }
 
 public sealed class EsiOptions

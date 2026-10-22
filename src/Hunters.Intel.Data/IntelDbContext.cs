@@ -19,6 +19,18 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
 
     public DbSet<SystemJumpsSnapshot> SystemJumps => Set<SystemJumpsSnapshot>();
 
+    public DbSet<SystemActivityWeek> SystemActivityWeek => Set<SystemActivityWeek>();
+
+    public DbSet<RegionActivityWeek> RegionActivityWeek => Set<RegionActivityWeek>();
+
+    public DbSet<ActivityWeekSamples> ActivityWeekSamples => Set<ActivityWeekSamples>();
+
+    public DbSet<SystemActivityCurrent> SystemActivityCurrent => Set<SystemActivityCurrent>();
+
+    public DbSet<RegionActivityCurrent> RegionActivityCurrent => Set<RegionActivityCurrent>();
+
+    public DbSet<IntelVersion> Versions => Set<IntelVersion>();
+
     /// <summary>Keeps this context's migration history in its own schema, apart from the API server's.</summary>
     public static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>
         npgsql.MigrationsHistoryTable("__EFMigrationsHistory", Schema);
@@ -30,6 +42,35 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
         // One row per hourly snapshot, keyed by the end of its hour, so storing one twice is impossible.
         model.Entity<SystemKillsSnapshot>(e => e.HasKey(s => s.PeriodEnd));
         model.Entity<SystemJumpsSnapshot>(e => e.HasKey(s => s.PeriodEnd));
+
+        // Derived tables (docs/decisions.md, D22), updated as raw hours are applied and expire.
+        model.Entity<SystemActivityWeek>(e => e.HasKey(w => new { w.SystemId, w.HourOfWeek }));
+        model.Entity<RegionActivityWeek>(e => e.HasKey(w => new { w.RegionId, w.HourOfWeek }));
+        model.Entity<ActivityWeekSamples>(e => e.HasKey(s => s.HourOfWeek));
+        model.Entity<SystemActivityCurrent>(e =>
+        {
+            e.HasKey(c => c.SystemId);
+            e.Property(c => c.SystemId).ValueGeneratedNever();
+            OwnMetrics(e);
+        });
+        model.Entity<RegionActivityCurrent>(e =>
+        {
+            e.HasKey(c => c.RegionId);
+            e.Property(c => c.RegionId).ValueGeneratedNever();
+            OwnMetrics(e);
+        });
+        model.Entity<IntelVersion>(e =>
+        {
+            e.HasKey(v => v.Dataset);
+            e.Property(v => v.Dataset).HasMaxLength(32);
+        });
+    }
+
+    /// <summary>Each metric as a set of columns (<c>NpcKills_LastHour</c>, …) in the current row.</summary>
+    private static void OwnMetrics<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> e) where T : class
+    {
+        foreach (var metric in ActivityMetrics.All)
+            e.OwnsOne(typeof(ActivityMetric), metric);
     }
 }
 

@@ -27,7 +27,11 @@ public sealed record SdeSolarSystem(
 
 public sealed record SdeStargate(int SolarSystemId, int DestinationSolarSystemId);
 
-/// <summary>Item types with their groups and categories, for matching ships and modules on killmails.</summary>
+/// <summary>
+/// Item types with their groups and categories, for matching ships and modules on killmails. These are
+/// plain lists to build lookups from (the intel service's <c>SdeCatalog</c> indexes them by id); don't
+/// search them per killmail.
+/// </summary>
 public sealed record SdeTypeData(
     long Build,
     IReadOnlyList<SdeType> Types,

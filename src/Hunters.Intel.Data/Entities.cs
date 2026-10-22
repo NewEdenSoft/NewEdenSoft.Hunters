@@ -19,6 +19,9 @@ public sealed class SystemKillsSnapshot
     public int[] PodKills { get; set; } = [];
 
     public int[] NpcKills { get; set; } = [];
+
+    /// <summary>Added to the hour-of-week sums; subtracted again before the hour is deleted at the end of the retention.</summary>
+    public bool Applied { get; set; }
 }
 
 /// <summary>ESI's ship jumps per solar system in the hour ending at <see cref="PeriodEnd"/>, as parallel arrays.</summary>
@@ -31,4 +34,7 @@ public sealed class SystemJumpsSnapshot
     public int[] SystemIds { get; set; } = [];
 
     public int[] ShipJumps { get; set; } = [];
+
+    /// <summary>Added to the hour-of-week sums; subtracted again before the hour is deleted at the end of the retention.</summary>
+    public bool Applied { get; set; }
 }

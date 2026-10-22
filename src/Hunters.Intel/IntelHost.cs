@@ -40,10 +40,28 @@ public static class IntelHost
         services.AddSingleton<SdeCatalogStore>();
         services.AddSingleton<SdeCatalogService>();
         services.AddHostedService(sp => sp.GetRequiredService<SdeCatalogService>());
+        services.AddSingleton<ActivityAggregator>();
+        services.AddSingleton<ActivityAggregatorService>();
+        services.AddHostedService(sp => sp.GetRequiredService<ActivityAggregatorService>());
         services.AddSingleton<ISystemActivitySource, EsiSystemActivitySource>();
         services.AddSingleton<SystemActivityService>();
         services.AddHostedService(sp => sp.GetRequiredService<SystemActivityService>());
         return services;
+    }
+
+    /// <summary>
+    /// <c>rebuild-activity</c>: recomputes the activity tables from the raw hours, for when the rules
+    /// change. Safe while the service runs; the two take turns on a database lock.
+    /// </summary>
+    public static async Task RebuildActivityAsync(this IHost host, CancellationToken cancellationToken)
+    {
+        var started = TimeProvider.System.GetTimestamp();
+        await host.Services.GetRequiredService<SdeCatalogService>().LoadAsync(cancellationToken);
+        if (host.Services.GetRequiredService<SdeCatalogStore>().Current is null)
+            throw new InvalidOperationException("The SDE could not be loaded; see the log above.");
+        await host.Services.GetRequiredService<ActivityAggregator>().RebuildAsync(cancellationToken);
+        host.Services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(IntelHost))
+            .LogInformation("Activity rebuilt in {Elapsed}", TimeProvider.System.GetElapsedTime(started));
     }
 
     /// <summary>Applies pending migrations of the <c>intel</c> schema.</summary>

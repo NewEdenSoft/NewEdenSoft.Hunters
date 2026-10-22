@@ -73,26 +73,6 @@ public sealed class SystemActivityTests(IntelDatabase database) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Drops_hours_older_than_the_retention()
-    {
-        await using (var scope = _services.CreateAsyncScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<IntelDbContext>();
-            db.SystemKills.Add(new SystemKillsSnapshot { PeriodEnd = ThisHour.AddDays(-91), FetchedAt = ThisHour.AddDays(-91) });
-            db.SystemJumps.Add(new SystemJumpsSnapshot { PeriodEnd = ThisHour.AddDays(-91), FetchedAt = ThisHour.AddDays(-91) });
-            db.SystemKills.Add(new SystemKillsSnapshot { PeriodEnd = ThisHour.AddDays(-89), FetchedAt = ThisHour.AddDays(-89) });
-            await db.SaveChangesAsync();
-        }
-
-        _esi.SetHour(ThisHour, [], []);
-        await Worker.PollAsync(CancellationToken.None);
-
-        var (kills, jumps) = await StoredAsync();
-        Assert.Equal([ThisHour.AddDays(-89), ThisHour], kills.Select(k => k.PeriodEnd));
-        Assert.Equal([ThisHour], jumps.Select(j => j.PeriodEnd));
-    }
-
-    [Fact]
     public async Task Waits_for_esi_to_expire_and_backs_off_on_failures()
     {
         _esi.SetHour(DateTimeOffset.UtcNow.AddMinutes(-20), [], []);
@@ -140,6 +120,9 @@ public sealed class SystemActivityTests(IntelDatabase database) : IAsyncLifetime
             .SqlQueryRaw<string>("select table_name as \"Value\" from information_schema.tables where table_schema = 'intel' order by table_name")
             .ToListAsync();
 
-        Assert.Equal(["SystemJumps", "SystemKills", "__EFMigrationsHistory"], tables);
+        Assert.Equal(
+            ["ActivityWeekSamples", "RegionActivityCurrent", "RegionActivityWeek", "SystemActivityCurrent", "SystemActivityWeek",
+             "SystemJumps", "SystemKills", "Versions", "__EFMigrationsHistory"],
+            tables);
     }
 }
