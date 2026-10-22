@@ -7,6 +7,7 @@
     <Project Path="src/Hunters.Domain/Hunters.Domain.csproj" />
     <Project Path="src/Hunters.Intel/Hunters.Intel.csproj" />
     <Project Path="src/Hunters.Intel.Data/Hunters.Intel.Data.csproj" />
+    <Project Path="src/Hunters.Sde/Hunters.Sde.csproj" />
     <Project Path="src/Hunters.Server/Hunters.Server.csproj" />
     <Project Path="src/Hunters.ServiceDefaults/Hunters.ServiceDefaults.csproj" />
   </Folder>

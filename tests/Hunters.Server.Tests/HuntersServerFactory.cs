@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NewEdenSoft.Hunters.Server.Infrastructure.Eve;
-using NewEdenSoft.Hunters.Server.Infrastructure.Sde;
+using NewEdenSoft.Hunters.Sde;
 using NewEdenSoft.Hunters.Server.Tests.Fakes;
 
 namespace NewEdenSoft.Hunters.Server.Tests;

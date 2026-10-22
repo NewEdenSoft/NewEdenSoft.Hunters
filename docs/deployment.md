@@ -29,7 +29,7 @@ Services:
 | Service | Image | Volumes |
 |---|---|---|
 | `hunters` | `ghcr.io/newedensoft/hunters-server` (or built locally) | `dpkeys` → `/app/keys`, `sde` → `/app/sde` |
-| `intel` | `ghcr.io/newedensoft/hunters-intel` (or built locally, target `intel`) | none yet; no ports |
+| `intel` | `ghcr.io/newedensoft/hunters-intel` (or built locally, target `intel`) | `intel-sde` → `/app/sde`; no ports |
 | `db` | `postgres:17` | `pgdata` |
 
 The intel service ([D22](decisions.md#d22--a-separate-intel-service-with-a-derived-store)) collects public activity data into the database's `intel` schema and applies that schema's migrations at startup; the server only reads it. It needs the same connection string and nothing else; `HUNTERS_PUBLIC_URL` is sent to ESI as the operator contact.
@@ -67,7 +67,9 @@ Intel service (`Hunters.Intel`, same `Hunters` section and `ConnectionStrings__h
 | `Hunters:Database:MigrateOnStartup` | `true` | Apply the `intel` schema's migrations at startup |
 | `Hunters:Activity:Enabled` | `true` | Collect ESI's hourly kills and jumps per system |
 | `Hunters:Activity:Retention` | `90.00:00:00` | How long raw hourly snapshots are kept (13 samples per hour of the week) |
-| `Hunters:Esi:Contact` | the project URL (Compose: `HUNTERS_PUBLIC_URL`) | Operator contact in the ESI `User-Agent` |
+| `Hunters:Esi:Contact` | the project URL (Compose: `HUNTERS_PUBLIC_URL`) | Operator contact in the ESI and SDE `User-Agent` |
+| `Hunters:Sde:CachePath` | `/app/sde` in the image; local app data otherwise | Its own SDE cache (map data and item types). Not shared with the server's volume, which could be mid-download at the same moment |
+| `Hunters:Sde:RefreshInterval` | `06:00:00` | How often to check CCP for a new SDE build |
 | `Hunters:Admins:{n}` | — | Admin character IDs |
 | `Hunters:Esi:Contact` | repository URL | Contact sent to ESI in the User-Agent |
 | `ConnectionStrings:hunters` | — | PostgreSQL connection string |

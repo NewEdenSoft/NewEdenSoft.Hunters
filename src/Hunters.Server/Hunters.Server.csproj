@@ -14,13 +14,13 @@
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
     <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" />
     <PackageReference Include="NewEdenKit.ESI" />
-    <PackageReference Include="NewEdenKit.Sde" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Hunters.Contracts\Hunters.Contracts.csproj" />
     <ProjectReference Include="..\Hunters.Domain\Hunters.Domain.csproj" />
+    <ProjectReference Include="..\Hunters.Sde\Hunters.Sde.csproj" />
     <ProjectReference Include="..\Hunters.ServiceDefaults\Hunters.ServiceDefaults.csproj" />
   </ItemGroup>
 

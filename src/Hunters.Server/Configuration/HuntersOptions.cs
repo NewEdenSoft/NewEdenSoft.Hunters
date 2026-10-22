@@ -46,15 +46,12 @@ public sealed class DataProtectionSettings
     public string? KeysPath { get; set; }
 }
 
-/// <summary>The SDE, from which the server builds the map pack.</summary>
+/// <summary>
+/// The SDE, from which the server builds the map pack. Its download cache is set with
+/// <c>Hunters:Sde:CachePath</c>, read by the shared Hunters.Sde library (<c>SdeOptions</c>).
+/// </summary>
 public sealed class SdeOptions
 {
-    /// <summary>
-    /// Directory for the downloaded SDE archive (about 100 MB) and the extracted map data. Keep it on
-    /// a volume to avoid downloading again after a restart. Defaults to a folder under local application data.
-    /// </summary>
-    public string? CachePath { get; set; }
-
     /// <summary>How often to check CCP for a new SDE build.</summary>
     public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromHours(6);
 }

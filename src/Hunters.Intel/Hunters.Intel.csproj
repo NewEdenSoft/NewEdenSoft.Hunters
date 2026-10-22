@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Hunters.Intel.Data\Hunters.Intel.Data.csproj" />
+    <ProjectReference Include="..\Hunters.Sde\Hunters.Sde.csproj" />
     <ProjectReference Include="..\Hunters.ServiceDefaults\Hunters.ServiceDefaults.csproj" />
   </ItemGroup>
 

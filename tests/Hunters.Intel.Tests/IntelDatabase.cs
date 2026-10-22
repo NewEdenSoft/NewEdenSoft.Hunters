@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using NewEdenSoft.Hunters.Intel.Activity;
 using NewEdenSoft.Hunters.Intel.Data;
+using NewEdenSoft.Hunters.Sde;
 using Testcontainers.PostgreSql;
 
 namespace NewEdenSoft.Hunters.Intel.Tests;
@@ -25,9 +26,10 @@ public sealed class IntelDatabase : IAsyncLifetime
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
 
-    /// <summary>The intel services against this database, with ESI replaced by a fake.</summary>
-    public ServiceProvider Services(FakeSystemActivity activity, Action<IntelOptions>? configure = null)
+    /// <summary>The intel services against this database, with ESI and the SDE replaced by fakes.</summary>
+    public ServiceProvider Services(FakeSystemActivity activity, Action<IntelOptions>? configure = null, FakeSde? sde = null)
     {
+        sde ??= new FakeSde();
         var services = new ServiceCollection();
         services.AddLogging(l => l.SetMinimumLevel(LogLevel.Warning));
         services.AddOptions<IntelOptions>().Configure(o => configure?.Invoke(o));
@@ -35,6 +37,8 @@ public sealed class IntelDatabase : IAsyncLifetime
         services.AddIntelServices();
         services.RemoveAll<ISystemActivitySource>();
         services.AddSingleton<ISystemActivitySource>(activity);
+        services.AddSingleton<ISdeMapSource>(sde);
+        services.AddSingleton<ISdeTypeSource>(sde);
         return services.BuildServiceProvider();
     }
 }
