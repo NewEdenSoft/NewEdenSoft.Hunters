@@ -8,6 +8,7 @@ import { Icon, type IconName } from '../components/ui/Icon'
 import { cn, wrap } from '../components/ui/styles'
 import { panelDefinitions, type PanelDefinition } from '../panels/definitions'
 import { resetPanels, togglePanel, usePanel } from '../panels/panelStore'
+import { TrackingProvider } from '../tracking/TrackingProvider'
 
 /**
  * Layout for every page that needs a session (docs/decisions.md, D19). Loading the account is the
@@ -39,6 +40,7 @@ function AuthedLayout() {
   const fullBleed = useMatches({ select: (matches) => matches.some((m) => m.staticData.fullBleed) })
 
   return (
+    <TrackingProvider account={account}>
     <div className="flex h-dvh">
       <nav aria-label="Main" className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-surface py-2.5">
         <Link
@@ -85,6 +87,7 @@ function AuthedLayout() {
         </main>
       )}
     </div>
+    </TrackingProvider>
   )
 }
 

@@ -35,7 +35,9 @@ Panels float over the map, the web version of the desktop's widgets (`src/panels
 | `PanelLayer.tsx` | The layer over the map. It measures itself, so panels are kept in view when the window changes size, and passes clicks between panels through to the map. |
 | `FloatingPanel.tsx` | One panel: drag by the title bar, resize from the bottom-right corner, collapse to the title bar, close. Clicking brings it to the front. With the title bar focused, the arrow keys move it (Shift for one pixel) and Escape collapses it. |
 
-Panels snap to the map's edges (12 px in) and to the panels beside them (lined up, or 8 px apart) when dropped within 12 px. A panel fits its content until the user resizes it. When the window shrinks, panels are drawn inside it without changing what is saved, so they go back to their places when it grows again. Panels so far: **Map** (layout, colour, legend). Characters, Nearby activity and Fleet follow; on phone-sized screens, panels will become a bottom sheet.
+Panels snap to the map's edges (12 px in) and to the panels beside them (lined up, or 8 px apart) when dropped within 12 px. A panel fits its content until the user resizes it. When the window shrinks, panels are drawn inside it without changing what is saved, so they go back to their places when it grows again. Panels so far: **Map** (layout, colour, legend) and **Characters** (below). Nearby activity and Fleet follow; on phone-sized screens, panels will become a bottom sheet.
+
+**Characters panel.** The same as the desktop's Characters widget: each character's marker, portrait, an online dot, name, system (with *Docked*) and ship, live from the tracker. Untracked characters say so, characters that need a new login are flagged in amber, and the tooltip has the full station name and the last tracking error. Main first, then by name.
 
 ## Map
 
@@ -67,7 +69,8 @@ The same actions as the [desktop Account page](desktop-client.md#account-page), 
 
 - **Add character** and **Log in again** are form posts to `/auth/web/login` with `returnUrl=/account`. With the session cookie, the server links the character to the signed-in account. A failed login comes back as `/login?error=…`; while signed in, `/login` forwards it to `/account?error=…`, which shows the message.
 - **Make main**, **Remove** and **Delete account** are TanStack Query mutations that refresh the account query when they finish. Remove and Delete account ask for confirmation. After deleting the account, the cache is cleared and the app goes to `/login`.
-- Characters with status `NeedsReauth` or `MissingScopes` get the warning icon and *Log in again*. The web app does not request access tokens yet, so for now only the server's status flags a character.
+- Characters with status `NeedsReauth` or `MissingScopes` get the warning icon and *Log in again*.
+- Each row also has the character's map marker (click it to choose another), a **Track** switch and a location line such as *Online · Jita · Docked at Jita IV - Moon 4 - Caldari Navy Assembly Plant · Ishtar “Hunter One”*.
 
 ## Session
 
@@ -100,7 +103,11 @@ Polling only happens while the page is open. Polling slows down when the tab is 
 | `names.ts` | `EveNames`: names of systems, stations and ship types, cached for the page's lifetime. Player structures are never looked up (they are not public). |
 | `types.ts` | `TrackedCharacter` and friends, mirroring the desktop's types. |
 
-Everything is tested with Vitest (fake timers for the cadences, a stubbed `fetch` for the clients). Nothing in the app uses the tracker yet; the Characters panel will.
+Everything is tested with Vitest (fake timers for the cadences, a stubbed `fetch` for the clients).
+
+`TrackingProvider` (in the signed-in layout) runs one tracker for the session: it tracks the account's characters that are usable and switched on, follows changes to the account and the switches (only the characters that changed start or stop), switches to the background pace while the tab is hidden, and stops when the user logs out. Components read it with `useTrackedCharacter` and `useWhereabouts` (`trackingContext.ts`), and `useCharacterStatus` turns that into the text the panel and the Account page show.
+
+**Markers and tracking switches** (`src/characters`) are kept per browser in local storage (`hunters.characters`), like the desktop keeps them per computer: the same letters, numbers and icons as the desktop (`markers.ts`, the same SVG paths), defaulting to the first letter of the name, and a Track switch that is on by default. The Account page shows each character's marker (click it for the picker), its Track switch and its location line. `whereabouts.ts` mirrors the desktop's `CharacterWhereabouts`.
 
 ## Features
 

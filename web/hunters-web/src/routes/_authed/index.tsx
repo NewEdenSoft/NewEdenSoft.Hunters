@@ -11,6 +11,7 @@ import { createFilter, mapFilters, type MapFilterId } from '../../map/filters'
 import { MapLegend } from '../../map/MapLegend'
 import { buildMapModel } from '../../map/model'
 import { MapView } from '../../map/MapView'
+import { CharactersPanel } from '../../components/characters/CharactersPanel'
 import { panelDefinitions } from '../../panels/definitions'
 import { FloatingPanel } from '../../panels/FloatingPanel'
 import { PanelLayer } from '../../panels/PanelLayer'
@@ -96,6 +97,9 @@ function MapPage() {
             </ControlGroup>
             <MapLegend filter={filter} />
           </div>
+        </FloatingPanel>
+        <FloatingPanel definition={panel('characters')}>
+          <CharactersPanel />
         </FloatingPanel>
       </PanelLayer>
     </div>

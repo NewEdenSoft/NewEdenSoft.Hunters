@@ -1,6 +1,6 @@
 import type { IconName } from '../components/ui/Icon'
 
-export type PanelId = 'map'
+export type PanelId = 'map' | 'characters'
 
 /** A panel over the map: its title, launcher icon, where it starts, and how it can be sized. */
 export interface PanelDefinition {
@@ -24,6 +24,7 @@ export interface PanelDefinition {
 export const panelDefinitions: PanelDefinition[] = [
   // The legend shares out the width; below 330 px its labels would touch.
   { id: 'map', title: 'Map', icon: 'layers', initial: { x: 12, y: 12, width: 340 }, minWidth: 330 },
+  { id: 'characters', title: 'Characters', icon: 'users', initial: { x: -12, y: 12, width: 290 }, minWidth: 220 },
 ]
 
 export const DEFAULT_MIN_WIDTH = 180
