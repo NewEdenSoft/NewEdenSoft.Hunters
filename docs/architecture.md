@@ -10,9 +10,13 @@
 │ EVE SSO (confidential, client secret) · character registration · token rotation      │
 │ Accounts · admission policy · discovery document                                      │
 │ REST API · SignalR hub (fleet, relevant live kills)                                   │
-│ Workers: SDE → map pack · ESI kills/jumps poller · zKill ingest · admission recheck   │
+│ Workers: SDE → map pack · admission recheck                                           │
 │ Optional: static hosting of the web app                                               │
 │ PostgreSQL · cache / presence / message bus interfaces (in-memory first)              │
+└───────────────────────────────────────────────────────────────────────────────────────┘
+        ▲ reads the intel schema (D22)
+┌───────┴───────────────── Hunters.Intel (worker, no HTTP) ─────────────────────────────┐
+│ ESI hourly kills/jumps · zKill ingest (planned) · derived activity and hunting tables  │
 └───────────────────────────────────────────────────────────────────────────────────────┘
         ▲ REST + SignalR                                   ▲ REST + SignalR (same origin)
 ┌───────┴──────────────────────────┐            ┌──────────┴───────────────┐
@@ -29,6 +33,8 @@ src/
   Hunters.Domain            Map graph, path finding, filters, activity aggregation. No I/O.
   Hunters.Contracts         DTOs, discovery document, SignalR hub interfaces. Versioned public API.
   Hunters.Server            ASP.NET Core host, EF Core (Postgres), auth, accounts, workers, optional web hosting.
+  Hunters.Intel             Worker service: collects public activity data into the intel schema (D22).
+  Hunters.Intel.Data        The intel schema: IntelDbContext, entities, migrations. Read by the server, written by intel.
   Hunters.Client            .NET client SDK: server profiles, login, token provider, REST + SignalR, ESI setup.
   Hunters.Desktop           Avalonia app (CommunityToolkit.Mvvm), Skia map control, overlay windows.
   Hunters.AppHost           .NET Aspire host for local development.
@@ -38,6 +44,7 @@ web/
 tests/
   Hunters.Domain.Tests
   Hunters.Server.Tests      Integration tests, including a fake EVE SSO.
+  Hunters.Intel.Tests       Intel service tests against PostgreSQL (Testcontainers), with a fake ESI.
 ```
 
 Build settings: `net10.0`, nullable enabled, warnings as errors, central package management (`Directory.Packages.props`).
@@ -80,7 +87,7 @@ When no client is open for a character, nothing tracks it.
 | Refresh tokens | Server only | Consumed on use; a single owner avoids invalidating each other. See [Authentication](authentication.md). |
 | Access tokens | Issued by server | Desktop and web request them and call ESI themselves. |
 | Character location, ship, online | Clients | Polled from ESI by the client; reported to the server only for sharing (fleet). |
-| System kills/jumps history | Server | Public ESI data, polled hourly, stored for trends. |
+| System kills/jumps history | Intel service | Public ESI data, polled hourly, stored for trends in the `intel` schema (D22). |
 | Live kills | Server | Ingested once from zKillboard, forwarded only to interested clients. See [Map & Activity](map-and-activity.md#live-kill-feed). |
 | Fleet sessions | Server | Stored in Postgres; hot state in the presence store. See [Fleet Sessions](fleet-sessions.md). |
 

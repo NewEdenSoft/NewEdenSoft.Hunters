@@ -23,6 +23,21 @@ services:
       db:
         condition: service_healthy
 
+  # Collects public activity data (ESI hourly kills and jumps) into the database's intel schema,
+  # which the server reads. No ports: it only talks to ESI and the database.
+  intel:
+    image: ghcr.io/newedensoft/hunters-intel:${HUNTERS_TAG:-latest}
+    build:
+      context: .
+      target: intel
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__hunters: Host=db;Database=hunters;Username=hunters;Password=${DB_PASSWORD:?DB_PASSWORD must be set}
+      Hunters__Esi__Contact: ${HUNTERS_PUBLIC_URL:?HUNTERS_PUBLIC_URL must be set}
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:17
     restart: unless-stopped

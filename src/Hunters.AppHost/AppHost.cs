@@ -29,6 +29,12 @@ var server = builder.AddProject<Projects.Hunters_Server>("server")
     .WithEnvironment("Hunters__Sso__CallbackUrl", eveCallbackUrl)
     .WithEnvironment("Hunters__Admins__0", adminCharacterId);
 
+// The intel service collects public activity data into the database's intel schema (D22). The
+// server reads it; it doesn't wait for intel, whose endpoints are empty until the first data is in.
+builder.AddProject<Projects.Hunters_Intel>("intel")
+    .WithReference(database)
+    .WaitFor(database);
+
 // Fixed port: the EVE callback URL points at this dev server, which forwards /auth to the server.
 builder.AddViteApp("web", "../../web/hunters-web")
     .WithEndpoint("http", endpoint => endpoint.Port = 5173)

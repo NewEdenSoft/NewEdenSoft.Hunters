@@ -4,11 +4,12 @@ Servers run as containers with Docker Compose. Local development uses the .NET A
 
 ## Image
 
-One image, built by the root [`Dockerfile`](../Dockerfile):
+Two images, built by the root [`Dockerfile`](../Dockerfile):
 
 1. Node stage builds the React app.
-2. .NET SDK stage publishes `Hunters.Server`.
-3. Runtime stage (`aspnet:10.0`, non-root user) copies the server and the web build into `wwwroot`.
+2. .NET SDK stage publishes `Hunters.Server` and `Hunters.Intel`.
+3. `intel` target (`runtime:10.0`, non-root user): the intel service, `docker build --target intel`.
+4. Final, default stage (`aspnet:10.0`, non-root user): the server, with the web build in `wwwroot`.
 
 When `Hunters:Web:Enabled` is `false`, the server does not serve static files or the SPA fallback route; it runs API, SignalR and the EVE callback only.
 
@@ -28,7 +29,10 @@ Services:
 | Service | Image | Volumes |
 |---|---|---|
 | `hunters` | `ghcr.io/newedensoft/hunters-server` (or built locally) | `dpkeys` → `/app/keys`, `sde` → `/app/sde` |
+| `intel` | `ghcr.io/newedensoft/hunters-intel` (or built locally, target `intel`) | none yet; no ports |
 | `db` | `postgres:17` | `pgdata` |
+
+The intel service ([D22](decisions.md#d22--a-separate-intel-service-with-a-derived-store)) collects public activity data into the database's `intel` schema and applies that schema's migrations at startup; the server only reads it. It needs the same connection string and nothing else; `HUNTERS_PUBLIC_URL` is sent to ESI as the operator contact.
 
 The `sde` volume caches CCP's SDE archive (about 100 MB), from which the server builds the map. Losing it only means downloading it again at the next start.
 
@@ -55,6 +59,15 @@ Environment variables use `__` for nesting (`Hunters__Web__Enabled`).
 | `Hunters:Admission:*` | all off | See [Admission](discovery-and-admission.md) |
 | `Hunters:Sde:CachePath` | `/app/sde` in the image; local app data otherwise | SDE archive and extracted map data |
 | `Hunters:Sde:RefreshInterval` | `06:00:00` | How often to check CCP for a new SDE build |
+
+Intel service (`Hunters.Intel`, same `Hunters` section and `ConnectionStrings__hunters`):
+
+| Key | Default | Purpose |
+|---|---|---|
+| `Hunters:Database:MigrateOnStartup` | `true` | Apply the `intel` schema's migrations at startup |
+| `Hunters:Activity:Enabled` | `true` | Collect ESI's hourly kills and jumps per system |
+| `Hunters:Activity:Retention` | `90.00:00:00` | How long raw hourly snapshots are kept (13 samples per hour of the week) |
+| `Hunters:Esi:Contact` | the project URL (Compose: `HUNTERS_PUBLIC_URL`) | Operator contact in the ESI `User-Agent` |
 | `Hunters:Admins:{n}` | — | Admin character IDs |
 | `Hunters:Esi:Contact` | repository URL | Contact sent to ESI in the User-Agent |
 | `ConnectionStrings:hunters` | — | PostgreSQL connection string |
