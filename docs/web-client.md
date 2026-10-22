@@ -8,17 +8,34 @@ React + TypeScript (Vite), served by its own server (see [Deployment](deployment
 - **Tailwind CSS v4** (Vite plugin) for styling, with the HUD colours from `design/themes.json` as theme colours. Shared pieces (`Panel`, `Button`, `Label`, `Status`, `PageHeader`) are in `src/components/ui`. See [Design](design.md#components).
 - **TanStack Query** for all server state. Query options live next to the API types in `src/api` (`accountQuery`, `discoveryQuery`); routes and components use them through the router context's `queryClient` or the query hooks.
 - `src/api/http.ts`: `api()` calls the server on the same origin with the session cookie and throws `ApiError` (status, problem `code`, `title`) on failure.
+- **Vitest** for unit tests (`npm test`, also run in CI), next to the code as `*.test.ts`.
 
 | Route | File | Access |
 |---|---|---|
 | `/login` | `routes/login.tsx` | Public. Form post to `/auth/web/login`; shows `?error` from a failed EVE login; skips to `?redirect` when already logged in. |
-| layout | `routes/_authed.tsx` | Loads the account before every page below; a 401 redirects to `/login?redirect=…`. App bar with navigation and log out. |
-| `/` | `routes/_authed/index.tsx` | Home. |
-| `/map` | `routes/_authed/map.tsx` | The map (full window below the app bar, `staticData.fullBleed`). |
+| layout | `routes/_authed.tsx` | Loads the account before every page below; a 401 redirects to `/login?redirect=…`. The [rail](#layout-rail-and-panels) on the left of every page. |
+| `/` | `routes/_authed/index.tsx` | The map, filling the window beside the rail (`staticData.fullBleed`), with panels over it. |
+| `/map` | `routes/_authed/map.tsx` | Redirects to `/`, keeping the colour filter, for old links. |
 | `/account` | `routes/_authed/account.tsx` | Account and characters. |
 | `/settings` | `routes/_authed/settings.tsx` | Theme and map layout. |
 
 When a query gets a 401 while the app is open (session revoked or ended elsewhere), the query cache is cleared and the app returns to `/login`.
+
+## Layout: rail and panels
+
+The map is the app. Every signed-in page has a slim rail on the left: the map at the top and, while on the map, a toggle per panel and *Reset panels*; Account (the main character's portrait), Settings and *Log out* at the bottom. Account and Settings are ordinary pages that scroll in the centred column.
+
+Panels float over the map, the web version of the desktop's widgets (`src/panels`):
+
+| Piece | Role |
+|---|---|
+| `definitions.ts` | Each panel: id, title, rail icon, starting place and width (a negative x counts from the right edge), `resizable` (default on), minimum size, open by default. |
+| `panelStore.ts` | Position, size, open, collapsed and stacking order per panel, kept in local storage (`hunters.panels`) like the theme and map layout, and synced across tabs. Moves while dragging are saved once at the end. |
+| `geometry.ts` | Pure layout rules, unit tested: keep in view (`clampRect`), snap a moved panel (`snapMove`) or a resized one (`snapResize`). |
+| `PanelLayer.tsx` | The layer over the map. It measures itself, so panels are kept in view when the window changes size, and passes clicks between panels through to the map. |
+| `FloatingPanel.tsx` | One panel: drag by the title bar, resize from the bottom-right corner, collapse to the title bar, close. Clicking brings it to the front. With the title bar focused, the arrow keys move it (Shift for one pixel) and Escape collapses it. |
+
+Panels snap to the map's edges (12 px in) and to the panels beside them (lined up, or 8 px apart) when dropped within 12 px. A panel fits its content until the user resizes it. When the window shrinks, panels are drawn inside it without changing what is saved, so they go back to their places when it grows again. Panels so far: **Map** (layout, colour, legend). Characters, Nearby activity and Fleet follow; on phone-sized screens, panels will become a bottom sheet.
 
 ## Map
 
@@ -40,7 +57,7 @@ Each frame: gates are stroked under the view transform: solid within a constella
 
 **Colour filters.** A filter turns the map into a colour group per system (or `HIDDEN`), the group colours (CSS, theme variables allowed) and a legend. The renderer only draws groups, so new ways of colouring the map (activity, a route, fleet members) are new filters, not renderer changes. Hidden systems are not drawn, labelled or hoverable; their gates still are. The hover panel always shows the system's real security in its security colour, whatever the filter.
 
-The layout is a user setting, kept in local storage like the theme (`settings/mapSettings.ts`, key `hunters.map.layout`) and chosen on the map or on the Settings page. The colour filter is in the URL (`/map?colour=…`, default left out), so a view can be linked.
+The layout is a user setting, kept in local storage like the theme (`settings/mapSettings.ts`, key `hunters.map.layout`) and chosen in the Map panel or on the Settings page. The colour filter is in the URL (`/?colour=…`, default left out), so a view can be linked.
 
 The map pack is fetched by the SDE build named in the discovery document and kept in the TanStack Query cache for the session; IndexedDB persistence comes next. The page offers both layouts in the pack: CCP's 2D map, the default, and top-down.
 
