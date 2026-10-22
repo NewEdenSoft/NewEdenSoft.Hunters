@@ -223,7 +223,8 @@
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="Template">
       <ControlTemplate>
-        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" Background="Transparent" />
+        <!-- Not named PART_ContentPresenter: Fluent's button hover styles would paint a box behind the badge. -->
+        <ContentPresenter Name="PART_Badge" Content="{TemplateBinding Content}" Background="Transparent" />
       </ControlTemplate>
     </Setter>
   </Style>
@@ -246,11 +247,12 @@
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="Template">
       <ControlTemplate>
-        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
-          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
-                            HorizontalContentAlignment="Stretch" />
-        </Border>
+        <!-- One presenter carries background, divider and padding, so the hover fills the whole row. Not named
+             PART_ContentPresenter: Fluent's button hover styles would paint their own box inside the padding. -->
+        <ContentPresenter Name="PART_Row" Content="{TemplateBinding Content}"
+                          Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                          BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"
+                          HorizontalContentAlignment="Stretch" />
       </ControlTemplate>
     </Setter>
   </Style>
