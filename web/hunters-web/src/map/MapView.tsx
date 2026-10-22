@@ -84,12 +84,18 @@ export function MapView({ model, layout, filter, markers = [], focus = null, onM
   )
 }
 
+/** Wider than the panel ever gets (max-w-72), so it is never pushed off the right edge. */
+const PANEL_ROOM = 300
+
 function SystemPanel({ model, hover, characters }: { model: MapModel; hover: MapHover; characters?: string }) {
+  const { areaWidth } = hover
   const security = model.security[hover.index]
+  // Beside the system, or to its left near the right edge (a phone is narrow).
+  const left = hover.x + 14 + PANEL_ROOM > areaWidth ? Math.max(8, Math.min(hover.x + 14, areaWidth - PANEL_ROOM)) : hover.x + 14
   return (
     <div
       className="pointer-events-none absolute grid max-w-72 gap-0.5 border border-line-strong bg-surface/95 px-3 py-2 shadow-lg backdrop-blur-sm"
-      style={{ left: hover.x + 14, top: hover.y + 14 }}
+      style={{ left, top: hover.y + 14 }}
     >
       <span className="font-display font-semibold text-fg">{model.names[hover.index]}</span>
       <span className="flex items-center gap-2 text-[0.8125rem] text-fg-muted">

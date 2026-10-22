@@ -6,6 +6,7 @@ import { Label } from '../components/ui/Label'
 import { Panel } from '../components/ui/Panel'
 import { Status } from '../components/ui/Status'
 import { buttonClass, cn, wrap } from '../components/ui/styles'
+import { useIsPhone } from '../panels/useIsPhone'
 
 export interface RouterContext {
   queryClient: QueryClient
@@ -37,12 +38,16 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 })
 
 function RootLayout() {
+  // On a phone the devtools buttons would cover the bottom bar.
+  const phone = useIsPhone()
   return (
     <>
       <Outlet />
-      <Suspense>
-        <Devtools />
-      </Suspense>
+      {!phone && (
+        <Suspense>
+          <Devtools />
+        </Suspense>
+      )}
     </>
   )
 }

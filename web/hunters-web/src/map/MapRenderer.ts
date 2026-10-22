@@ -8,6 +8,8 @@ export interface MapHover {
   index: number
   x: number
   y: number
+  /** The canvas width, so a panel beside the system can stay on screen. */
+  areaWidth: number
 }
 
 /** Zoom (pixels per light year) from which system names are drawn; below it, region names are. */
@@ -764,12 +766,15 @@ export class MapRenderer {
     if (click && e.type === 'pointerup') {
       const characterId = this.markerAt(e.offsetX, e.offsetY)
       if (characterId !== null) this.onMarkerClick?.(characterId)
+      // Touch has no hover: a tap shows the system under the finger, or hides the panel.
+      else if (e.pointerType !== 'mouse') this.updateHover(e.offsetX, e.offsetY)
     }
     if (e.pointerType === 'mouse') this.updateHover(e.offsetX, e.offsetY)
   }
 
-  private readonly onPointerLeave = () => {
-    if (this.pointers.size === 0) this.setHovered(-1)
+  private readonly onPointerLeave = (e: PointerEvent) => {
+    // A finger "leaves" right after every tap; only a mouse leaving the map hides the panel.
+    if (e.pointerType === 'mouse' && this.pointers.size === 0) this.setHovered(-1)
   }
 
   private pointerDistance(): number {
@@ -804,6 +809,7 @@ export class MapRenderer {
       index: this.hovered,
       x: this.xy[this.hovered * 2] * this.scale + this.offsetX,
       y: this.xy[this.hovered * 2 + 1] * this.scale + this.offsetY,
+      areaWidth: this.width,
     })
   }
 }
