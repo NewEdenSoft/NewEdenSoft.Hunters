@@ -7,11 +7,14 @@ import { Label } from '../../components/ui/Label'
 import { Panel } from '../../components/ui/Panel'
 import { Status } from '../../components/ui/Status'
 import { Toggle } from '../../components/ui/Toggle'
-import { createFilter, mapFilters, type MapFilterId } from '../../map/filters'
+import { createFilter, mapFilters, type MapFilter, type MapFilterId } from '../../map/filters'
 import { MapLegend } from '../../map/MapLegend'
-import { buildMapModel } from '../../map/model'
+import { buildMapModel, type MapLayout, type MapModel } from '../../map/model'
 import { MapView } from '../../map/MapView'
 import { CharactersPanel } from '../../components/characters/CharactersPanel'
+import { FocusChip } from '../../components/characters/FocusChip'
+import { focusCharacter, stopFollowing } from '../../map/mapFocus'
+import { useCharacterMarkers, useMapFocusTarget } from '../../map/useCharacterMarkers'
 import { panelDefinitions } from '../../panels/definitions'
 import { FloatingPanel } from '../../panels/FloatingPanel'
 import { PanelLayer } from '../../panels/PanelLayer'
@@ -74,9 +77,40 @@ function MapPage() {
   const setColour = (id: MapFilterId) =>
     void navigate({ search: { colour: id === mapFilters[0].id ? undefined : id }, replace: true })
 
+  return <LoadedMap model={model} filter={filter} layout={layout} setLayout={setLayout} colour={colour} setColour={setColour} />
+}
+
+/** The map once its pack is loaded: the canvas with the characters' markers, the focus chip and the panels. */
+function LoadedMap({
+  model,
+  filter,
+  layout,
+  setLayout,
+  colour,
+  setColour,
+}: {
+  model: MapModel
+  filter: MapFilter
+  layout: MapLayout
+  setLayout: (layout: MapLayout) => void
+  colour: MapFilterId
+  setColour: (id: MapFilterId) => void
+}) {
+  const markers = useCharacterMarkers(model)
+  const focus = useMapFocusTarget(model)
+
   return (
     <div className="relative size-full">
-      <MapView model={model} layout={layout} filter={filter} />
+      <MapView
+        model={model}
+        layout={layout}
+        filter={filter}
+        markers={markers}
+        focus={focus}
+        onMarkerClick={focusCharacter}
+        onUserPan={stopFollowing}
+      />
+      <FocusChip />
 
       <PanelLayer>
         <FloatingPanel definition={panel('map')}>

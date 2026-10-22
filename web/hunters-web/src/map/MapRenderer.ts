@@ -1,3 +1,4 @@
+import { MARKER_ICONS, type CharacterMarker } from '../characters/markers'
 import { HIDDEN, type MapFilter } from './filters'
 import { GridIndex } from './gridIndex'
 import type { MapLayout, MapModel } from './model'
@@ -58,12 +59,72 @@ const REGION_FONT_PX = 12
 const REGION_GAP_PX = 14
 const LABEL_CELL_PX = 6
 
+/** Marker badges (CSS pixels): size, space between them, how far the leader line reaches up and right, the corner cut. */
+const MARKER_SIZE = 18
+const MARKER_GAP = 3
+const MARKER_LEAD = 12
+const MARKER_CUT = 4
+const MARKER_FONT_PX = 11
+/** Offline characters' markers are drawn at this opacity. */
+const OFFLINE_ALPHA = 0.45
+
+/** Focusing zooms in at least this far (pixels per light year), so system names show. */
+export const FOCUS_SCALE = 60
+const FOCUS_MS = 350
+/** A press that moves less than this is a click, not a drag. */
+const CLICK_SLOP_PX = 4
+
+/** One character's marker on the map; offline characters are drawn dimmed at their last known system. */
+export interface MapMarker {
+  characterId: number
+  name: string
+  marker: CharacterMarker
+  online: boolean
+}
+
+/** The markers of the characters in one system, drawn side by side at the end of one leader line. */
+export interface MapMarkerGroup {
+  systemIndex: number
+  markers: MapMarker[]
+}
+
+interface Box {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+/** One group's leader line (from the system's edge to the anchor) and its row of badges, in CSS pixels. */
+interface MarkerRow {
+  group: MapMarkerGroup
+  lineX: number
+  lineY: number
+  anchorX: number
+  anchorY: number
+  bounds: Box
+}
+
+interface FocusAnimation {
+  fromScale: number
+  fromX: number
+  fromY: number
+  toScale: number
+  toX: number
+  toY: number
+  start: number | null
+}
+
+/** Marker icons, parsed once. */
+const iconPaths = new Map<string, Path2D>()
+
 interface Palette {
   gate: string
   halo: string
   region: string
   label: string
   labelHover: string
+  /** The hover ring and the character markers. */
   hover: string
   /** Resolved colours of the filter's groups. */
   groups: string[]
@@ -77,10 +138,16 @@ interface Palette {
  * coloured from one system's colour to the other's) from cached paths and gradients under the view
  * transform; systems in view,
  * batched by security colour; then, when zoomed in, names to the bottom right of each system,
- * skipping any that would overlap. Frames are drawn only when something changes.
+ * skipping any that would overlap; last, the characters' markers, joined by a line to the upper
+ * right of their systems. Frames are drawn only when something changes. {@link focusOn} moves the
+ * view to a system with a short animation.
  */
 export class MapRenderer {
   onHover: ((hover: MapHover | null) => void) | null = null
+  /** A character's marker was clicked. */
+  onMarkerClick: ((characterId: number) => void) | null = null
+  /** The user dragged the map (for example, to stop following a character). */
+  onUserPan: (() => void) | null = null
 
   private readonly canvas: HTMLCanvasElement
   private readonly ctx: CanvasRenderingContext2D
@@ -100,6 +167,8 @@ export class MapRenderer {
   private palette: Palette
   private labelFont = ''
   private regionFont = ''
+  private markerFont = ''
+  private markerGroups: MapMarkerGroup[] = []
 
   private dpr = 1
   private width = 0
@@ -112,6 +181,11 @@ export class MapRenderer {
   private hovered = -1
   private frame = 0
   private pinchDistance = 0
+  private pressedAt: { x: number; y: number } | null = null
+  private panned = false
+  private animation: FocusAnimation | null = null
+  private animationFrame = 0
+  private pendingFocus: { systemIndex: number; zoomIn: boolean } | null = null
 
   constructor(canvas: HTMLCanvasElement, model: MapModel, layout: MapLayout, filter: MapFilter) {
     this.canvas = canvas
@@ -127,6 +201,7 @@ export class MapRenderer {
     this.labelFont = `${LABEL_FONT_PX}px ${getComputedStyle(document.body).fontFamily}`
     const displayFont = getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim()
     this.regionFont = `600 ${REGION_FONT_PX}px ${displayFont || getComputedStyle(document.body).fontFamily}`
+    this.markerFont = `600 ${MARKER_FONT_PX}px ${displayFont || getComputedStyle(document.body).fontFamily}`
 
     canvas.addEventListener('wheel', this.onWheel, { passive: false })
     canvas.addEventListener('pointerdown', this.onPointerDown)
@@ -170,6 +245,36 @@ export class MapRenderer {
     this.requestDraw()
   }
 
+  /** The characters to mark on the map. Changing them only redraws. */
+  setMarkers(groups: MapMarkerGroup[]): void {
+    this.markerGroups = groups
+    this.requestDraw()
+  }
+
+  /**
+   * Moves the view to a system with a short animation, zooming in to at least {@link FOCUS_SCALE}
+   * when `zoomIn` (otherwise keeping the zoom). Before the canvas has a size, the focus waits and is
+   * applied without animation.
+   */
+  focusOn(systemIndex: number, zoomIn: boolean): void {
+    if (!this.fitted) {
+      this.pendingFocus = { systemIndex, zoomIn }
+      return
+    }
+    this.animation = {
+      fromScale: this.scale,
+      fromX: (this.width / 2 - this.offsetX) / this.scale,
+      fromY: (this.height / 2 - this.offsetY) / this.scale,
+      toScale: zoomIn ? this.clampScale(Math.max(this.scale, FOCUS_SCALE)) : this.scale,
+      toX: this.xy[systemIndex * 2],
+      toY: this.xy[systemIndex * 2 + 1],
+      start: null,
+    }
+    this.setHovered(-1)
+    cancelAnimationFrame(this.animationFrame)
+    this.animationFrame = requestAnimationFrame(this.animate)
+  }
+
   /** Zooms out to show the whole map. */
   fit(): void {
     const b = this.model.bounds[this.layout]
@@ -185,7 +290,8 @@ export class MapRenderer {
 
   /** Zooms by a factor around a point on screen (CSS pixels). */
   zoomAt(x: number, y: number, factor: number): void {
-    const scale = Math.min(Math.max(this.scale * factor, this.fitScale * 0.5), this.fitScale * 80)
+    this.animation = null
+    const scale = this.clampScale(this.scale * factor)
     const applied = scale / this.scale
     this.offsetX = x - (x - this.offsetX) * applied
     this.offsetY = y - (y - this.offsetY) * applied
@@ -195,6 +301,7 @@ export class MapRenderer {
 
   destroy(): void {
     cancelAnimationFrame(this.frame)
+    cancelAnimationFrame(this.animationFrame)
     this.resizeObserver.disconnect()
     this.themeObserver.disconnect()
     this.canvas.removeEventListener('wheel', this.onWheel)
@@ -204,6 +311,8 @@ export class MapRenderer {
     this.canvas.removeEventListener('pointercancel', this.onPointerUp)
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave)
     this.onHover = null
+    this.onMarkerClick = null
+    this.onUserPan = null
   }
 
   // ---------- Drawing ----------
@@ -304,6 +413,127 @@ export class MapRenderer {
 
     if (scale >= LABEL_ZOOM) this.drawLabels(radius)
     else this.drawRegionLabels()
+
+    if (this.markerGroups.length > 0) this.drawMarkers()
+  }
+
+  /**
+   * Each group: a leader line from the system's edge up and to the right, ending at the bottom-left
+   * corner of a row of badges. Drawn at every zoom, over everything else.
+   */
+  private drawMarkers(): void {
+    const { ctx, palette } = this
+    ctx.font = this.markerFont
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.lineJoin = 'miter'
+
+    for (const row of this.layoutMarkers()) {
+      ctx.globalAlpha = row.group.markers.some((m) => m.online) ? 1 : OFFLINE_ALPHA
+      ctx.strokeStyle = palette.hover
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(row.lineX, row.lineY)
+      ctx.lineTo(row.anchorX, row.anchorY)
+      ctx.stroke()
+
+      row.group.markers.forEach((m, k) => {
+        const badge = markerBadge(row, k)
+        const shape = chamfer(badge.left, badge.top, MARKER_SIZE, MARKER_CUT)
+        ctx.globalAlpha = 1
+        ctx.fillStyle = palette.halo
+        ctx.fill(shape)
+        ctx.globalAlpha = m.online ? 1 : OFFLINE_ALPHA
+        ctx.lineWidth = 1
+        ctx.stroke(shape)
+
+        const icon = m.marker.kind === 'icon' ? MARKER_ICONS[m.marker.value] : undefined
+        if (icon) {
+          // Icons are 2-unit strokes in a 24 x 24 box, drawn at 60% of the badge.
+          const size = MARKER_SIZE * 0.6
+          ctx.save()
+          ctx.translate(badge.left + (MARKER_SIZE - size) / 2, badge.top + (MARKER_SIZE - size) / 2)
+          ctx.scale(size / 24, size / 24)
+          ctx.lineWidth = 2.4
+          ctx.lineCap = 'round'
+          ctx.lineJoin = 'round'
+          ctx.stroke(iconPath(icon))
+          ctx.restore()
+        } else {
+          ctx.fillStyle = palette.hover
+          ctx.fillText(m.marker.value, badge.left + MARKER_SIZE / 2, badge.top + MARKER_SIZE / 2 + 0.5)
+        }
+      })
+    }
+
+    ctx.globalAlpha = 1
+    ctx.textAlign = 'start'
+  }
+
+  /**
+   * Where each group's line and badges go, in drawing order. Shared by drawing and clicking, so a
+   * click finds the badge that was drawn. Groups out of view are left out, and a row that would
+   * overlap one already placed (neighbouring systems, zoomed out) steps further up and to the right.
+   */
+  private layoutMarkers(): MarkerRow[] {
+    const { xy, scale, offsetX, offsetY } = this
+    const radius = this.systemRadius()
+    const edge = radius * Math.SQRT1_2
+    const rows: MarkerRow[] = []
+    for (const group of this.markerGroups) {
+      const sx = xy[group.systemIndex * 2] * scale + offsetX
+      const sy = xy[group.systemIndex * 2 + 1] * scale + offsetY
+      let anchorX = sx + radius + MARKER_LEAD
+      let anchorY = sy - radius - MARKER_LEAD
+      const rowWidth = group.markers.length * (MARKER_SIZE + MARKER_GAP) - MARKER_GAP
+      if (sx > this.width || anchorX + rowWidth < 0 || anchorY - MARKER_SIZE > this.height || sy < 0) continue
+
+      let bounds: Box = { left: anchorX, top: anchorY - MARKER_SIZE, right: anchorX + rowWidth, bottom: anchorY }
+      for (let step = 0; step < 8 && rows.some((r) => overlap(r.bounds, bounds)); step++) {
+        const lift = MARKER_SIZE + MARKER_GAP
+        anchorX += lift
+        anchorY -= lift
+        bounds = { left: bounds.left + lift, top: bounds.top - lift, right: bounds.right + lift, bottom: bounds.bottom - lift }
+      }
+      rows.push({ group, lineX: sx + edge, lineY: sy - edge, anchorX, anchorY, bounds })
+    }
+    return rows
+  }
+
+  /** The character whose marker badge is under a point (CSS pixels), or null. Rows drawn later are on top. */
+  markerAt(x: number, y: number): number | null {
+    const rows = this.layoutMarkers()
+    for (let r = rows.length - 1; r >= 0; r--) {
+      for (let k = 0; k < rows[r].group.markers.length; k++) {
+        const b = markerBadge(rows[r], k)
+        if (x >= b.left && x <= b.left + MARKER_SIZE && y >= b.top && y <= b.top + MARKER_SIZE) return rows[r].group.markers[k].characterId
+      }
+    }
+    return null
+  }
+
+  private clampScale(scale: number): number {
+    return Math.min(Math.max(scale, this.fitScale * 0.5), this.fitScale * 80)
+  }
+
+  /** Puts a world point in the middle of the canvas at a zoom. */
+  private centreOn(worldX: number, worldY: number, scale: number): void {
+    this.scale = scale
+    this.offsetX = this.width / 2 - worldX * scale
+    this.offsetY = this.height / 2 - worldY * scale
+  }
+
+  private readonly animate = (time: number) => {
+    const a = this.animation
+    if (!a) return
+    a.start ??= time
+    const progress = Math.min((time - a.start) / FOCUS_MS, 1)
+    const t = 1 - (1 - progress) ** 3
+    // The zoom changes geometrically, so zooming in feels even; the centre moves in a straight line.
+    this.centreOn(a.fromX + (a.toX - a.fromX) * t, a.fromY + (a.toY - a.fromY) * t, a.fromScale * (a.toScale / a.fromScale) ** t)
+    this.draw()
+    if (progress < 1) this.animationFrame = requestAnimationFrame(this.animate)
+    else this.animation = null
   }
 
   /**
@@ -459,6 +689,12 @@ export class MapRenderer {
     if (!this.fitted) {
       this.fitted = true
       this.fit()
+      // A focus asked for before the canvas had a size: jump there.
+      if (this.pendingFocus) {
+        const { systemIndex, zoomIn } = this.pendingFocus
+        this.pendingFocus = null
+        this.centreOn(this.xy[systemIndex * 2], this.xy[systemIndex * 2 + 1], zoomIn ? this.clampScale(Math.max(this.scale, FOCUS_SCALE)) : this.scale)
+      }
       return
     }
     // Keep the same point of the map in the middle.
@@ -471,6 +707,7 @@ export class MapRenderer {
 
   private readonly onWheel = (e: WheelEvent) => {
     e.preventDefault()
+    this.animation = null
     const step = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 0.05 : 0.0015
     this.zoomAt(e.offsetX, e.offsetY, Math.exp(-e.deltaY * step))
     this.updateHover(e.offsetX, e.offsetY)
@@ -480,12 +717,15 @@ export class MapRenderer {
     this.canvas.setPointerCapture(e.pointerId)
     this.pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY })
     this.pinchDistance = this.pointers.size === 2 ? this.pointerDistance() : 0
+    this.pressedAt = this.pointers.size === 1 ? { x: e.offsetX, y: e.offsetY } : null
+    this.panned = false
   }
 
   private readonly onPointerMove = (e: PointerEvent) => {
     const previous = this.pointers.get(e.pointerId)
     if (!previous) {
       this.updateHover(e.offsetX, e.offsetY)
+      this.canvas.style.cursor = this.markerAt(e.offsetX, e.offsetY) === null ? '' : 'pointer'
       return
     }
 
@@ -498,6 +738,18 @@ export class MapRenderer {
       return
     }
 
+    // Small movements while pressing are still a click.
+    if (!this.panned) {
+      const start = this.pressedAt ?? previous
+      if (Math.abs(e.offsetX - start.x) < CLICK_SLOP_PX && Math.abs(e.offsetY - start.y) < CLICK_SLOP_PX) {
+        this.pointers.set(e.pointerId, previous)
+        return
+      }
+      this.panned = true
+      this.animation = null
+      this.onUserPan?.()
+    }
+
     this.offsetX += e.offsetX - previous.x
     this.offsetY += e.offsetY - previous.y
     this.setHovered(-1)
@@ -505,8 +757,14 @@ export class MapRenderer {
   }
 
   private readonly onPointerUp = (e: PointerEvent) => {
+    const click = this.pointers.size === 1 && !this.panned && this.pressedAt !== null
     this.pointers.delete(e.pointerId)
     this.pinchDistance = 0
+    this.pressedAt = null
+    if (click && e.type === 'pointerup') {
+      const characterId = this.markerAt(e.offsetX, e.offsetY)
+      if (characterId !== null) this.onMarkerClick?.(characterId)
+    }
     if (e.pointerType === 'mouse') this.updateHover(e.offsetX, e.offsetY)
   }
 
@@ -548,6 +806,33 @@ export class MapRenderer {
       y: this.xy[this.hovered * 2 + 1] * this.scale + this.offsetY,
     })
   }
+}
+
+function overlap(a: Box, b: Box): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+}
+
+function markerBadge(row: MarkerRow, k: number): { left: number; top: number } {
+  return { left: row.anchorX + k * (MARKER_SIZE + MARKER_GAP), top: row.anchorY - MARKER_SIZE }
+}
+
+/** A square with the top-left and bottom-right corners cut off, the HUD's badge shape. */
+function chamfer(left: number, top: number, size: number, cut: number): Path2D {
+  const path = new Path2D()
+  path.moveTo(left + cut, top)
+  path.lineTo(left + size, top)
+  path.lineTo(left + size, top + size - cut)
+  path.lineTo(left + size - cut, top + size)
+  path.lineTo(left, top + size)
+  path.lineTo(left, top + cut)
+  path.closePath()
+  return path
+}
+
+function iconPath(data: string): Path2D {
+  let path = iconPaths.get(data)
+  if (!path) iconPaths.set(data, (path = new Path2D(data)))
+  return path
 }
 
 function clamp(value: number, min: number, max: number): number {
