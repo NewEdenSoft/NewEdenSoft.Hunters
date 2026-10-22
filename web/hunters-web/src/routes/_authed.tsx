@@ -32,7 +32,8 @@ export const Route = createFileRoute('/_authed')({
 /**
  * A slim rail on the left of every page: the map, and on the map a toggle per panel; Account,
  * Settings and log out at the bottom. The map fills the rest of the window; other pages scroll in
- * the centred column.
+ * the centred column. On a phone the rail is a bar along the bottom instead, without the panel
+ * toggles (the panels have tabs there).
  */
 function AuthedLayout() {
   const { data: account } = useSuspenseQuery(accountQuery)
@@ -41,29 +42,35 @@ function AuthedLayout() {
 
   return (
     <TrackingProvider account={account}>
-    <div className="flex h-dvh">
-      <nav aria-label="Main" className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-surface py-2.5">
+    <div className="flex h-dvh flex-col-reverse sm:flex-row">
+      <nav
+        aria-label="Main"
+        className={
+          'flex shrink-0 items-center gap-1 border-line bg-surface ' +
+          'border-t px-2 pb-[env(safe-area-inset-bottom)] sm:w-14 sm:flex-col sm:border-t-0 sm:border-r sm:px-0 sm:py-2.5'
+        }
+      >
         <Link
           to="/"
           aria-label="Hunters"
           title="Hunters"
-          className="mb-2 grid size-10 place-items-center font-display text-lg font-bold text-primary no-underline text-shadow-glow focus-visible:outline-2 focus-visible:outline-fg"
+          className="grid size-10 place-items-center font-display text-lg font-bold text-primary no-underline text-shadow-glow focus-visible:outline-2 focus-visible:outline-fg sm:mb-2"
         >
           H
         </Link>
         <RailLink to="/" icon="map" label="Map" exact />
 
         {fullBleed && (
-          <>
+          <div className="contents max-sm:hidden">
             <div className="my-1.5 h-px w-7 bg-line" />
             {panelDefinitions.map((d) => (
               <PanelToggle key={d.id} definition={d} />
             ))}
             <RailButton icon="reset" label="Reset panels" onClick={resetPanels} />
-          </>
+          </div>
         )}
 
-        <div className="mt-auto flex flex-col items-center gap-1">
+        <div className="ml-auto flex items-center gap-1 sm:mt-auto sm:ml-0 sm:flex-col">
           <RailLink to="/account" icon="user" label={main ? `Account · ${main.name}` : 'Account'}>
             {main && <img src={characterPortraitUrl(main.id, 64)} alt="" className="size-7 border border-line-strong" />}
           </RailLink>
@@ -96,7 +103,9 @@ const railItem =
   'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fg'
 
 /** Highlighted, with a bar on the rail's edge. */
-const railActive = 'text-primary before:absolute before:top-2 before:bottom-2 before:-left-2 before:w-0.5 before:bg-primary'
+const railActive =
+  'text-primary before:absolute before:bg-primary ' +
+  'max-sm:before:inset-x-2 max-sm:before:-top-px max-sm:before:h-0.5 sm:before:top-2 sm:before:bottom-2 sm:before:-left-2 sm:before:w-0.5'
 
 function RailLink({
   to,

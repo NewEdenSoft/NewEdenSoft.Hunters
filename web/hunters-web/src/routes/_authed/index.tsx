@@ -16,8 +16,7 @@ import { FocusChip } from '../../components/characters/FocusChip'
 import { focusCharacter, stopFollowing } from '../../map/mapFocus'
 import { useCharacterMarkers, useMapFocusTarget } from '../../map/useCharacterMarkers'
 import { panelDefinitions } from '../../panels/definitions'
-import { FloatingPanel } from '../../panels/FloatingPanel'
-import { PanelLayer } from '../../panels/PanelLayer'
+import { Panels } from '../../panels/Panels'
 import { mapLayouts, useMapLayout } from '../../settings/mapSettings'
 
 export interface MapSearch {
@@ -112,8 +111,11 @@ function LoadedMap({
       />
       <FocusChip />
 
-      <PanelLayer>
-        <FloatingPanel definition={panel('map')}>
+      <Panels
+        items={[
+          {
+            definition: panel('map'),
+            content: (
           <div className="grid gap-3">
             <ControlGroup label="Layout">
               {mapLayouts.map((l) => (
@@ -131,11 +133,11 @@ function LoadedMap({
             </ControlGroup>
             <MapLegend filter={filter} />
           </div>
-        </FloatingPanel>
-        <FloatingPanel definition={panel('characters')}>
-          <CharactersPanel />
-        </FloatingPanel>
-      </PanelLayer>
+            ),
+          },
+          { definition: panel('characters'), content: <CharactersPanel /> },
+        ]}
+      />
     </div>
   )
 }
