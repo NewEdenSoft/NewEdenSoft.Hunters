@@ -3,14 +3,17 @@ import { accountQuery, type CharacterInfo } from '../../api/account'
 import { characterPortraitUrl } from '../../api/eveImages'
 import { getMarker, useCharacterPrefs } from '../../characters/characterPrefs'
 import { useCharacterStatus } from '../../characters/useCharacterStatus'
+import { focusCharacter, toggleFollow, useMapFocus } from '../../map/mapFocus'
+import { MARKER_ICONS } from '../../characters/markers'
 import { cn } from '../ui/styles'
 import { WarningIcon } from '../ui/WarningIcon'
 import { MarkerBadge } from './MarkerBadge'
 
 /**
  * The account's characters at a glance: marker, portrait, online, system and ship, live from the
- * tracker. Main first, then by name, so rows do not move as characters log in and out. The same as
- * the desktop's Characters widget.
+ * tracker. Main first, then by name, so rows do not move as characters log in and out. Clicking a
+ * row shows the character on the map; the target button follows it. The same as the desktop's
+ * Characters widget.
  */
 export function CharactersPanel() {
   const { data: account } = useSuspenseQuery(accountQuery)
@@ -25,12 +28,22 @@ export function CharactersPanel() {
   )
 }
 
+const FOLLOW_ICON = { kind: 'icon', value: 'target' } as const satisfies { kind: 'icon'; value: keyof typeof MARKER_ICONS }
+
 function CharacterRow({ character }: { character: CharacterInfo }) {
   useCharacterPrefs()
   const status = useCharacterStatus(character)
+  const following = useMapFocus().followed === character.id
 
   return (
-    <li title={status.details} className="flex items-center gap-2.5 border-b border-line px-3 py-2 last:border-b-0">
+    <li title={status.details} className="relative flex items-center gap-2.5 border-b border-line px-3 py-2 last:border-b-0 hover:bg-primary-soft">
+      {/* The whole row shows the character on the map; the follow button sits above it. */}
+      <button
+        type="button"
+        aria-label={`Show ${character.name} on the map`}
+        onClick={() => focusCharacter(character.id)}
+        className="absolute inset-0 cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fg"
+      />
       <MarkerBadge marker={getMarker(character.id, character.name)} className="size-5.5" />
 
       <div className="relative size-9 shrink-0">
@@ -50,6 +63,17 @@ function CharacterRow({ character }: { character: CharacterInfo }) {
         <span className={cn('truncate text-[0.78rem] leading-snug', status.problem ? 'text-warning' : 'text-fg-muted')}>{status.place}</span>
         {status.ship && <span className="truncate text-[0.78rem] leading-snug text-fg-muted">{status.ship}</span>}
       </div>
+
+      <button
+        type="button"
+        aria-pressed={following}
+        aria-label={`Follow ${character.name} on the map`}
+        title="Follow on the map"
+        onClick={() => toggleFollow(character.id)}
+        className="relative cursor-pointer hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fg"
+      >
+        <MarkerBadge marker={FOLLOW_ICON} selected={following} className="size-6" />
+      </button>
     </li>
   )
 }

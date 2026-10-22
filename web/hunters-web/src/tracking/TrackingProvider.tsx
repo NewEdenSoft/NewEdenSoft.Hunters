@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { AccountInfo } from '../api/account'
 import { isTracked, useCharacterPrefs } from '../characters/characterPrefs'
+import { clearFocus } from '../map/mapFocus'
 import { fetchLocationEsi, fetchNames } from './esi'
 import { EveNames } from './names'
 import { ServerTokenProvider } from './tokens'
@@ -29,7 +30,13 @@ export function TrackingProvider({ account, children }: { account: AccountInfo; 
 
   // Stop everything when the signed-in pages go away. Stopping, not disposing: React's development
   // double mount runs the effects again, and the next one starts tracking again.
-  useEffect(() => () => tracking.tracker.track([]), [tracking])
+  useEffect(
+    () => () => {
+      tracking.tracker.track([])
+      clearFocus()
+    },
+    [tracking],
+  )
 
   // Follow the account and the Track switches. track() only starts and stops the characters that
   // changed, so the others keep their state.
