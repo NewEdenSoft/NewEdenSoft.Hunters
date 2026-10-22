@@ -88,6 +88,20 @@ Access tokens come from `POST /api/characters/{id}/access-token`. They are kept 
 
 Polling only happens while the page is open. Polling slows down when the tab is hidden.
 
+### Character tracking
+
+`src/tracking` follows the same rules as the desktop's [character tracking](desktop-client.md#character-tracking), so both clients behave alike:
+
+| File | Role |
+|---|---|
+| `tracker.ts` | `CharacterTracker`: `track(ids)` sets which characters are polled; `get`, `characters` and `subscribe` give the latest state and the changes (only real ones, not timestamps). Online characters every 5 s, offline ones only checked for coming online every 60 s (their last place read once), failures back off 5, 10, 20, 40, 80 s then 2 min, `needsLogin` stops a character until it is tracked again. `setBackground(true)` follows online characters every 30 s in a hidden tab; becoming visible polls straight away. |
+| `esi.ts` | The three ESI calls and `POST /universe/names`, with `fetch`. Sends `X-Compatibility-Date: 2026-08-18`, the same as the desktop's NewEdenKit.ESI. 401, 403 and other failures are results, not exceptions. |
+| `tokens.ts` | `ServerTokenProvider`: tokens from the server, cached in memory until a minute before expiry, one request at a time per character. The server's `needs_reauth` becomes `NeedsLoginError`. |
+| `names.ts` | `EveNames`: names of systems, stations and ship types, cached for the page's lifetime. Player structures are never looked up (they are not public). |
+| `types.ts` | `TrackedCharacter` and friends, mirroring the desktop's types. |
+
+Everything is tested with Vitest (fake timers for the cadences, a stubbed `fetch` for the clients). Nothing in the app uses the tracker yet; the Characters panel will.
+
 ## Features
 
 Map, activity, filters, path finding, fleet sessions and account management, matching the desktop app. Overlays, click-through and the log watcher are desktop only.
