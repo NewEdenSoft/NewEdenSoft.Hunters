@@ -34,6 +34,8 @@ services:
     environment:
       ConnectionStrings__hunters: Host=db;Database=hunters;Username=hunters;Password=${DB_PASSWORD:?DB_PASSWORD must be set}
       Hunters__Esi__Contact: ${HUNTERS_PUBLIC_URL:?HUNTERS_PUBLIC_URL must be set}
+    volumes:
+      - intel-sde:/app/sde # Its own SDE cache: the server's could be mid-download at the same moment
     depends_on:
       db:
         condition: service_healthy
@@ -56,4 +58,5 @@ services:
 volumes:
   dpkeys:
   sde:
+  intel-sde:
   pgdata:

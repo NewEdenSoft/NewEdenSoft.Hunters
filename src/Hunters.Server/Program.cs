@@ -36,7 +36,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddAuthFeature(hunters.Sso);
 builder.Services.AddAccountsFeature();
 builder.Services.AddAdmissionFeature();
-builder.Services.AddMapFeature();
+builder.Services.AddMapFeature(builder.Configuration);
 
 var app = builder.Build();
 

@@ -10,6 +10,15 @@ public sealed class IntelOptions
     public ActivityOptions Activity { get; set; } = new();
 
     public EsiOptions Esi { get; set; } = new();
+
+    public IntelSdeOptions Sde { get; set; } = new();
+}
+
+/// <summary>The SDE catalogue (systems, regions, types). Its cache path is <c>Hunters:Sde:CachePath</c>, as for the server.</summary>
+public sealed class IntelSdeOptions
+{
+    /// <summary>How often to check CCP for a new SDE build.</summary>
+    public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromHours(6);
 }
 
 public sealed class IntelDatabaseOptions

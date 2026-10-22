@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 using NewEdenSoft.Hunters.Server.Configuration;
-using NewEdenSoft.Hunters.Server.Infrastructure.Sde;
+using NewEdenSoft.Hunters.Sde;
 
 namespace NewEdenSoft.Hunters.Server.Features.Map;
 

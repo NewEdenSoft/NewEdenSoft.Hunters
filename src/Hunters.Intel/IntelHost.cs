@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using NewEdenSoft.Hunters.Intel.Activity;
 using NewEdenSoft.Hunters.Intel.Data;
+using NewEdenSoft.Hunters.Intel.Sde;
+using NewEdenSoft.Hunters.Sde;
 
 namespace NewEdenSoft.Hunters.Intel;
 
@@ -22,14 +24,22 @@ public static class IntelHost
             o.ApplicationName = "NewEdenSoft.Hunters.Intel";
             o.Contact = contact;
         });
+        builder.Services.AddSde(o =>
+        {
+            o.CachePath = builder.Configuration[$"{IntelOptions.SectionName}:Sde:CachePath"];
+            o.Contact = contact;
+        });
         builder.Services.AddIntelServices();
         return builder;
     }
 
-    /// <summary>The collectors, without the database and ESI registrations (tests bring their own).</summary>
+    /// <summary>The collectors, without the database, ESI and SDE registrations (tests bring their own).</summary>
     public static IServiceCollection AddIntelServices(this IServiceCollection services)
     {
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<SdeCatalogStore>();
+        services.AddSingleton<SdeCatalogService>();
+        services.AddHostedService(sp => sp.GetRequiredService<SdeCatalogService>());
         services.AddSingleton<ISystemActivitySource, EsiSystemActivitySource>();
         services.AddSingleton<SystemActivityService>();
         services.AddHostedService(sp => sp.GetRequiredService<SystemActivityService>());

@@ -1,12 +1,12 @@
 using NewEdenSoft.Hunters.Contracts.Map;
-using NewEdenSoft.Hunters.Server.Infrastructure.Sde;
+using NewEdenSoft.Hunters.Sde;
 
 namespace NewEdenSoft.Hunters.Server.Features.Map;
 
 /// <summary>Builds the map pack of known space from SDE map data.</summary>
 public static class MapPackBuilder
 {
-    public const double MetresPerLightYear = 9_460_730_472_580_800;
+    public const double MetresPerLightYear = SdeUnits.MetresPerLightYear;
 
     /// <summary>Solar system ids from here on are wormhole space, Abyssal deadspace and other instanced space.</summary>
     public const int FirstNonKnownSpaceSystemId = 31_000_000;

@@ -19,6 +19,7 @@ COPY src/Hunters.Domain/Hunters.Domain.csproj src/Hunters.Domain/
 COPY src/Hunters.ServiceDefaults/Hunters.ServiceDefaults.csproj src/Hunters.ServiceDefaults/
 COPY src/Hunters.Intel/Hunters.Intel.csproj src/Hunters.Intel/
 COPY src/Hunters.Intel.Data/Hunters.Intel.Data.csproj src/Hunters.Intel.Data/
+COPY src/Hunters.Sde/Hunters.Sde.csproj src/Hunters.Sde/
 RUN dotnet restore src/Hunters.Server/Hunters.Server.csproj && dotnet restore src/Hunters.Intel/Hunters.Intel.csproj
 COPY src/ src/
 RUN dotnet publish src/Hunters.Server/Hunters.Server.csproj -c Release -o /app/publish --no-restore
@@ -28,7 +29,10 @@ RUN dotnet publish src/Hunters.Intel/Hunters.Intel.csproj -c Release -o /app/pub
 # Before the server stage on purpose: a plain `docker build` builds the last stage, the server.
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS intel
 WORKDIR /app
+# SDE cache mount point, owned by the non-root app user so a named volume inherits the ownership.
+RUN mkdir -p /app/sde && chown "$APP_UID" /app/sde
 COPY --from=build /app/publish-intel ./
+ENV Hunters__Sde__CachePath=/app/sde
 USER $APP_UID
 ENTRYPOINT ["dotnet", "NewEdenSoft.Hunters.Intel.dll"]
 
