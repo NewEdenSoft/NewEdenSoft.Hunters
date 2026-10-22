@@ -223,7 +223,8 @@
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="Template">
       <ControlTemplate>
-        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" Background="Transparent" />
+        <!-- Not named PART_ContentPresenter: Fluent's button hover styles would paint a box behind the badge. -->
+        <ContentPresenter Name="PART_Badge" Content="{TemplateBinding Content}" Background="Transparent" />
       </ControlTemplate>
     </Setter>
   </Style>
@@ -235,11 +236,31 @@
     <Setter Property="BorderThickness" Value="2" />
   </Style>
 
-  <!-- Rows in a widget's list, divided by a hairline: <Border Classes="widget-row" /> -->
-  <Style Selector="Border.widget-row">
+  <!-- Rows in a widget's list, divided by a hairline: <Button Classes="widget-row" /> -->
+  <Style Selector="Button.widget-row">
     <Setter Property="Padding" Value="12,7" />
+    <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
     <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <!-- One presenter carries background, divider and padding, so the hover fills the whole row. Not named
+             PART_ContentPresenter: Fluent's button hover styles would paint their own box inside the padding. -->
+        <ContentPresenter Name="PART_Row" Content="{TemplateBinding Content}"
+                          Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                          BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"
+                          HorizontalContentAlignment="Stretch" />
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.widget-row:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+  </Style>
+  <Style Selector="Button.widget-row:focus-visible">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
   </Style>
 
   <!-- Navigation rail: <Button Classes="nav" Classes.selected="{Binding IsSelected}" /> -->

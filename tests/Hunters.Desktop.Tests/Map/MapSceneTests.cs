@@ -85,7 +85,7 @@ public sealed class MapSceneTests
         var scene = Scene(MapFilters.Security(_model, _catalog));
         var camera = new MapCamera(Scale: 40, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
         // A diamond is hollow, so the middle of its badge shows the badge's fill (the halo colour).
-        var diamond = new MapMarker(new CharacterMarker(MarkerKind.Icon, "diamond"), IsOnline: true);
+        var diamond = new MapMarker(90000001, new CharacterMarker(MarkerKind.Icon, "diamond"), IsOnline: true);
         var radius = MapScene.SystemRadius(40);
         var badgeCentre = (X: (int)(200 + radius + 12 + 9), Y: (int)(150 - radius - 12 - 9));
 
@@ -101,6 +101,23 @@ public sealed class MapSceneTests
 
         Assert.Equal(SKColors.Navy, Sample(null));
         Assert.Equal(Palette.Halo, Sample([new MapMarkerGroup(_model.IndexOf[10], [diamond])]));
+    }
+
+    [Fact]
+    public void Clicks_find_the_marker_that_was_drawn()
+    {
+        var scene = Scene(MapFilters.Security(_model, _catalog));
+        var camera = new MapCamera(Scale: 40, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
+        var letter = new CharacterMarker(MarkerKind.Letter, "A");
+        MapMarkerGroup[] groups = [new(_model.IndexOf[10], [new MapMarker(1, letter, true), new MapMarker(2, letter, false)])];
+        var radius = MapScene.SystemRadius(40);
+        var (left, bottom) = (200 + radius + 12, 150 - radius - 12);
+
+        // Badges are 18 px with 3 px between them, along the bottom of the row.
+        Assert.Equal(1, scene.HitTestMarker(camera, groups, left + 9, bottom - 9));
+        Assert.Equal(2, scene.HitTestMarker(camera, groups, left + 21 + 9, bottom - 9));
+        Assert.Null(scene.HitTestMarker(camera, groups, left + 19.5f, bottom - 9));
+        Assert.Null(scene.HitTestMarker(camera, groups, 200, 150));
     }
 
     private MapScene Scene(MapFilter filter) =>
