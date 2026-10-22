@@ -5,12 +5,15 @@
     <Project Path="src/Hunters.Contracts/Hunters.Contracts.csproj" />
     <Project Path="src/Hunters.Desktop/Hunters.Desktop.csproj" />
     <Project Path="src/Hunters.Domain/Hunters.Domain.csproj" />
+    <Project Path="src/Hunters.Intel/Hunters.Intel.csproj" />
+    <Project Path="src/Hunters.Intel.Data/Hunters.Intel.Data.csproj" />
     <Project Path="src/Hunters.Server/Hunters.Server.csproj" />
     <Project Path="src/Hunters.ServiceDefaults/Hunters.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Hunters.Desktop.Tests/Hunters.Desktop.Tests.csproj" />
     <Project Path="tests/Hunters.Domain.Tests/Hunters.Domain.Tests.csproj" />
+    <Project Path="tests/Hunters.Intel.Tests/Hunters.Intel.Tests.csproj" />
     <Project Path="tests/Hunters.Server.Tests/Hunters.Server.Tests.csproj" />
   </Folder>
 </Solution>

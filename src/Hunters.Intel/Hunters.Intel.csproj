@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <UserSecretsId>5d2a6e0b-6f3c-4c55-9b0e-0c4b7f1e9a21</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="NewEdenKit.ESI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hunters.Intel.Data\Hunters.Intel.Data.csproj" />
+    <ProjectReference Include="..\Hunters.ServiceDefaults\Hunters.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NewEdenSoft.Hunters.Intel.Tests" />
+  </ItemGroup>
+
+</Project>

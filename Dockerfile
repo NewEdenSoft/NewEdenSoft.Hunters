@@ -17,11 +17,22 @@ COPY src/Hunters.Server/Hunters.Server.csproj src/Hunters.Server/
 COPY src/Hunters.Contracts/Hunters.Contracts.csproj src/Hunters.Contracts/
 COPY src/Hunters.Domain/Hunters.Domain.csproj src/Hunters.Domain/
 COPY src/Hunters.ServiceDefaults/Hunters.ServiceDefaults.csproj src/Hunters.ServiceDefaults/
-RUN dotnet restore src/Hunters.Server/Hunters.Server.csproj
+COPY src/Hunters.Intel/Hunters.Intel.csproj src/Hunters.Intel/
+COPY src/Hunters.Intel.Data/Hunters.Intel.Data.csproj src/Hunters.Intel.Data/
+RUN dotnet restore src/Hunters.Server/Hunters.Server.csproj && dotnet restore src/Hunters.Intel/Hunters.Intel.csproj
 COPY src/ src/
 RUN dotnet publish src/Hunters.Server/Hunters.Server.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish src/Hunters.Intel/Hunters.Intel.csproj -c Release -o /app/publish-intel --no-restore
 
-# --- Runtime -----------------------------------------------------------------
+# --- Intel service (build with --target intel) ---------------------------------
+# Before the server stage on purpose: a plain `docker build` builds the last stage, the server.
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS intel
+WORKDIR /app
+COPY --from=build /app/publish-intel ./
+USER $APP_UID
+ENTRYPOINT ["dotnet", "NewEdenSoft.Hunters.Intel.dll"]
+
+# --- Server (the default target) ----------------------------------------------
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 

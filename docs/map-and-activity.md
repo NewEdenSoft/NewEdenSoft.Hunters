@@ -42,11 +42,17 @@ Runs on the client so hover previews are instant. The gate graph (~8k systems, ~
 
 | Source | Freshness | Handling |
 |---|---|---|
-| ESI `universe/system_kills` | Hourly | Server worker polls with ETags and stores history for trends. |
+| ESI `universe/system_kills` | Hourly | The intel service stores each hour for trends (below). |
 | ESI `universe/system_jumps` | Hourly | As above. |
 | zKillboard live feed | Near real time | See [Live kill feed](#live-kill-feed). |
 
 Clients receive an activity snapshot on connect, then live updates.
+
+### Hourly kills and jumps
+
+The intel service ([D22](decisions.md#d22--a-separate-intel-service-with-a-derived-store), `src/Hunters.Intel/Activity`) collects ESI's public `universe/system_kills` (ship, pod and NPC kills) and `universe/system_jumps` for everyone. Each list covers the hour ending at its `Last-Modified` time and lists only systems with activity (about 3,000 systems with kills and 5,000 with jumps an hour). `SystemActivityService` fetches both at startup and again 30 seconds after ESI's `Expires` (never sooner than a minute), retries failures after 1, 2, 4, 8 and then every 15 minutes, and stores each hour once.
+
+Each hour is one raw row per list (`intel.SystemKills`, `intel.SystemJumps`), keyed by the end of its hour, with the systems and counts as parallel integer arrays: about 2,200 rows for 90 days instead of tens of millions with one per system. Hours older than `Hunters:Activity:Retention` (90 days: about 13 samples for each hour of the week) are deleted after each poll. These raw rows are the input for the derived activity tables (current activity, deltas, hour-of-week curves per system and region), which come next.
 
 ## Live kill feed
 

@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Hunters.Server\Hunters.Server.csproj" />
+    <ProjectReference Include="..\Hunters.Intel\Hunters.Intel.csproj" />
   </ItemGroup>
 
 </Project>

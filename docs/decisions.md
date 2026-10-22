@@ -77,5 +77,10 @@ Both clients draw the map in 2D with an immediate-mode renderer: Canvas 2D in th
 
 *Rejected:* three.js / React Three Fiber with a 2D/3D camera switch (tried in an earlier version of this project; text labels were painful); SVG or one DOM element per system (too many elements for smooth pan and zoom); graph libraries such as Sigma.js (hard to style to the HUD and to layer our own overlays).
 
+## D22 — A separate intel service with a derived store
+Public activity data (ESI's hourly kills and jumps, and later the zKillboard feed) is collected by **`Hunters.Intel`**, a worker process next to the API server: its own Docker Compose service, sharing the database but writing only its own `intel` schema, whose migrations it owns. The intel service keeps the raw inputs and builds **derived tables when new data arrives** (current activity, hour-of-week curves, hunting profiles). The API server only reads them, so requests are lookups, never aggregations. The collectors run around the clock whatever the API server is doing, and can be scaled, restarted or turned off on their own.
+
+*Rejected:* workers inside the API server (one process doing two jobs; restarts and load mixed); computing profiles per request (repeated work, slow for hour-of-week curves over 90 days); one row per system per hour for the raw data (millions of rows; arrays per hour instead).
+
 ## D15 — Desktop is Windows first; platform features behind interfaces
 Overlay, hotkey and log-location code sits behind per-OS interfaces. Windows first, macOS second, Linux X11 best effort, Wayland limited. See [Desktop Client](desktop-client.md#platform-support).
