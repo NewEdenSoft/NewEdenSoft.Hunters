@@ -357,13 +357,15 @@ public sealed class MapControl : Control
     private long? MarkerAt(Point at) =>
         _scene is null || _markerGroups.Count == 0 ? null : _scene.HitTestMarker(Camera(), _markerGroups, (float)at.X, (float)at.Y);
 
-    /// <summary>Puts a world point in the middle of the control at a zoom.</summary>
+    /// <summary>
+    /// Puts a world point in the middle of the control at a zoom. Only moves the camera: callers outside
+    /// <see cref="Render"/> invalidate, since invalidating during the render pass throws.
+    /// </summary>
     private void CentreOn(float worldX, float worldY, float scale)
     {
         _scale = scale;
         _offsetX = (float)Bounds.Width / 2 - worldX * scale;
         _offsetY = (float)Bounds.Height / 2 - worldY * scale;
-        InvalidateVisual();
     }
 
     private void OnAnimationFrame(TimeSpan time)
@@ -379,6 +381,7 @@ public sealed class MapControl : Control
             a.FromX + (a.ToX - a.FromX) * t,
             a.FromY + (a.ToY - a.FromY) * t,
             a.FromScale * MathF.Pow(a.ToScale / a.FromScale, t));
+        InvalidateVisual();
 
         if (progress < 1)
             TopLevel.GetTopLevel(this)?.RequestAnimationFrame(OnAnimationFrame);
