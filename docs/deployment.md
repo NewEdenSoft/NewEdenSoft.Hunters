@@ -55,6 +55,8 @@ Environment variables use `__` for nesting (`Hunters__Web__Enabled`).
 | `Hunters:Admission:*` | all off | See [Admission](discovery-and-admission.md) |
 | `Hunters:Sde:CachePath` | `/app/sde` in the image; local app data otherwise | SDE archive and extracted map data |
 | `Hunters:Sde:RefreshInterval` | `06:00:00` | How often to check CCP for a new SDE build |
+| `Hunters:Activity:Enabled` | `true` | Collect ESI's hourly kills and jumps per system |
+| `Hunters:Activity:Retention` | `30.00:00:00` | How long hourly kills and jumps are kept |
 | `Hunters:Admins:{n}` | — | Admin character IDs |
 | `Hunters:Esi:Contact` | repository URL | Contact sent to ESI in the User-Agent |
 | `ConnectionStrings:hunters` | — | PostgreSQL connection string |

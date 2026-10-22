@@ -24,6 +24,8 @@ public sealed class HuntersOptions
 
     public SdeOptions Sde { get; set; } = new();
 
+    public ActivityOptions Activity { get; set; } = new();
+
     /// <summary>EVE character ids whose accounts are server admins. Blank entries are ignored.</summary>
     public string[] Admins { get; set; } = [];
 
@@ -57,6 +59,16 @@ public sealed class SdeOptions
 
     /// <summary>How often to check CCP for a new SDE build.</summary>
     public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromHours(6);
+}
+
+/// <summary>Public activity data the server collects for everyone: ESI's hourly kills and jumps per system.</summary>
+public sealed class ActivityOptions
+{
+    /// <summary>Poll ESI for system kills and jumps.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>How long hourly snapshots are kept, for trends.</summary>
+    public TimeSpan Retention { get; set; } = TimeSpan.FromDays(30);
 }
 
 public sealed class DatabaseOptions

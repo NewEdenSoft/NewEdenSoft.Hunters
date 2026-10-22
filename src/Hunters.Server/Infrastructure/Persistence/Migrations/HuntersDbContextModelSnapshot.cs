@@ -175,6 +175,56 @@ namespace NewEdenSoft.Hunters.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("Sessions");
                 });
 
+            modelBuilder.Entity("NewEdenSoft.Hunters.Server.Infrastructure.Persistence.SystemJumpsSnapshot", b =>
+                {
+                    b.Property<DateTimeOffset>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.PrimitiveCollection<int[]>("ShipJumps")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.PrimitiveCollection<int[]>("SystemIds")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.HasKey("PeriodEnd");
+
+                    b.ToTable("SystemJumps");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Server.Infrastructure.Persistence.SystemKillsSnapshot", b =>
+                {
+                    b.Property<DateTimeOffset>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.PrimitiveCollection<int[]>("NpcKills")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.PrimitiveCollection<int[]>("PodKills")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.PrimitiveCollection<int[]>("ShipKills")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.PrimitiveCollection<int[]>("SystemIds")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.HasKey("PeriodEnd");
+
+                    b.ToTable("SystemKills");
+                });
+
             modelBuilder.Entity("NewEdenSoft.Hunters.Server.Infrastructure.Persistence.Character", b =>
                 {
                     b.HasOne("NewEdenSoft.Hunters.Server.Infrastructure.Persistence.Account", "Account")

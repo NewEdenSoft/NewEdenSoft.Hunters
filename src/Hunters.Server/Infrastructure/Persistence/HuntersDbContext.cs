@@ -11,6 +11,8 @@ public sealed class HuntersDbContext(DbContextOptions<HuntersDbContext> options)
     public DbSet<Character> Characters => Set<Character>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<AccessKey> AccessKeys => Set<AccessKey>();
+    public DbSet<SystemKillsSnapshot> SystemKills => Set<SystemKillsSnapshot>();
+    public DbSet<SystemJumpsSnapshot> SystemJumps => Set<SystemJumpsSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -35,5 +37,9 @@ public sealed class HuntersDbContext(DbContextOptions<HuntersDbContext> options)
         });
 
         model.Entity<AccessKey>(e => e.HasIndex(k => k.KeyHash).IsUnique());
+
+        // One row per hourly snapshot, keyed by the end of its hour, so storing one twice is impossible.
+        model.Entity<SystemKillsSnapshot>(e => e.HasKey(s => s.PeriodEnd));
+        model.Entity<SystemJumpsSnapshot>(e => e.HasKey(s => s.PeriodEnd));
     }
 }

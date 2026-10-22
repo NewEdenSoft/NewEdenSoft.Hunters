@@ -23,6 +23,8 @@ public sealed class HuntersServerFactory : WebApplicationFactory<Program>
         ["Hunters:Sso:ClientId"] = "test-client",
         ["Hunters:Sso:ClientSecret"] = "test-secret",
         ["Hunters:Sso:CallbackUrl"] = "http://localhost/auth/eve/callback",
+        // Tests poll the activity worker themselves (SystemActivityService.PollAsync).
+        ["Hunters:Activity:Enabled"] = "false",
     };
 
     private readonly string _tempRoot = Directory.CreateTempSubdirectory("hunters-tests-").FullName;
@@ -37,6 +39,8 @@ public sealed class HuntersServerFactory : WebApplicationFactory<Program>
     public FakeAffiliations Affiliations { get; } = new();
 
     public FakeSdeMap Sde { get; } = new();
+
+    public FakeSystemActivity Activity { get; } = new();
 
     public HuntersServerFactory With(string key, string? value)
     {
@@ -82,6 +86,8 @@ public sealed class HuntersServerFactory : WebApplicationFactory<Program>
             services.AddSingleton<IEveAffiliationService>(Affiliations);
             services.RemoveAll<ISdeMapSource>();
             services.AddSingleton<ISdeMapSource>(Sde);
+            services.RemoveAll<ISystemActivitySource>();
+            services.AddSingleton<ISystemActivitySource>(Activity);
         });
     }
 

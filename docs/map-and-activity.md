@@ -42,11 +42,17 @@ Runs on the client so hover previews are instant. The gate graph (~8k systems, ~
 
 | Source | Freshness | Handling |
 |---|---|---|
-| ESI `universe/system_kills` | Hourly | Server worker polls with ETags and stores history for trends. |
+| ESI `universe/system_kills` | Hourly | Server worker stores each hour for trends (below). |
 | ESI `universe/system_jumps` | Hourly | As above. |
 | zKillboard live feed | Near real time | See [Live kill feed](#live-kill-feed). |
 
 Clients receive an activity snapshot on connect, then live updates.
+
+### Hourly kills and jumps
+
+`SystemActivityService` (server, `Features/Activity`) collects ESI's public `universe/system_kills` (ship, pod and NPC kills) and `universe/system_jumps` for everyone. Each list covers the hour ending at its `Last-Modified` time and lists only systems with activity (about 2,800 systems with kills and 4,800 with jumps an hour). The worker fetches both at startup and again 30 seconds after ESI's `Expires` (never sooner than a minute), retries failures after 1, 2, 4, 8 and then every 15 minutes, and stores each hour once.
+
+Each hour is one row per list (`SystemKills`, `SystemJumps`), keyed by the end of its hour, with the systems and counts as parallel integer arrays: about 720 rows and roughly 20 MB for 30 days, instead of millions of rows with one per system. Hours older than `Hunters:Activity:Retention` (30 days) are deleted after each poll. `Hunters:Activity:Enabled` turns the worker off. An endpoint for clients comes next.
 
 ## Live kill feed
 
