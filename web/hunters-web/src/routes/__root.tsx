@@ -21,7 +21,8 @@ const Devtools = import.meta.env.DEV
       return {
         default: () => (
           <>
-            <TanStackRouterDevtools position="bottom-left" />
+            {/* Away from the rail on the left, where they would cover Log out. */}
+            <TanStackRouterDevtools position="top-right" />
             <ReactQueryDevtools buttonPosition="bottom-right" />
           </>
         ),
