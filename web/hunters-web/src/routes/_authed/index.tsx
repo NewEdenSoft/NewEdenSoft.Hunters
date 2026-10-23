@@ -1,13 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
+import { activityQuery } from '../../api/activity'
 import { discoveryQuery } from '../../api/discovery'
 import { mapPackQuery } from '../../api/map'
 import { Label } from '../../components/ui/Label'
 import { Panel } from '../../components/ui/Panel'
 import { Status } from '../../components/ui/Status'
 import { Toggle } from '../../components/ui/Toggle'
-import { createFilter, mapFilters, type MapFilter, type MapFilterId } from '../../map/filters'
+import {
+  createFilter,
+  mapFilters,
+  minNpcChoices,
+  parseColourParam,
+  parseMinNpcParam,
+  type MapFilter,
+  type MapFilterId,
+} from '../../map/filters'
 import { MapLegend } from '../../map/MapLegend'
 import { buildMapModel, type MapLayout, type MapModel } from '../../map/model'
 import { MapView } from '../../map/MapView'
@@ -23,6 +32,8 @@ import { mapLayouts, useMapLayout } from '../../settings/mapSettings'
 
 export interface MapSearch {
   colour?: MapFilterId
+  /** For NPC rising and falling: the minimum NPC kills in the last hour. */
+  min?: number
   /** The focused system: the origin for nearby intel, ringed on the map. */
   system?: number
 }
@@ -33,10 +44,8 @@ export const Route = createFileRoute('/_authed/')({
   // The colour filter and the focused system are in the URL, so a view can be linked; defaults are
   // left out. The layout is a user setting (settings/mapSettings.ts).
   validateSearch: (search: Record<string, unknown>): MapSearch => ({
-    colour:
-      mapFilters.some((f) => f.id === search.colour) && search.colour !== mapFilters[0].id
-        ? (search.colour as MapFilterId)
-        : undefined,
+    colour: parseColourParam(search.colour),
+    min: parseMinNpcParam(search.min),
     system: parseSystemParam(search.system),
   }),
   component: MapPage,
@@ -49,14 +58,25 @@ function MapPage() {
   const colour = search.colour ?? mapFilters[0].id
 
   // Discovery names the current map pack; it is missing while the server is still loading the SDE.
+  // Discovery also says whether the server has activity data; it is asked again until it does.
   const discovery = useQuery({
     ...discoveryQuery,
-    refetchInterval: (query) => (query.state.data && !query.state.data.mapPack ? 10_000 : false),
+    refetchInterval: (query) =>
+      query.state.data && !query.state.data.mapPack ? 10_000 : query.state.data && !query.state.data.features.includes('activity') ? 300_000 : false,
   })
   const sdeBuild = discovery.data?.mapPack?.sdeBuild
+  const hasActivity = discovery.data?.features.includes('activity') ?? false
   const pack = useQuery({ ...mapPackQuery(sdeBuild ?? 0), enabled: sdeBuild !== undefined })
   const model = useMemo(() => (pack.data ? buildMapModel(pack.data) : null), [pack.data])
-  const filter = useMemo(() => (model ? createFilter(colour, model) : null), [colour, model])
+
+  // Activity is fetched only while an activity colour is chosen.
+  const needsActivity = mapFilters.find((f) => f.id === colour)?.activity ?? false
+  const activity = useQuery({ ...activityQuery, enabled: needsActivity })
+  const minNpc = search.min ?? 0
+  const filter = useMemo(
+    () => (model ? createFilter(colour, model, { activity: activity.data ?? null, minNpc }) : null),
+    [colour, model, activity.data, minNpc],
+  )
 
   if (!model || !filter) {
     const error = discovery.error ?? pack.error
@@ -80,6 +100,7 @@ function MapPage() {
 
   const setColour = (id: MapFilterId) =>
     void navigate({ search: (prev) => ({ ...prev, colour: id === mapFilters[0].id ? undefined : id }), replace: true })
+  const setMinNpc = (min: number) => void navigate({ search: (prev) => ({ ...prev, min: min > 0 ? min : undefined }), replace: true })
   const setSystem = (id: number | undefined) => void navigate({ search: (prev) => ({ ...prev, system: id }), replace: true })
 
   return (
@@ -90,6 +111,9 @@ function MapPage() {
       setLayout={setLayout}
       colour={colour}
       setColour={setColour}
+      hasActivity={hasActivity}
+      minNpc={minNpc}
+      setMinNpc={setMinNpc}
       system={search.system}
       setSystem={setSystem}
     />
@@ -107,6 +131,9 @@ function LoadedMap({
   setLayout,
   colour,
   setColour,
+  hasActivity,
+  minNpc,
+  setMinNpc,
   system,
   setSystem,
 }: {
@@ -116,6 +143,10 @@ function LoadedMap({
   setLayout: (layout: MapLayout) => void
   colour: MapFilterId
   setColour: (id: MapFilterId) => void
+  /** The server has activity data: the activity colours are offered. */
+  hasActivity: boolean
+  minNpc: number
+  setMinNpc: (min: number) => void
   system: number | undefined
   setSystem: (id: number | undefined) => void
 }) {
@@ -169,13 +200,24 @@ function LoadedMap({
               ))}
             </ControlGroup>
             <ControlGroup label="Colour">
-              {mapFilters.map((f) => (
-                <Toggle key={f.id} active={f.id === colour} onClick={() => setColour(f.id)}>
-                  {f.label}
-                </Toggle>
-              ))}
+              {mapFilters
+                .filter((f) => !f.activity || hasActivity || f.id === colour)
+                .map((f) => (
+                  <Toggle key={f.id} active={f.id === colour} onClick={() => setColour(f.id)}>
+                    {f.label}
+                  </Toggle>
+                ))}
             </ControlGroup>
-            <MapLegend filter={filter} />
+            {(colour === 'npc-rising' || colour === 'npc-falling') && (
+              <ControlGroup label="Min NPC kills, last hour">
+                {minNpcChoices.map((min) => (
+                  <Toggle key={min} active={min === minNpc} onClick={() => setMinNpc(min)}>
+                    {min === 0 ? 'Any' : `${min}+`}
+                  </Toggle>
+                ))}
+              </ControlGroup>
+            )}
+            {filter.notice ? <p className="text-[0.8125rem] text-fg-muted">{filter.notice}</p> : <MapLegend filter={filter} />}
           </div>
             ),
           },

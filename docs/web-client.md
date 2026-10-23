@@ -63,6 +63,22 @@ Each frame: gates are stroked under the view transform: solid within a constella
 
 **Colour filters.** A filter turns the map into a colour group per system (or `HIDDEN`), the group colours (CSS, theme variables allowed) and a legend. The renderer only draws groups, so new ways of colouring the map (activity, a route, fleet members) are new filters, not renderer changes. Hidden systems are not drawn, labelled or hoverable; their gates still are. The hover panel always shows the system's real security in its security colour, whatever the filter.
 
+**Activity colours.** Besides **Security**, the Map panel offers a short list of the server's hourly activity ([Serving activity](map-and-activity.md#serving-activity)), all for the last hour:
+
+| Colour | Shows |
+|---|---|
+| **NPC kills** | the count |
+| **NPC rising** | the rise from the hour before |
+| **NPC falling** | the fall from the hour before |
+| **Ship kills** | the count |
+| **Jumps** | the count |
+
+- **Bands:** each is drawn in the five heat bands (violet → magenta → white) with the bounds from `design/themes.json` (`heat`). Below the first band a system is quiet, drawn faint so any activity stands out.
+- **Minimum NPC kills:** rising and falling take one (Any, 25+, 100+, 250+), so small changes in quiet systems stay faint.
+- **No data:** without a previous hour (downtime), without activity data, or for another map version, the panel says why instead of a legend.
+- **Fetching:** the activity colours are offered once the discovery document lists `activity`. The data (`/api/activity/current`, `api/activity.ts`) is fetched only while one is chosen, and asked for again every minute; the browser revalidates with the ETag, so that is a 304 until a new hour arrives.
+- **In the URL:** `?colour=npc-rising&min=100`.
+
 **System search and the focused system.** A search field sits at the top centre of the map, with the focused character's chip under it.
 
 - **Search:** typing a system's name lists up to eight matches with security and region (`map/systemSearch.ts`):
