@@ -24,6 +24,8 @@ public sealed class HuntersOptions
 
     public SdeOptions Sde { get; set; } = new();
 
+    public ActivityOptions Activity { get; set; } = new();
+
     /// <summary>EVE character ids whose accounts are server admins. Blank entries are ignored.</summary>
     public string[] Admins { get; set; } = [];
 
@@ -54,6 +56,16 @@ public sealed class SdeOptions
 {
     /// <summary>How often to check CCP for a new SDE build.</summary>
     public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromHours(6);
+}
+
+/// <summary>Serving the intel service's activity tables (docs/map-and-activity.md, "Serving activity").</summary>
+public sealed class ActivityOptions
+{
+    /// <summary>Follow the intel service's activity version. Off, the activity endpoints stay unavailable.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>How often to check whether the intel service has a new version.</summary>
+    public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(30);
 }
 
 public sealed class DatabaseOptions

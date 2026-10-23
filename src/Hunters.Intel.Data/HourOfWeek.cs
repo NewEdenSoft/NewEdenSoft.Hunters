@@ -1,4 +1,4 @@
-namespace NewEdenSoft.Hunters.Intel.Activity;
+namespace NewEdenSoft.Hunters.Intel.Data;
 
 /// <summary>Hours of the week, UTC: 0 = Monday 00:00–01:00 … 167 = Sunday 23:00–24:00.</summary>
 public static class HourOfWeek

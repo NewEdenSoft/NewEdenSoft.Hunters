@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.DataProtection;
 using NewEdenSoft.Hunters.Server.Configuration;
 using NewEdenSoft.Hunters.Server.Features.Accounts;
+using NewEdenSoft.Hunters.Server.Features.Activity;
 using NewEdenSoft.Hunters.Server.Features.Admin;
 using NewEdenSoft.Hunters.Server.Features.Admission;
 using NewEdenSoft.Hunters.Server.Features.Auth;
@@ -37,6 +38,7 @@ builder.Services.AddAuthFeature(hunters.Sso);
 builder.Services.AddAccountsFeature();
 builder.Services.AddAdmissionFeature();
 builder.Services.AddMapFeature(builder.Configuration);
+builder.AddActivityFeature();
 
 var app = builder.Build();
 
@@ -62,6 +64,7 @@ app.MapAuth();
 app.MapAccounts();
 app.MapAdmin();
 app.MapMap();
+app.MapActivity();
 
 if (hunters.Web.Enabled)
     app.MapWebAppFallback();

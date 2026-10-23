@@ -1,4 +1,3 @@
-using Microsoft.Net.Http.Headers;
 using NewEdenSoft.Hunters.Contracts.Map;
 
 namespace NewEdenSoft.Hunters.Server.Features.Map;
@@ -33,31 +32,13 @@ public static class MapEndpoints
                 }
 
                 // Served precompressed: the pack is the same bytes for everyone.
-                var (bytes, encoding) = Negotiate(http.Request, pack);
-                http.Response.Headers.Vary = HeaderNames.AcceptEncoding;
                 http.Response.Headers.CacheControl = "private, max-age=31536000, immutable";
-                if (encoding is not null)
-                    http.Response.Headers.ContentEncoding = encoding;
-                return Results.Bytes(bytes, "application/json");
+                return pack.Body.ToResult(http);
             })
             .WithName("GetMapPack")
             .WithTags("Map")
             .RequireAuthorization();
 
         return endpoints;
-    }
-
-    private static (byte[] Bytes, string? Encoding) Negotiate(HttpRequest request, MapPackSnapshot pack)
-    {
-        var accepted = request.GetTypedHeaders().AcceptEncoding
-            .Where(e => e.Quality is null or > 0)
-            .Select(e => e.Value.Value)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (accepted.Contains("br"))
-            return (pack.Brotli, "br");
-        if (accepted.Contains("gzip"))
-            return (pack.Gzip, "gzip");
-        return (pack.Json, null);
     }
 }
