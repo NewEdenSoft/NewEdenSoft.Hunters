@@ -30,7 +30,8 @@ public sealed class MapPackService(
                 var sde = await source.LoadAsync(stoppingToken);
                 if (store.Current?.Build != sde.Build)
                 {
-                    var snapshot = store.Publish(MapPackBuilder.Build(sde));
+                    var pack = MapPackBuilder.Build(sde);
+                    var snapshot = store.Publish(pack, MapPackBuilder.Geometry(sde, pack));
                     logger.LogInformation(
                         "Map pack for SDE build {Build}: {Systems} systems, {Gates} gates, {Size} KB compressed",
                         snapshot.Build, snapshot.Pack.Systems.Count, snapshot.Pack.Gates.Count, snapshot.Body.Brotli.Length / 1024);
