@@ -9,6 +9,8 @@ public sealed class IntelOptions
 
     public ActivityOptions Activity { get; set; } = new();
 
+    public KillsOptions Kills { get; set; } = new();
+
     public EsiOptions Esi { get; set; } = new();
 
     public IntelSdeOptions Sde { get; set; } = new();
@@ -44,6 +46,27 @@ public sealed class ActivityOptions
 
     /// <summary>Peaks are only given when the busiest hour averages at least this much, so near-silent systems get none.</summary>
     public double PeakMinAverage { get; set; } = 1;
+}
+
+/// <summary>zKillboard's R2Z2 kill feed.</summary>
+public sealed class KillsOptions
+{
+    /// <summary>Read the feed and store kills.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>How long kills are kept.</summary>
+    public TimeSpan Retention { get; set; } = TimeSpan.FromDays(90);
+
+    public Uri FeedUrl { get; set; } = new("https://r2z2.zkillboard.com/ephemeral/");
+
+    /// <summary>The pause between files while catching up; zKillboard allows at most 15 requests a second.</summary>
+    public TimeSpan RequestInterval { get; set; } = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>The wait when the next file isn't written yet; zKillboard asks for at least 6 seconds.</summary>
+    public TimeSpan WaitWhenCaughtUp { get; set; } = TimeSpan.FromSeconds(6);
+
+    /// <summary>zKillboard keeps files for about a day; a saved position older than this is skipped to the newest.</summary>
+    public TimeSpan ResumeWithin { get; set; } = TimeSpan.FromHours(20);
 }
 
 public sealed class EsiOptions

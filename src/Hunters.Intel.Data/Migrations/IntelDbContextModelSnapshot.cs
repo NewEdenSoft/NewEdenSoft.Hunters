@@ -42,6 +42,23 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.ToTable("ActivityWeekSamples", "intel");
                 });
 
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.FeedPosition", b =>
+                {
+                    b.Property<string>("Feed")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Feed");
+
+                    b.ToTable("FeedPositions", "intel");
+                });
+
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.IntelVersion", b =>
                 {
                     b.Property<string>("Dataset")
@@ -57,6 +74,74 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.HasKey("Dataset");
 
                     b.ToTable("Versions", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.Kill", b =>
+                {
+                    b.Property<long>("KillmailId")
+                        .HasColumnType("bigint");
+
+                    b.PrimitiveCollection<long[]>("AttackerCharacterIds")
+                        .IsRequired()
+                        .HasColumnType("bigint[]");
+
+                    b.Property<int>("AttackerCount")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<int[]>("AttackerShipTypeIds")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.PrimitiveCollection<int[]>("AttackerWeaponTypeIds")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("Npc")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Solo")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("SystemId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("Time")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("TotalValue")
+                        .HasColumnType("double precision");
+
+                    b.Property<long?>("VictimAllianceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("VictimCharacterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("VictimCorporationId")
+                        .HasColumnType("bigint");
+
+                    b.PrimitiveCollection<int[]>("VictimFittedTypeIds")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.Property<int>("VictimShipTypeId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("KillmailId");
+
+                    b.HasIndex("Time");
+
+                    b.HasIndex("SystemId", "Time");
+
+                    b.ToTable("Kills", "intel");
                 });
 
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.RegionActivityCurrent", b =>

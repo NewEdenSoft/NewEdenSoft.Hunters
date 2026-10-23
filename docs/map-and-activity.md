@@ -44,7 +44,7 @@ Runs on the client so hover previews are instant. The gate graph (~8k systems, ~
 |---|---|---|
 | ESI `universe/system_kills` | Hourly | The intel service stores each hour for trends (below). |
 | ESI `universe/system_jumps` | Hourly | As above. |
-| zKillboard live feed | Near real time | See [Live kill feed](#live-kill-feed). |
+| zKillboard R2Z2 feed | Near real time | The intel service stores every kill ([Kills](#kills)); live forwarding to clients is [Live kill feed](#live-kill-feed). |
 
 Clients fetch the hourly activity over HTTP ([Serving activity](#serving-activity)) and revalidate it with its ETag; live kills come later.
 
@@ -81,6 +81,15 @@ The API server only reads the `intel` schema (`src/Hunters.Server/Features/Activ
 | `GET /api/activity/regions/{id}` | The same for a region. |
 
 Every response carries an ETag from the version (304 when it still matches) and `Cache-Control: private, max-age` up to when the next hour is expected (the latest `Last-Modified` plus 62 minutes).
+
+### Kills
+
+The intel service's `KillFeedService` (`src/Hunters.Intel/Kills`) reads zKillboard's **R2Z2** feed: one file per kill at `r2z2.zkillboard.com/ephemeral/{sequence}.json`, with the full ESI killmail and zKillboard's notes, kept by zKillboard for about a day.
+
+- **Reading:** one file at a time, 100 ms apart while catching up (zKillboard allows 15 requests a second), with a `User-Agent` naming the operator contact. A 404 is ambiguous, so it is compared with `sequence.json` (which lags a little behind the files): above it, the file isn't written yet and the reader waits 6 seconds, as zKillboard asks; at or below it, the file is gone and is skipped.
+- **Position:** saved in `intel.FeedPositions` in the same save as each kill, so a restart resumes at the next file. A position older than `Hunters:Kills:ResumeWithin` (20 hours, before zKillboard drops the files) starts again at the newest file. The first start also begins at the newest.
+- **Slim kills** (`intel.Kills`, about 35,000 a day, kept for `Hunters:Kills:Retention`, 90 days): id and hash, sequence, time, system, zKillboard's `npc` and `solo`, total value; the victim's character, corporation, alliance, ship (or structure, or deployable such as a CRAB beacon) and **fitted** module types (slots, rigs and subsystems, not cargo); and **per attacker** the character (0 for NPCs), ship and weapon, as parallel arrays. Hunting profiles count pilots per ship and smartbombers by weapon, so the attackers are kept whole. A kill announced twice is stored once.
+- Failures back off like the ESI collector (1, 2, 4, 8, then every 15 minutes) and keep the position.
 
 ## Live kill feed
 

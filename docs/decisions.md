@@ -41,6 +41,8 @@ For character data, the server only handles registration and token rotation. Des
 ## D12 — Live kills are ingested once and forwarded only where relevant
 One zKill consumer per deployment, slim summaries, a bounded channel, per-system subscriptions sent by clients, and batched, capped pushes. Clients fetch full killmails from ESI themselves. See [Map & Activity](map-and-activity.md#live-kill-feed).
 
+*Extended:* the intel service (D22) is that one consumer. It reads zKillboard's R2Z2 feed around the clock and **stores** every kill as a slim row for 90 days, as the input for hunting profiles. See [Kills](map-and-activity.md#kills).
+
 ## D13 — Hot state behind cache, presence and message-bus interfaces
 `ICacheStore`, `IPresenceStore` and `IMessageBus` start with in-memory implementations. Redis or another distributed store can be added later without changing feature code. Durable data (fleet sessions included) lives in Postgres.
 

@@ -14,6 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Real R2Z2 files, for the parsing tests. -->
+    <None Update="Kills/Samples/*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/Hunters.Intel/Hunters.Intel.csproj" />
   </ItemGroup>
 
