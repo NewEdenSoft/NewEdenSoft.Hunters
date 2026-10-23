@@ -88,6 +88,22 @@ public sealed class SightingMatcherTests
     }
 
     [Fact]
+    public async Task Smartbomb_camps_are_pods_popped_by_smart_bombs()
+    {
+        var profiles = await ProfilesAsync();
+        Kill Pod((long, int, int)[] attackers) => Kill(FakeSde.Capsule, victim: Pilot, attackers: attackers);
+
+        // A pod killed by a smartbombing attacker: a camp, and a smartbomber too.
+        Assert.Equal(
+            ["smartbomb-camps 90000002 Attacker 3993 1", "smartbombers 90000002 Attacker 3993 1"],
+            SightingMatcher.Match(Pod([(Other, FakeSde.Rifter, FakeSde.Smartbomb), (Third, FakeSde.Rifter, 2873)]), profiles, 25).Select(Describe).Order());
+
+        // A ship (not a pod) smartbombed: a smartbomber, not a camp.
+        var frigate = Kill(FakeSde.Rifter, victim: Pilot, attackers: [(Other, FakeSde.Rifter, FakeSde.Smartbomb)]);
+        Assert.DoesNotContain(SightingMatcher.Match(frigate, profiles, 25), s => s.Profile == "smartbomb-camps");
+    }
+
+    [Fact]
     public async Task Ishtars_are_one_ship_type()
     {
         var sightings = SightingMatcher.Match(Kill(FakeSde.Ishtar, victim: Pilot), await ProfilesAsync(), 25);
@@ -120,5 +136,10 @@ public sealed class SightingMatcherTests
         Assert.Contains("supers: no SDE group 30", problems);
         Assert.Contains("dreads: no SDE group 485", problems);
         Assert.Empty(profiles.Single(p => p.Id == "marauders").Rules[0].Types);
+
+        // The camp rule: smart bombs, on capsules only, keeping fights.
+        var camps = profiles.Single(p => p.Id == "smartbomb-camps");
+        Assert.Equal([FakeSde.Capsule], camps.Rules[0].Victims!);
+        Assert.Equal("Weapon@1:3993>670;keeps fights", camps.Definition);
     }
 }

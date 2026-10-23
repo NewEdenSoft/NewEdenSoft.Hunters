@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActivityColumns } from '../api/activity'
+import { ProfileMark } from '../components/map/ProfileMark'
 import { SystemContextMenu } from '../components/map/SystemContextMenu'
 import { securityColor } from '../theme/themes'
 import type { MapFilter } from './filters'
@@ -226,9 +227,7 @@ function ProfilesLines({ profiles }: { profiles: PlaceProfile[] }) {
     <span className="mt-0.5 grid gap-0.5 border-t border-line pt-1 text-[0.8125rem]">
       {profiles.map((p) => (
         <span key={p.profile} className="flex items-baseline gap-2">
-          <span className="w-5 font-display text-[0.6875rem] font-bold" style={{ color: p.colour }}>
-            {p.code}
-          </span>
+          <ProfileMark style={p} className="w-5 text-[0.6875rem]" />
           <span className={p.likely > 0 ? 'min-w-0 truncate text-fg' : 'min-w-0 truncate text-fg-muted'}>{p.name}</span>
           <span
             className={p.likely > 0 ? 'ml-auto shrink-0 text-warning' : 'ml-auto shrink-0 text-fg-faint'}

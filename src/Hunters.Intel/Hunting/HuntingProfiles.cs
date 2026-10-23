@@ -15,6 +15,12 @@ public enum RuleKind
 
     /// <summary>One of the types dying, with no pilot (a deployable such as a CRAB beacon).</summary>
     Victim,
+
+    /// <summary>
+    /// An attacker whose last hit was one of the types, optionally only on given victims (smart bombs on
+    /// capsules: a gate camp, not a ratting smartbomber).
+    /// </summary>
+    Weapon,
 }
 
 /// <summary>
@@ -23,16 +29,22 @@ public enum RuleKind
 /// </summary>
 /// <param name="Weight">How much a match counts: 1 for the target itself, less for indirect evidence.</param>
 /// <param name="Indicator">Indirect evidence: a sign the target was there, not the target on the killmail.</param>
+/// <param name="VictimGroups">For <see cref="RuleKind.Weapon"/>: only kills of these victims (SDE groups) count.</param>
 public sealed record ProfileRule(
     RuleKind Kind,
     int[]? Groups = null,
     int[]? Types = null,
     string? GroupOfType = null,
     double Weight = 1,
-    bool Indicator = false);
+    bool Indicator = false,
+    int[]? VictimGroups = null);
 
 /// <param name="Id">Stable id, stored with each sighting and used by the API.</param>
-public sealed record HuntingProfile(string Id, string Name, IReadOnlyList<ProfileRule> Rules);
+/// <param name="KeepsFights">
+/// Bursts of kills are this profile's target (a gate camp), so the battle rule doesn't mark its sightings
+/// as fleet fights. Kills with very many attackers still are.
+/// </param>
+public sealed record HuntingProfile(string Id, string Name, IReadOnlyList<ProfileRule> Rules, bool KeepsFights = false);
 
 /// <summary>
 /// The built-in hunting profiles (docs/map-and-activity.md, "Hunting profiles"). Changing one here (or a
@@ -41,7 +53,7 @@ public sealed record HuntingProfile(string Id, string Name, IReadOnlyList<Profil
 public static class HuntingProfiles
 {
     // SDE group ids, checked against the SDE when the profiles are resolved.
-    public const int Titan = 30, SmartBomb = 72, Dreadnought = 485, Carrier = 547, Supercarrier = 659, Marauder = 900,
+    public const int Capsule = 29, Titan = 30, SmartBomb = 72, Dreadnought = 485, Carrier = 547, Supercarrier = 659, Marauder = 900,
         ForceAuxiliary = 1538, LancerDreadnought = 4594;
 
     public const int Ishtar = 12005;
@@ -65,11 +77,13 @@ public static class HuntingProfiles
         new("ishtars", "Ishtars", [new(RuleKind.Ship, Types: [Ishtar])]),
         new("smartbombers", "Smartbombers", [new(RuleKind.Module, Groups: [SmartBomb])]),
         new("crab", "CRAB beacons", [new(RuleKind.Victim, GroupOfType: CrabBeacon)]),
+        // Pods popped by smart bombs: PvP smartbombing, typically a camp on a low-sec pipe gate.
+        new("smartbomb-camps", "Smartbomb camps", [new(RuleKind.Weapon, Groups: [SmartBomb], VictimGroups: [Capsule])], KeepsFights: true),
     ];
 }
 
-/// <summary>A rule with its types resolved against the SDE.</summary>
-public sealed record ResolvedRule(RuleKind Kind, FrozenSet<int> Types, double Weight, bool Indicator);
+/// <summary>A rule with its types resolved against the SDE; <paramref name="Victims"/> null means any victim.</summary>
+public sealed record ResolvedRule(RuleKind Kind, FrozenSet<int> Types, double Weight, bool Indicator, FrozenSet<int>? Victims = null);
 
 /// <summary>A profile ready to match kills, and the definition its sightings are stored under.</summary>
 public sealed record ResolvedProfile(HuntingProfile Profile, IReadOnlyList<ResolvedRule> Rules, string Definition)
@@ -111,12 +125,23 @@ public sealed record ResolvedProfile(HuntingProfile Profile, IReadOnlyList<Resol
                     problems.Add($"{profile.Id}: no SDE type {type}");
             }
 
-            rules.Add(new ResolvedRule(rule.Kind, types.ToFrozenSet(), rule.Weight, rule.Indicator));
+            FrozenSet<int>? victims = null;
+            if (rule.VictimGroups is { } victimGroups)
+            {
+                foreach (var group in victimGroups.Where(g => !catalog.Groups.ContainsKey(g)))
+                    problems.Add($"{profile.Id}: no SDE group {group}");
+                victims = catalog.Types.Values.Where(t => victimGroups.Contains(t.GroupId)).Select(t => t.Id).ToFrozenSet();
+            }
+
+            rules.Add(new ResolvedRule(rule.Kind, types.ToFrozenSet(), rule.Weight, rule.Indicator, victims));
         }
 
-        // What the sightings depend on: each rule's kind, weight and exact types.
+        // What the sightings depend on: each rule's kind, weight, exact types and victims, and whether
+        // fights are kept (it changes which sightings are marked as fleet).
         var definition = string.Join(';', rules.Select(r =>
-            $"{r.Kind}{(r.Indicator ? "?" : "")}@{r.Weight.ToString(CultureInfo.InvariantCulture)}:{string.Join(',', r.Types.Order())}"));
+                $"{r.Kind}{(r.Indicator ? "?" : "")}@{r.Weight.ToString(CultureInfo.InvariantCulture)}:{string.Join(',', r.Types.Order())}"
+                + (r.Victims is { } v ? $">{string.Join(',', v.Order())}" : "")))
+            + (profile.KeepsFights ? ";keeps fights" : "");
         return new ResolvedProfile(profile, rules, definition);
     }
 }

@@ -1,12 +1,15 @@
 import type { HuntingOverview } from '../api/hunting'
 import type { ProfileStyle } from '../theme/themes'
 import type { MapModel } from './model'
+import { profileIcon } from './profileIcons'
 
 /** A shown profile's badge at a system. */
 export interface HuntingBadge {
   profile: string
   code: string
   colour: string
+  /** An SVG path (24 x 24) drawn instead of the code. */
+  icon?: string
   /** Seen there, but not usually at this hour: drawn faint. */
   faint: boolean
 }
@@ -65,7 +68,7 @@ export function buildHuntingLayer(
       if (strongest > 0 && likely[i] > 0) glow[index] = Math.max(glow[index], Math.sqrt(likely[i] / strongest))
       let row = badges.get(index)
       if (!row) badges.set(index, (row = []))
-      row.push({ profile, code: style.code, colour: style.colour, faint: likely[i] <= 0 })
+      row.push({ profile, code: style.code, colour: style.colour, icon: profileIcon(style.icon), faint: likely[i] <= 0 })
     })
   }
 
@@ -78,6 +81,8 @@ export interface PlaceProfile {
   name: string
   code: string
   colour: string
+  /** An icon name from profileIcons.ts, shown instead of the code. */
+  icon?: string
   score: number
   likely: number
   /** This hour against the busiest hour of the day there, 0–1. */
@@ -112,6 +117,7 @@ export function profilesBySystem(
         name: nameOf(systems.profile),
         code: style.code,
         colour: style.colour,
+        icon: style.icon,
         score: systems.score[i],
         likely: likelyNow(systems.score[i], hours, hour),
         peakNow: busiest > 0 ? (hours[hour] ?? 0) / busiest : 0,

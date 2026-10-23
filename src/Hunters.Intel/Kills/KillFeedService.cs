@@ -134,11 +134,14 @@ public sealed partial class KillFeedService(
 
         // A player kill can tip the system into a battle, marking sightings around it.
         if (isNew && !kill.Npc)
-            changed += await SightingStore.MarkBattlesAsync(db, settings, kill.SystemId, kill.Time, null, cancellationToken);
+            changed += await SightingStore.MarkBattlesAsync(db, settings, kill.SystemId, kill.Time, null, KeepingFights(hunting), cancellationToken);
         if (changed > 0)
             aggregates.Signal();
         return isNew;
     }
+
+    private static string[] KeepingFights(IReadOnlyList<ResolvedProfile> profiles) =>
+        [.. profiles.Where(p => p.Profile.KeepsFights).Select(p => p.Id)];
 
     private async Task PruneIfDueAsync(CancellationToken cancellationToken)
     {
