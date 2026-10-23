@@ -14,7 +14,7 @@ const serverUrl =
   process.env.services__server__http__0 ??
   'http://localhost:5259'
 
-const serverPaths = ['/api', '/auth', '/hubs', '/openapi', '/.well-known']
+const serverPaths = ['/api', '/auth', '/hubs', '/openapi', '/scalar', '/.well-known']
 
 // https://vite.dev/config/
 export default defineConfig({
