@@ -84,6 +84,8 @@ Intel service (`Hunters.Intel`, same `Hunters` section and `ConnectionStrings__h
 | `Hunters:Hunting:FleetAttackers` | `25` | A kill with more attackers is a fleet fight: its sightings aren't counted |
 | `Hunters:Hunting:BattleKills` | `20` | This many player kills in a system within the battle window of a sighting is a battle |
 | `Hunters:Hunting:BattleWindow` | `00:15:00` | The battle window, either side of a sighting |
+| `Hunters:Hunting:ScoreHalfLife` | `14.00:00:00` | A sighting's weight in the hunting score halves every this long |
+| `Hunters:Hunting:UpdateInterval` | `00:05:00` | The hunting aggregates are recomputed at most this often while sightings arrive (and at least hourly) |
 | `Hunters:Esi:Contact` | the project URL (Compose: `HUNTERS_PUBLIC_URL`) | Operator contact in the ESI, SDE and zKillboard `User-Agent` |
 | `Hunters:Sde:CachePath` | `/app/sde` in the image; local app data otherwise | Its own SDE cache (map data and item types). Not shared with the server's volume, which could be mid-download at the same moment |
 | `Hunters:Sde:RefreshInterval` | `06:00:00` | How often to check CCP for a new SDE build |

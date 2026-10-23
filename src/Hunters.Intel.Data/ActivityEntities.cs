@@ -150,4 +150,6 @@ public sealed class IntelVersion
     public DateTimeOffset UpdatedAt { get; set; }
 
     public const string Activity = "activity";
+
+    public const string Hunting = "hunting";
 }

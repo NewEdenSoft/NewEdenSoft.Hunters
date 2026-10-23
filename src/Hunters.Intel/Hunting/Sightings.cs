@@ -84,11 +84,11 @@ public static class SightingMatcher
 /// <summary>Writes sightings and marks the ones in fleet fights. Every statement can safely run twice.</summary>
 public static class SightingStore
 {
-    /// <summary>Inserts sightings; one already there (the same kill, or the same pilot that hour) is skipped.</summary>
-    public static Task InsertAsync(IntelDbContext db, IReadOnlyCollection<Sighting> sightings, CancellationToken cancellationToken)
+    /// <summary>Inserts sightings; one already there (the same kill, or the same pilot that hour) is skipped. Returns how many were new.</summary>
+    public static Task<int> InsertAsync(IntelDbContext db, IReadOnlyCollection<Sighting> sightings, CancellationToken cancellationToken)
     {
         if (sightings.Count == 0)
-            return Task.CompletedTask;
+            return Task.FromResult(0);
 
         return db.Database.ExecuteSqlRawAsync("""
             INSERT INTO intel."Sightings" ("Profile", "KillmailId", "SystemId", "Time", "Hour", "PilotId", "Role", "TypeId", "Weight", "Indicator", "IsFleet", "AttackerCount")
@@ -116,9 +116,9 @@ public static class SightingStore
     /// Marks sightings in a battle as fleet: at least <see cref="HuntingOptions.BattleKills"/> player kills
     /// in the system within <see cref="HuntingOptions.BattleWindow"/> either side. Live, for the window
     /// around a new kill (earlier sightings of a growing fight get marked too); for a backfill, for whole
-    /// profiles.
+    /// profiles. Returns how many were marked.
     /// </summary>
-    public static Task MarkBattlesAsync(IntelDbContext db, HuntingOptions options, int? systemId, DateTimeOffset? around, string[]? profiles, CancellationToken cancellationToken) =>
+    public static Task<int> MarkBattlesAsync(IntelDbContext db, HuntingOptions options, int? systemId, DateTimeOffset? around, string[]? profiles, CancellationToken cancellationToken) =>
         db.Database.ExecuteSqlRawAsync("""
             UPDATE intel."Sightings" s SET "IsFleet" = true
             WHERE NOT s."IsFleet"

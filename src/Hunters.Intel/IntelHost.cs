@@ -50,6 +50,9 @@ public static class IntelHost
         services.AddHostedService(sp => sp.GetRequiredService<SystemActivityService>());
         services.AddSingleton<HuntingProfileStore>();
         services.AddSingleton<HuntingProfileService>();
+        services.AddSingleton<HuntingAggregator>();
+        services.AddSingleton<HuntingAggregatorService>();
+        services.AddHostedService(sp => sp.GetRequiredService<HuntingAggregatorService>());
         services.AddHostedService(sp => sp.GetRequiredService<HuntingProfileService>());
         services.AddHttpClient<IKillFeedSource, R2Z2KillFeedSource>(R2Z2KillFeedSource.Configure)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AutomaticDecompression = System.Net.DecompressionMethods.All });

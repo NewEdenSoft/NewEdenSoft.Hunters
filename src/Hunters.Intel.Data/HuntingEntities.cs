@@ -54,13 +54,77 @@ public sealed class Sighting
     public int AttackerCount { get; set; }
 }
 
-/// <summary>The definition each profile's sightings were built with; a change backfills them from the stored kills.</summary>
+/// <summary>
+/// The hunting profiles in use, and the definition each one's sightings were built with; a change
+/// backfills them from the stored kills. Readers (the API server) list the profiles from here.
+/// </summary>
 public sealed class HuntingProfileState
 {
     public string Profile { get; set; } = "";
+
+    /// <summary>The display name, for example "Carriers".</summary>
+    public string Name { get; set; } = "";
 
     /// <summary>The profile's rules with the SDE ids they resolved to.</summary>
     public string Definition { get; set; } = "";
 
     public DateTimeOffset BackfilledAt { get; set; }
+}
+
+/// <summary>
+/// Where a hunting profile's target is found (docs/map-and-activity.md, "Hunting aggregates"): its
+/// sightings in a system, fleet fights left out, indicators at their weight. Recomputed from the
+/// sightings when they change and hourly, so the windows and the decay stay current.
+/// </summary>
+public sealed class HuntingSystemStats
+{
+    public string Profile { get; set; } = "";
+
+    public int SystemId { get; set; }
+
+    /// <summary>Weighted sightings in the last 7 days.</summary>
+    public double Week { get; set; }
+
+    /// <summary>Weighted sightings in the last 30 days.</summary>
+    public double Month { get; set; }
+
+    /// <summary>The part of <see cref="Month"/> from indicators (a CRAB beacon for Carriers).</summary>
+    public double MonthIndicator { get; set; }
+
+    /// <summary>
+    /// All weighted sightings, each fading with a half-life (14 days): recent habits count most, and a
+    /// system nobody has used for weeks drifts towards zero.
+    /// </summary>
+    public double Score { get; set; }
+
+    /// <summary>The latest sighting that counts (not a fleet fight).</summary>
+    public DateTimeOffset LastSeen { get; set; }
+
+    /// <summary>Different pilots seen in the last 30 days.</summary>
+    public int Pilots { get; set; }
+
+    /// <summary>Weighted sightings per hour of the day (UTC), 24 entries, over all kept sightings: when it is there.</summary>
+    public double[] Hours { get; set; } = [];
+}
+
+/// <summary>The same as <see cref="HuntingSystemStats"/>, for a region's systems together.</summary>
+public sealed class HuntingRegionStats
+{
+    public string Profile { get; set; } = "";
+
+    public int RegionId { get; set; }
+
+    public double Week { get; set; }
+
+    public double Month { get; set; }
+
+    public double MonthIndicator { get; set; }
+
+    public double Score { get; set; }
+
+    public DateTimeOffset LastSeen { get; set; }
+
+    public int Pilots { get; set; }
+
+    public double[] Hours { get; set; } = [];
 }
