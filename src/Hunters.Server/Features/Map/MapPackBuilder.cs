@@ -1,4 +1,5 @@
 using NewEdenSoft.Hunters.Contracts.Map;
+using NewEdenSoft.Hunters.Domain.Map;
 using NewEdenSoft.Hunters.Sde;
 
 namespace NewEdenSoft.Hunters.Server.Features.Map;
@@ -41,6 +42,16 @@ public static class MapPackBuilder
             .ToList();
 
         return new MapPack(sde.Build, regions, [.. systems.Select(ToMapSystem)], gates);
+    }
+
+    /// <summary>The pack's systems and gates in 3D (SDE positions in light years), for range searches.</summary>
+    public static MapGeometry Geometry(SdeMapData sde, MapPack pack)
+    {
+        var inPack = pack.Systems.Select(s => s.Id).ToHashSet();
+        return MapGeometry.Build(
+            sde.Systems.Where(s => inPack.Contains(s.Id)).Select(s => new GeometrySystem(
+                s.Id, s.RegionId, s.Security, s.X / MetresPerLightYear, s.Y / MetresPerLightYear, s.Z / MetresPerLightYear)),
+            pack.Gates.Select(g => (g.From, g.To)));
     }
 
     private static MapSystem ToMapSystem(SdeSolarSystem s)

@@ -152,6 +152,23 @@ The API server's `HuntingService` (`src/Hunters.Server/Features/Hunting`) follow
 
 Responses carry an ETag from the version (304 when it still matches) and `max-age` of a minute. "Likely now" and "peak now" for a profile are worked out by the client from `hours` and the current hour: the share of the current hour, or the current hour's weight ÷ the busiest hour's.
 
+## Reach
+
+`GET /api/intel/reach?from={systemId}&jumps={n}&ly={x}&profile={id}&limit={n}` answers "what's in reach from here" ([D23](decisions.md#d23--range-queries-run-on-the-server-with-the-users-own-limits)), for example after a filament drops a Black Ops somewhere random.
+
+- **The user's limits are the query:**
+  - `jumps` (1–50): every system within that many gate jumps, whatever its light-year distance; a target 5 jumps away but out of jump range still shows (gate there, or use a midpoint)
+  - `ly` (0.1–20): every **cyno target** within that many light years, however many gate jumps away; from Turnur, 8 ly reaches 103 cyno targets, 24 of them more than 10 gate jumps away
+  - at least one is needed, and together they give the union
+- **Every row carries both distances** (gate jumps, null when no gates lead there, and light years), the security status and `cynoTarget`. The client decides "in jump range" for its own ship: a cyno target within the user's light years. The server knows nothing about hulls or skills.
+- **Cyno targets** (`Hunters.Domain`, `CynoTargets`): not high-sec (shown as 0.5 or more, the clients' rounding), not wormhole or other instanced space, not Pochven (region 10000070), not Zarzakh (30100000).
+- **Geometry** (`Hunters.Domain`, `MapGeometry`): the map pack's systems and gates as arrays, with 3D positions in light years from the SDE, built with the map pack. A whole-map gate search plus the light-year scan takes about 0.2 ms (1 ms at the 50 jumps + 20 ly extreme).
+- **Each row's intel:**
+  - activity, per metric: last hour, previous hour, 24 hours, usual for the hour, peak ratio, hours to peak; null until the server has activity data
+  - the hunting profiles seen there: score, last seen, **likely now** (the score times the current hour's share of the sightings) and **peak now** (the current hour against the busiest hour of the day)
+- **Order:** by the requested profile's likely now (then its score), or else by the rise in NPC kills (last hour minus the hour before); then nearest. `limit` caps the rows (default 200, at most 500); `total` says how many were in reach.
+- The origin is included (0 jumps, 0 ly). An origin not on the map is 404, bad limits or an unknown profile 400. The ETag combines the map build, the activity and hunting versions and the hour, so an answer is revalidated cheaply until any of them moves.
+
 ## Live kill feed
 
 Two goals: clients only receive kills that are relevant to them, and the server is not overwhelmed by the feed, including during large fights.

@@ -84,5 +84,12 @@ Public activity data (ESI's hourly kills and jumps, and later the zKillboard fee
 
 *Rejected:* workers inside the API server (one process doing two jobs; restarts and load mixed); computing profiles per request (repeated work, slow for hour-of-week curves over 90 days); one row per system per hour for the raw data (millions of rows; arrays per hour instead).
 
+## D23 — Range queries run on the server, with the user's own limits
+"What's in reach from here" is `GET /api/intel/reach`: the server searches its in-memory map (the gate graph and 3D positions from the SDE, built with the map pack) and joins the activity and hunting intel, so clients get one ranked answer per origin. The user's limits are the query: **gate jumps** (every system within N, whatever its distance) and/or **light years** (every cyno target within X, however many gates away), as a union. Every row carries both distances and whether a jump drive can land there, so the client decides what "in jump range" means for its ship. The server knows nothing about hulls, skills or fuel; it only applies distance and where cynos can be lit (not high-sec, wormhole space, Pochven or Zarzakh). A search of the whole map takes about 0.2 ms. See [Map & Activity](map-and-activity.md#reach).
+
+This narrows D2: routes, hover previews and filters stay on the client; ranking systems by intel within a range is the server's.
+
+*Rejected:* the client joining a whole-map intel download with its own range search (every client repeats the work and needs the 3D positions and the cyno rules); the server applying ship ranges (the user knows their own hull and skills); gate jumps only (after a filament a Black Ops reaches systems 15+ gates away).
+
 ## D15 — Desktop is Windows first; platform features behind interfaces
 Overlay, hotkey and log-location code sits behind per-OS interfaces. Windows first, macOS second, Linux X11 best effort, Wayland limited. See [Desktop Client](desktop-client.md#platform-support).

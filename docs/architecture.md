@@ -30,7 +30,7 @@
 
 ```
 src/
-  Hunters.Domain            Map graph, path finding, filters. No I/O.
+  Hunters.Domain            Map geometry, reach and cyno rules (and later path finding, filters). No I/O.
   Hunters.Contracts         DTOs, discovery document, SignalR hub interfaces. Versioned public API.
   Hunters.Server            ASP.NET Core host, EF Core (Postgres), auth, accounts, workers, optional web hosting.
   Hunters.Intel             Worker service: collects public activity data and derives the intel tables from it (D22).
