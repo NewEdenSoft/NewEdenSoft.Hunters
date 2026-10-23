@@ -71,10 +71,10 @@ const MARKER_FONT_PX = 11
 /** Hunting profile badges show from this zoom (pixels per light year); further out, the glow alone does. */
 const HUNT_BADGE_ZOOM = 50
 /** Hunting profile badges: smaller than the character markers, in a row below the system's name. */
-const HUNT_BADGE = 14
-const HUNT_GAP = 2
-const HUNT_CUT = 3
-const HUNT_FONT_PX = 8
+const HUNT_BADGE = 17
+const HUNT_GAP = 3
+const HUNT_CUT = 4
+const HUNT_FONT_PX = 10
 /** Faint badges (seen there, but not at this hour) are drawn at this opacity. */
 const HUNT_FAINT_ALPHA = 0.4
 
