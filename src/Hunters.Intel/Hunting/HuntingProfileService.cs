@@ -32,6 +32,7 @@ public sealed class HuntingProfileStore
 public sealed partial class HuntingProfileService(
     SdeCatalogStore catalogs,
     HuntingProfileStore store,
+    HuntingAggregatorService aggregates,
     IServiceScopeFactory scopes,
     IOptions<IntelOptions> options,
     TimeProvider time,
@@ -96,23 +97,28 @@ public sealed partial class HuntingProfileService(
 
         store.Publish(profiles);
 
-        if (changed.Count > 0)
-        {
-            var started = time.GetTimestamp();
-            var (kills, sightings) = await BackfillAsync(db, changed, cancellationToken);
+        var started = time.GetTimestamp();
+        var (kills, sightings) = changed.Count > 0 ? await BackfillAsync(db, changed, cancellationToken) : (0, 0);
 
-            foreach (var profile in changed)
+        // Every profile's name (readers list the profiles from here), and the definition of the rebuilt ones.
+        foreach (var profile in profiles)
+        {
+            var state = states.GetValueOrDefault(profile.Id);
+            if (state is null)
+                db.HuntingProfileStates.Add(state = new HuntingProfileState { Profile = profile.Id });
+            state.Name = profile.Profile.Name;
+            if (changed.Contains(profile))
             {
-                var state = states.GetValueOrDefault(profile.Id);
-                if (state is null)
-                    db.HuntingProfileStates.Add(state = new HuntingProfileState { Profile = profile.Id });
                 state.Definition = profile.Definition;
                 state.BackfilledAt = time.GetUtcNow();
             }
-
-            await db.SaveChangesAsync(cancellationToken);
-            LogBackfilled(string.Join(", ", changedIds), kills, sightings, time.GetElapsedTime(started));
         }
+
+        await db.SaveChangesAsync(cancellationToken);
+        if (changed.Count > 0)
+            LogBackfilled(string.Join(", ", changedIds), kills, sightings, time.GetElapsedTime(started));
+        if (cleared.Length > 0)
+            aggregates.Signal();
 
         _synced = catalog;
     }

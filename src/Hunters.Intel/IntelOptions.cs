@@ -81,6 +81,12 @@ public sealed class HuntingOptions
     public int BattleKills { get; set; } = 20;
 
     public TimeSpan BattleWindow { get; set; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>A sighting's weight in the score halves every this long.</summary>
+    public TimeSpan ScoreHalfLife { get; set; } = TimeSpan.FromDays(14);
+
+    /// <summary>The aggregates are recomputed at most this often while sightings arrive (and at least hourly).</summary>
+    public TimeSpan UpdateInterval { get; set; } = TimeSpan.FromMinutes(5);
 }
 
 public sealed class EsiOptions

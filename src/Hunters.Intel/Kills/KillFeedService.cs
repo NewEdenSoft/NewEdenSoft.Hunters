@@ -17,6 +17,7 @@ public sealed partial class KillFeedService(
     IKillFeedSource source,
     IServiceScopeFactory scopes,
     HuntingProfileStore profiles,
+    HuntingAggregatorService aggregates,
     IOptions<IntelOptions> options,
     TimeProvider time,
     ILogger<KillFeedService> logger) : BackgroundService
@@ -116,7 +117,7 @@ public sealed partial class KillFeedService(
         var kill = file.ToKill();
         var settings = options.Value.Hunting;
 
-        await SightingStore.InsertAsync(db, SightingMatcher.Match(kill, hunting, settings.FleetAttackers), cancellationToken);
+        var changed = await SightingStore.InsertAsync(db, SightingMatcher.Match(kill, hunting, settings.FleetAttackers), cancellationToken);
 
         // zKillboard can announce a kill again (a repost, a corrected value); the first one stays.
         var isNew = !await db.Kills.AnyAsync(k => k.KillmailId == file.KillmailId, cancellationToken);
@@ -133,7 +134,9 @@ public sealed partial class KillFeedService(
 
         // A player kill can tip the system into a battle, marking sightings around it.
         if (isNew && !kill.Npc)
-            await SightingStore.MarkBattlesAsync(db, settings, kill.SystemId, kill.Time, null, cancellationToken);
+            changed += await SightingStore.MarkBattlesAsync(db, settings, kill.SystemId, kill.Time, null, cancellationToken);
+        if (changed > 0)
+            aggregates.Signal();
         return isNew;
     }
 
@@ -147,7 +150,8 @@ public sealed partial class KillFeedService(
         var db = scope.ServiceProvider.GetRequiredService<IntelDbContext>();
         var cutoff = now - options.Value.Kills.Retention;
         var deleted = await db.Kills.Where(k => k.Time < cutoff).ExecuteDeleteAsync(cancellationToken);
-        await db.Sightings.Where(s => s.Time < cutoff).ExecuteDeleteAsync(cancellationToken);
+        if (await db.Sightings.Where(s => s.Time < cutoff).ExecuteDeleteAsync(cancellationToken) > 0)
+            aggregates.Signal();
         if (deleted > 0)
             LogPruned(deleted, cutoff);
         _nextPrune = now + PruneInterval;

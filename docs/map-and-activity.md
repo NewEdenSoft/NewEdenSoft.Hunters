@@ -120,7 +120,24 @@ Every kill the feed stores is matched as it arrives, into **`intel.Sightings`**:
 - a kill with more than `Hunters:Hunting:FleetAttackers` (25) attackers marks its sightings `IsFleet`
 - `Hunters:Hunting:BattleKills` (20) player kills in the system within `Hunters:Hunting:BattleWindow` (15 minutes) either side of a sighting marks it `IsFleet`. Checked around each new player kill, so the earlier sightings of a growing fight are marked too.
 
-**Backfill:** `intel.HuntingProfileStates` keeps the resolved definition each profile's sightings were built with. At startup and on each new SDE catalogue, a profile whose definition changed (a rule edited, or a new SDE build adding a carrier hull) or that is new has its sightings deleted and rebuilt from the stored kills; a profile that was removed loses its sightings. Sightings expire with their kills.
+**Backfill:** `intel.HuntingProfileStates` keeps the resolved definition each profile's sightings were built with. At startup and on each new SDE catalogue, a profile whose definition changed (a rule edited, or a new SDE build adding a carrier hull) or that is new has its sightings deleted and rebuilt from the stored kills; a profile that was removed loses its sightings. Sightings expire with their kills. The states also hold each profile's display name, which readers list the profiles from.
+
+### Hunting aggregates
+
+`HuntingAggregator` turns the sightings into **where** and **when** per profile, in `intel.HuntingSystemStats` (per profile and system) and `intel.HuntingRegionStats` (per profile and region, through the SDE catalogue; systems it doesn't know count only for themselves). Fleet sightings don't count; indicators count at their weight.
+
+| Column | Meaning |
+|---|---|
+| `Week`, `Month` | weighted sightings in the last 7 and 30 days |
+| `MonthIndicator` | the part of `Month` from indicators (CRAB beacons for Carriers and Supers) |
+| `Score` | every kept sighting, its weight halving every `Hunters:Hunting:ScoreHalfLife` (14 days): recent habits count most |
+| `LastSeen` | the latest sighting that counts |
+| `Pilots` | different pilots in the last 30 days |
+| `Hours` | weighted sightings per hour of the day (UTC), 24 entries, over all kept sightings |
+
+- **How:** sightings are few (about one kill in five has one), so the tables are recomputed from them in SQL, one statement per table, rather than kept up incrementally. That's always right, including after a backfill or when a battle marks earlier sightings as fleet. At 90 days (about 650,000 sightings) a recompute takes about 1.5 seconds, all in Postgres.
+- **When:** at startup, then whenever new sightings arrive (the kill reader and the profile service signal it), at most every `Hunters:Hunting:UpdateInterval` (5 minutes), and at least hourly so the windows and the decay move on.
+- **Readers:** each recompute bumps the `hunting` row of `intel.Versions`, in the same transaction.
 
 ## Live kill feed
 

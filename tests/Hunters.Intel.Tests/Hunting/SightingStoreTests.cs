@@ -128,7 +128,10 @@ public sealed class SightingStoreTests(IntelDatabase database) : IAsyncLifetime
             ["carriers 0", "carriers 90000001", "crab 0", "supers 0", "carriers 90000002"],
             first.OrderBy(s => s.Time).ThenBy(s => s.Profile).ThenBy(s => s.PilotId).Select(s => $"{s.Profile} {s.PilotId}"));
         await using (var db = Db())
-            Assert.Equal(HuntingProfiles.All.Count, await db.HuntingProfileStates.CountAsync());
+        {
+            var states = await db.HuntingProfileStates.ToDictionaryAsync(s => s.Profile, s => s.Name);
+            Assert.Equal(HuntingProfiles.All.ToDictionary(p => p.Id, p => p.Name), states);
+        }
 
         // Nothing changed: nothing is rebuilt.
         await Profiles.SyncAsync(catalog, CancellationToken.None);

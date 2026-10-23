@@ -120,9 +120,9 @@ public sealed class SystemActivityTests(IntelDatabase database) : IAsyncLifetime
             .SqlQueryRaw<string>("select table_name as \"Value\" from information_schema.tables where table_schema = 'intel' order by table_name")
             .ToListAsync();
 
-        Assert.Equal(
-            ["ActivityWeekSamples", "FeedPositions", "HuntingProfileStates", "Kills", "RegionActivityCurrent", "RegionActivityWeek",
-             "Sightings", "SystemActivityCurrent", "SystemActivityWeek", "SystemJumps", "SystemKills", "Versions", "__EFMigrationsHistory"],
-            tables);
+        // Every table of the model, and the migration history, in the intel schema; nothing else there.
+        var model = db.Model.GetEntityTypes().Select(e => e.GetTableName()).OfType<string>().Distinct();
+        Assert.Equal([.. model.Append("__EFMigrationsHistory").Order(StringComparer.Ordinal)], tables.Order(StringComparer.Ordinal));
+        Assert.All(db.Model.GetEntityTypes(), e => Assert.Equal(IntelDbContext.Schema, e.GetSchema()));
     }
 }

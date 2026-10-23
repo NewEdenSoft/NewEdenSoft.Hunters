@@ -72,9 +72,86 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.HasKey("Profile");
 
                     b.ToTable("HuntingProfileStates", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.HuntingRegionStats", b =>
+                {
+                    b.Property<string>("Profile")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("RegionId")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<double[]>("Hours")
+                        .IsRequired()
+                        .HasColumnType("double precision[]");
+
+                    b.Property<DateTimeOffset>("LastSeen")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Month")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("MonthIndicator")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Pilots")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("Score")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Week")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Profile", "RegionId");
+
+                    b.ToTable("HuntingRegionStats", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.HuntingSystemStats", b =>
+                {
+                    b.Property<string>("Profile")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("SystemId")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<double[]>("Hours")
+                        .IsRequired()
+                        .HasColumnType("double precision[]");
+
+                    b.Property<DateTimeOffset>("LastSeen")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Month")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("MonthIndicator")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Pilots")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("Score")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Week")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Profile", "SystemId");
+
+                    b.ToTable("HuntingSystemStats", "intel");
                 });
 
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.IntelVersion", b =>
