@@ -54,3 +54,52 @@ export function useMapLayout(): [MapLayout, (layout: MapLayout) => void] {
   const current = useSyncExternalStore(subscribe, () => layout)
   return [current, useCallback((next: MapLayout) => setLayout(next), [])]
 }
+
+// The hunting profiles shown on the map, in the order they were turned on.
+const HUNTING_KEY = 'hunters.map.hunting'
+const huntingListeners = new Set<() => void>()
+
+function readHunting(): string[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(HUNTING_KEY) ?? '[]')
+    return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+let hunting = readHunting()
+
+function setHunting(next: string[]): void {
+  hunting = next
+  try {
+    localStorage.setItem(HUNTING_KEY, JSON.stringify(next))
+  } catch {
+    // Storage unavailable; the choice still applies for this session.
+  }
+  huntingListeners.forEach((listener) => listener())
+}
+
+function subscribeHunting(listener: () => void): () => void {
+  huntingListeners.add(listener)
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === HUNTING_KEY) {
+      hunting = readHunting()
+      listener()
+    }
+  }
+  window.addEventListener('storage', onStorage)
+  return () => {
+    huntingListeners.delete(listener)
+    window.removeEventListener('storage', onStorage)
+  }
+}
+
+/** The hunting profiles shown on the map (glow and badges), and a toggle for one of them. */
+export function useShownHuntingProfiles(): [string[], (profile: string) => void] {
+  const current = useSyncExternalStore(subscribeHunting, () => hunting)
+  const toggle = useCallback((profile: string) => {
+    setHunting(hunting.includes(profile) ? hunting.filter((p) => p !== profile) : [...hunting, profile])
+  }, [])
+  return [current, toggle]
+}
