@@ -23,6 +23,8 @@ public sealed class HuntersServerFactory : WebApplicationFactory<Program>
         ["Hunters:Sso:ClientId"] = "test-client",
         ["Hunters:Sso:ClientSecret"] = "test-secret",
         ["Hunters:Sso:CallbackUrl"] = "http://localhost/auth/eve/callback",
+        // Activity tests load the intel tables themselves (ActivityService.RefreshAsync).
+        ["Hunters:Activity:Enabled"] = "false",
     };
 
     private readonly string _tempRoot = Directory.CreateTempSubdirectory("hunters-tests-").FullName;

@@ -33,7 +33,7 @@ public sealed class MapPackService(
                     var snapshot = store.Publish(MapPackBuilder.Build(sde));
                     logger.LogInformation(
                         "Map pack for SDE build {Build}: {Systems} systems, {Gates} gates, {Size} KB compressed",
-                        snapshot.Build, snapshot.Pack.Systems.Count, snapshot.Pack.Gates.Count, snapshot.Brotli.Length / 1024);
+                        snapshot.Build, snapshot.Pack.Systems.Count, snapshot.Pack.Gates.Count, snapshot.Body.Brotli.Length / 1024);
                 }
 
                 failures = 0;

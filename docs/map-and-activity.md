@@ -46,7 +46,7 @@ Runs on the client so hover previews are instant. The gate graph (~8k systems, ~
 | ESI `universe/system_jumps` | Hourly | As above. |
 | zKillboard live feed | Near real time | See [Live kill feed](#live-kill-feed). |
 
-Clients receive an activity snapshot on connect, then live updates.
+Clients fetch the hourly activity over HTTP ([Serving activity](#serving-activity)) and revalidate it with its ETag; live kills come later.
 
 ### Hourly kills and jumps
 
@@ -69,6 +69,18 @@ After storing a new hour the collector signals `ActivityAggregator`, which also 
 4. Bumps the `activity` row of `intel.Versions`, which tells readers (the API server) to reload.
 
 A new hour takes about 3 seconds at full size. `rebuild-activity` (see [Deployment](deployment.md)) clears the derived tables and applies every raw hour again, for when these rules change; incremental updates and a rebuild give the same tables.
+
+### Serving activity
+
+The API server only reads the `intel` schema (`src/Hunters.Server/Features/Activity`). `ActivityService` checks the `activity` version every `Hunters:Activity:PollInterval` (30 seconds) and, when it moved, loads the current tables and the sample counts into memory in one repeatable-read snapshot. Until the intel service has created its schema and stored an hour, there is no activity: the endpoints answer 503 (`activity_unavailable`) and the discovery document doesn't list the `activity` feature. All endpoints need a session (D19).
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/activity/current` | Every system and region, **columnar** and in the order of the current map pack's `systems` and `regions` (`sdeBuild` names it), per metric: `lastHour`, `previousHour` (null for all when there is no previous hour), `day`, `typical`, `peakRatio`, `hoursToPeak`, `peakHourOfWeek`. Systems without activity are zeros. Built once per (version, map build) and served precompressed, like the map pack. |
+| `GET /api/activity/systems/{id}` | One system: the current values and `week`, 168 averages per metric (sum ÷ samples) from Monday 00:00 UTC, null for hours without samples yet; `nowHourOfWeek` marks "now". 404 for systems not on the map. |
+| `GET /api/activity/regions/{id}` | The same for a region. |
+
+Every response carries an ETag from the version (304 when it still matches) and `Cache-Control: private, max-age` up to when the next hour is expected (the latest `Last-Modified` plus 62 minutes).
 
 ## Live kill feed
 

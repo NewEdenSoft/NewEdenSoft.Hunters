@@ -20,3 +20,10 @@ public sealed record AdmissionInfo(bool RequiresAccessKey);
 
 /// <summary>The map pack currently served, identified by the SDE build it was generated from.</summary>
 public sealed record MapPackInfo(long SdeBuild);
+
+/// <summary>Values of <see cref="DiscoveryDocument.Features"/>.</summary>
+public static class HuntersFeatures
+{
+    /// <summary>The server has activity data to serve (<c>/api/activity/*</c>).</summary>
+    public const string Activity = "activity";
+}
