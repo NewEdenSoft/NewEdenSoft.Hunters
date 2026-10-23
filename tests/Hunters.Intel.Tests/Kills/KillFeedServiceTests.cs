@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using NewEdenSoft.Hunters.Intel.Data;
+using NewEdenSoft.Hunters.Intel.Hunting;
+using NewEdenSoft.Hunters.Intel.Sde;
 using NewEdenSoft.Hunters.Intel.Kills;
 
 namespace NewEdenSoft.Hunters.Intel.Tests.Kills;
@@ -17,20 +19,25 @@ public sealed class KillFeedServiceTests(IntelDatabase database) : IAsyncLifetim
 
     public async Task InitializeAsync()
     {
-        Restart();
+        await RestartAsync();
         await using var scope = _services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IntelDbContext>();
         await db.Kills.ExecuteDeleteAsync();
         await db.FeedPositions.ExecuteDeleteAsync();
+        await db.Sightings.ExecuteDeleteAsync();
     }
 
     public async Task DisposeAsync() => await _services.DisposeAsync();
 
-    /// <summary>A fresh service, as after a restart (the database stays).</summary>
-    private void Restart()
+    /// <summary>A fresh service, as after a restart (the database stays), with the SDE and hunting profiles loaded.</summary>
+    private async Task RestartAsync()
     {
-        _services?.Dispose();
+        if (_services is not null)
+            await _services.DisposeAsync();
         _services = database.Services(new FakeSystemActivity(), time: _time, kills: _feed);
+        await _services.GetRequiredService<SdeCatalogService>().LoadAsync(CancellationToken.None);
+        await _services.GetRequiredService<HuntingProfileService>().SyncAsync(
+            _services.GetRequiredService<SdeCatalogStore>().Current!, CancellationToken.None);
     }
 
     private KillFeedService Reader => _services.GetRequiredService<KillFeedService>();
@@ -77,7 +84,7 @@ public sealed class KillFeedServiceTests(IntelDatabase database) : IAsyncLifetim
 
         _feed.Publish(101, 1101, Now);
         _feed.Publish(102, 1102, Now);
-        Restart();
+        await RestartAsync();
         await StepsAsync(2);
 
         Assert.Equal([1100L, 1101L, 1102L], (await StoredAsync()).Kills.Select(k => k.KillmailId));
@@ -92,7 +99,7 @@ public sealed class KillFeedServiceTests(IntelDatabase database) : IAsyncLifetim
         _time.Advance(TimeSpan.FromDays(2));
         _feed.Publish(101, 1101, Now);
         _feed.Publish(5000, 6000, Now);
-        Restart();
+        await RestartAsync();
         await StepsAsync(1);
 
         Assert.Equal([1100L, 6000L], (await StoredAsync()).Kills.Select(k => k.KillmailId));
@@ -132,18 +139,42 @@ public sealed class KillFeedServiceTests(IntelDatabase database) : IAsyncLifetim
     }
 
     [Fact]
-    public async Task Kills_past_the_retention_are_deleted()
+    public async Task Kills_and_their_sightings_past_the_retention_are_deleted()
     {
-        _feed.Publish(100, 1100, Now.AddDays(-91));
+        _feed.Publish(100, 1100, Now.AddDays(-91), victimShip: FakeSde.Thanatos);
         await StepsAsync(1);
-        _feed.Publish(101, 1101, Now.AddDays(-89));
+        _feed.Publish(101, 1101, Now.AddDays(-89), victimShip: FakeSde.Thanatos);
         await StepsAsync(1);
+        var recorded = await SightingKillsAsync();
+        Assert.Equal([1100L, 1101L], recorded);
 
         // Pruning runs at most hourly.
         _time.Advance(TimeSpan.FromMinutes(61));
         await StepsAsync(1);
 
         Assert.Equal([1101L], (await StoredAsync()).Kills.Select(k => k.KillmailId));
+        var kept = await SightingKillsAsync();
+        Assert.Equal([1101L], kept);
+    }
+
+    [Fact]
+    public async Task Each_kill_records_its_sightings()
+    {
+        _feed.Publish(100, 1100, Now, victimShip: FakeSde.Thanatos);
+        await StepsAsync(1);
+        _feed.Publish(101, 1101, Now.AddHours(1), victimShip: FakeSde.Rifter);
+        await StepsAsync(1);
+
+        await using var scope = _services.CreateAsyncScope();
+        var sighting = Assert.Single(await scope.ServiceProvider.GetRequiredService<IntelDbContext>().Sightings.ToListAsync());
+        Assert.Equal(("carriers", 90000001L, SightingRole.Victim, FakeSde.Thanatos), (sighting.Profile, sighting.PilotId, sighting.Role, sighting.TypeId));
+    }
+
+    private async Task<long[]> SightingKillsAsync()
+    {
+        await using var scope = _services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IntelDbContext>();
+        return [.. await db.Sightings.Select(s => s.KillmailId).OrderBy(k => k).ToListAsync()];
     }
 
     [Fact]

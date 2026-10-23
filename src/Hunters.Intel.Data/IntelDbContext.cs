@@ -35,6 +35,10 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
 
     public DbSet<FeedPosition> FeedPositions => Set<FeedPosition>();
 
+    public DbSet<Sighting> Sightings => Set<Sighting>();
+
+    public DbSet<HuntingProfileState> HuntingProfileStates => Set<HuntingProfileState>();
+
     /// <summary>Keeps this context's migration history in its own schema, apart from the API server's.</summary>
     public static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>
         npgsql.MigrationsHistoryTable("__EFMigrationsHistory", Schema);
@@ -82,6 +86,23 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
         {
             e.HasKey(f => f.Feed);
             e.Property(f => f.Feed).HasMaxLength(32);
+        });
+
+        // Sightings are inserted with ON CONFLICT DO NOTHING: these unique indexes are the rules.
+        model.Entity<Sighting>(e =>
+        {
+            e.Property(s => s.Profile).HasMaxLength(32);
+            // Recording a kill twice (a repost, a retry, a backfill) adds nothing.
+            e.HasIndex(s => new { s.Profile, s.KillmailId, s.PilotId }).IsUnique();
+            // One sighting per pilot, profile, system and hour.
+            e.HasIndex(s => new { s.Profile, s.PilotId, s.SystemId, s.Hour }).IsUnique().HasFilter("\"PilotId\" <> 0");
+            e.HasIndex(s => new { s.SystemId, s.Time });
+            e.HasIndex(s => s.Time);
+        });
+        model.Entity<HuntingProfileState>(e =>
+        {
+            e.HasKey(p => p.Profile);
+            e.Property(p => p.Profile).HasMaxLength(32);
         });
     }
 

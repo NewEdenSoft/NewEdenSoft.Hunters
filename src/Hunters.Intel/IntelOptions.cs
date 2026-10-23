@@ -11,6 +11,8 @@ public sealed class IntelOptions
 
     public KillsOptions Kills { get; set; } = new();
 
+    public HuntingOptions Hunting { get; set; } = new();
+
     public EsiOptions Esi { get; set; } = new();
 
     public IntelSdeOptions Sde { get; set; } = new();
@@ -67,6 +69,18 @@ public sealed class KillsOptions
 
     /// <summary>zKillboard keeps files for about a day; a saved position older than this is skipped to the newest.</summary>
     public TimeSpan ResumeWithin { get; set; } = TimeSpan.FromHours(20);
+}
+
+/// <summary>Hunting profiles: which sightings are kept out of the counts as fleet fights.</summary>
+public sealed class HuntingOptions
+{
+    /// <summary>A kill with more attackers than this is a fleet fight.</summary>
+    public int FleetAttackers { get; set; } = 25;
+
+    /// <summary>This many player kills in a system within <see cref="BattleWindow"/> either side of a sighting is a battle.</summary>
+    public int BattleKills { get; set; } = 20;
+
+    public TimeSpan BattleWindow { get; set; } = TimeSpan.FromMinutes(15);
 }
 
 public sealed class EsiOptions

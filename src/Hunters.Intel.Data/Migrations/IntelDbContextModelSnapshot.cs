@@ -59,6 +59,24 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.ToTable("FeedPositions", "intel");
                 });
 
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.HuntingProfileState", b =>
+                {
+                    b.Property<string>("Profile")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("BackfilledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Definition")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Profile");
+
+                    b.ToTable("HuntingProfileStates", "intel");
+                });
+
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.IntelVersion", b =>
                 {
                     b.Property<string>("Dataset")
@@ -189,6 +207,68 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.HasKey("RegionId", "HourOfWeek");
 
                     b.ToTable("RegionActivityWeek", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.Sighting", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AttackerCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("Hour")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Indicator")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsFleet")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("KillmailId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PilotId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Profile")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<short>("Role")
+                        .HasColumnType("smallint");
+
+                    b.Property<int>("SystemId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("Time")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TypeId")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("Weight")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Time");
+
+                    b.HasIndex("SystemId", "Time");
+
+                    b.HasIndex("Profile", "KillmailId", "PilotId")
+                        .IsUnique();
+
+                    b.HasIndex("Profile", "PilotId", "SystemId", "Hour")
+                        .IsUnique()
+                        .HasFilter("\"PilotId\" <> 0");
+
+                    b.ToTable("Sightings", "intel");
                 });
 
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.SystemActivityCurrent", b =>

@@ -10,6 +10,11 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
     public const int Jita = 30000142, Perimeter = 30000144, Sobaseki = 30001363;
     public const int CarrierGroup = 547, Thanatos = 23911, CrabBeacon = 60244, OldCrabBeacon = 99999, ShipCategory = 6;
 
+    /// <summary>The real ids of what the real R2Z2 samples hold (a CRAB beacon killed by a Wyvern and a Hel).</summary>
+    public const int SupercarrierGroup = 659, Wyvern = 23917, Hel = 22852, CarrierCrabBeacon = 92183, CrabGroup = 4137;
+
+    public const int SmartBombGroup = 72, Smartbomb = 3993, Ishtar = 12005, Rifter = 587;
+
     public long Build { get; set; } = 3_000_001;
 
     public Exception? Failure { get; set; }
@@ -41,11 +46,22 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
             Build,
             [
                 new SdeType(Thanatos, "Thanatos", CarrierGroup, true),
-                new SdeType(CrabBeacon, "CONCORD Rogue Analysis Beacon", 4810, true),
-                // An unpublished copy with the same name: the published one must win.
+                new SdeType(Wyvern, "Wyvern", SupercarrierGroup, true),
+                new SdeType(Hel, "Hel", SupercarrierGroup, true),
+                new SdeType(Ishtar, "Ishtar", 358, true),
+                new SdeType(Rifter, "Rifter", 25, true),
+                new SdeType(Smartbomb, "Large Graviton Smartbomb II", SmartBombGroup, true),
+                new SdeType(CrabBeacon, "CONCORD Rogue Analysis Beacon", CrabGroup, true),
+                new SdeType(CarrierCrabBeacon, "CONCORD-Carrier Rogue Analysis Beacon", CrabGroup, true),
+                // An unpublished copy with the same name in another group: the published one must win.
                 new SdeType(OldCrabBeacon, "CONCORD Rogue Analysis Beacon", 4810, false),
             ],
-            [new SdeGroup(CarrierGroup, "Carrier", ShipCategory), new SdeGroup(4810, "Analysis Beacon", 22)],
-            [new SdeCategory(ShipCategory, "Ship"), new SdeCategory(22, "Deployable")]));
+            [
+                new SdeGroup(CarrierGroup, "Carrier", ShipCategory), new SdeGroup(SupercarrierGroup, "Supercarrier", ShipCategory),
+                new SdeGroup(358, "Heavy Assault Cruiser", ShipCategory), new SdeGroup(25, "Frigate", ShipCategory),
+                new SdeGroup(SmartBombGroup, "Smart Bomb", 7), new SdeGroup(CrabGroup, "Rogue Analysis Beacon", 22),
+                new SdeGroup(4810, "Analysis Beacon", 22),
+            ],
+            [new SdeCategory(ShipCategory, "Ship"), new SdeCategory(7, "Module"), new SdeCategory(22, "Deployable")]));
     }
 }
