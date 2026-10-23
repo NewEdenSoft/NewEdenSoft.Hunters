@@ -31,7 +31,7 @@ builder.Services.AddDataProtection()
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NewEdenSoft", "Hunters", "keys")));
 builder.Services.AddInMemoryInfrastructure();
 builder.Services.AddEveServices(builder.Configuration);
-builder.Services.AddOpenApi();
+builder.Services.AddHuntersOpenApi();
 
 // Features
 builder.Services.AddAuthFeature(hunters.Sso);
@@ -57,7 +57,7 @@ if (hunters.Web.Enabled)
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapOpenApi();
+app.MapHuntersOpenApi();
 app.MapDefaultEndpoints();
 app.MapDiscovery();
 app.MapAuth();

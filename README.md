@@ -35,7 +35,9 @@ Run everything (Postgres, server, web dev server) with Aspire:
 dotnet run --project src/Hunters.AppHost
 ```
 
-The Aspire dashboard link is printed on startup. The web dev server proxies `/api`, `/auth`, `/hubs`, `/openapi` and `/.well-known` to the server.
+The Aspire dashboard link is printed on startup. The web dev server proxies `/api`, `/auth`, `/hubs`, `/openapi`, `/scalar` and `/.well-known` to the server.
+
+The API is described at `/openapi/v1.json` and can be tried at **`/scalar`** (for example http://localhost:5173/scalar). Requests from there are signed in by the web app's session cookie when you're logged in on the same host, or by a desktop session token entered under Authentication (Bearer).
 
 Postgres runs as a persistent container with a data volume (`newedensoft.hunters.apphost-…-postgres-data`): it keeps running after the AppHost stops, and the data (accounts, collected intel) carries over to the next run. Its generated password is in the AppHost's user secrets (`Parameters:postgres-password`); keep it, or the volume can't be opened. To start over, remove the container and the volume with `docker rm -f` and `docker volume rm`.
 
