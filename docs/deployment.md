@@ -32,7 +32,7 @@ Services:
 | `intel` | `ghcr.io/newedensoft/hunters-intel` (or built locally, target `intel`) | `intel-sde` → `/app/sde`; no ports |
 | `db` | `postgres:17` | `pgdata` |
 
-The intel service ([D22](decisions.md#d22--a-separate-intel-service-with-a-derived-store)) collects public activity data into the database's `intel` schema and applies that schema's migrations at startup; the server only reads it. It needs the same connection string and nothing else; `HUNTERS_PUBLIC_URL` is sent to ESI as the operator contact. After changing the activity rules, recompute the derived tables from the raw hours with `docker compose run --rm intel rebuild-activity` (a few minutes for 90 days; safe while the service runs).
+The intel service ([D22](decisions.md#d22--a-separate-intel-service-with-a-derived-store)) collects public activity data (ESI's hourly kills and jumps, zKillboard's kill feed) into the database's `intel` schema and applies that schema's migrations at startup; the server only reads it. It needs the same connection string and nothing else; `HUNTERS_PUBLIC_URL` is sent to ESI and zKillboard as the operator contact. After changing the activity rules, recompute the derived tables from the raw hours with `docker compose run --rm intel rebuild-activity` (a few minutes for 90 days; safe while the service runs).
 
 The `sde` volume caches CCP's SDE archive (about 100 MB), from which the server builds the map. Losing it only means downloading it again at the next start.
 
@@ -76,7 +76,10 @@ Intel service (`Hunters.Intel`, same `Hunters` section and `ConnectionStrings__h
 | `Hunters:Activity:PeakThreshold` | `0.8` | "In its peak" when the hour now averages at least this share of the busiest hour of the week |
 | `Hunters:Activity:PeakMinWeeks` | `3` | Peak fields only once every hour of the week has this many samples |
 | `Hunters:Activity:PeakMinAverage` | `1` | Peak fields only when the busiest hour averages at least this much (quiet systems get none) |
-| `Hunters:Esi:Contact` | the project URL (Compose: `HUNTERS_PUBLIC_URL`) | Operator contact in the ESI and SDE `User-Agent` |
+| `Hunters:Kills:Enabled` | `true` | Read zKillboard's R2Z2 feed and store kills |
+| `Hunters:Kills:Retention` | `90.00:00:00` | How long kills are kept |
+| `Hunters:Kills:ResumeWithin` | `20:00:00` | A saved feed position older than this starts again at the newest file (zKillboard keeps files about a day) |
+| `Hunters:Esi:Contact` | the project URL (Compose: `HUNTERS_PUBLIC_URL`) | Operator contact in the ESI, SDE and zKillboard `User-Agent` |
 | `Hunters:Sde:CachePath` | `/app/sde` in the image; local app data otherwise | Its own SDE cache (map data and item types). Not shared with the server's volume, which could be mid-download at the same moment |
 | `Hunters:Sde:RefreshInterval` | `06:00:00` | How often to check CCP for a new SDE build |
 

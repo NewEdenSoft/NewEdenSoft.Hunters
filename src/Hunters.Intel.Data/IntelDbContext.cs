@@ -31,6 +31,10 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
 
     public DbSet<IntelVersion> Versions => Set<IntelVersion>();
 
+    public DbSet<Kill> Kills => Set<Kill>();
+
+    public DbSet<FeedPosition> FeedPositions => Set<FeedPosition>();
+
     /// <summary>Keeps this context's migration history in its own schema, apart from the API server's.</summary>
     public static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>
         npgsql.MigrationsHistoryTable("__EFMigrationsHistory", Schema);
@@ -63,6 +67,21 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
         {
             e.HasKey(v => v.Dataset);
             e.Property(v => v.Dataset).HasMaxLength(32);
+        });
+
+        // zKillboard kills: by time for the retention and recent windows, by system and time for fleet battles.
+        model.Entity<Kill>(e =>
+        {
+            e.HasKey(k => k.KillmailId);
+            e.Property(k => k.KillmailId).ValueGeneratedNever();
+            e.Property(k => k.Hash).HasMaxLength(64);
+            e.HasIndex(k => k.Time);
+            e.HasIndex(k => new { k.SystemId, k.Time });
+        });
+        model.Entity<FeedPosition>(e =>
+        {
+            e.HasKey(f => f.Feed);
+            e.Property(f => f.Feed).HasMaxLength(32);
         });
     }
 

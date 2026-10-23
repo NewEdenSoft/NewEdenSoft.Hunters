@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NewEdenSoft.Hunters.Intel.Activity;
 using NewEdenSoft.Hunters.Intel.Data;
+using NewEdenSoft.Hunters.Intel.Kills;
 using NewEdenSoft.Hunters.Intel.Sde;
 using NewEdenSoft.Hunters.Sde;
 
@@ -46,6 +47,10 @@ public static class IntelHost
         services.AddSingleton<ISystemActivitySource, EsiSystemActivitySource>();
         services.AddSingleton<SystemActivityService>();
         services.AddHostedService(sp => sp.GetRequiredService<SystemActivityService>());
+        services.AddHttpClient<IKillFeedSource, R2Z2KillFeedSource>(R2Z2KillFeedSource.Configure)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AutomaticDecompression = System.Net.DecompressionMethods.All });
+        services.AddSingleton<KillFeedService>();
+        services.AddHostedService(sp => sp.GetRequiredService<KillFeedService>());
         return services;
     }
 
