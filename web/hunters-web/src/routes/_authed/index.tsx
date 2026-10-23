@@ -91,20 +91,20 @@ function MapPage() {
   const [shownProfiles, toggleProfile] = useShownHuntingProfiles()
   const profiles = useQuery({ ...huntingProfilesQuery, enabled: hasHunting })
   const shown = useMemo(() => shownProfiles.filter((id) => profiles.data?.some((p) => p.id === id)), [shownProfiles, profiles.data])
-  // Fetched whenever the server has hunting data: the hover panel lists the profiles seen at a system.
-  const overview = useQuery({ ...huntingOverviewQuery, enabled: hasHunting })
+  const overview = useQuery({ ...huntingOverviewQuery, enabled: hasHunting && shown.length > 0 })
   const hour = useUtcHour()
   const hunting = useMemo(() => {
     if (!model || !overview.data || shown.length === 0) return null
     const names = new Map(profiles.data?.map((p) => [p.id, p.name]))
     return buildHuntingLayer(model, overview.data, shown, hour, (id) => profileStyle(id, names.get(id) ?? id))
   }, [model, overview.data, shown, hour, profiles.data])
+  // The hover panel lists the shown profiles seen at a system.
   const profilesAt = useMemo(() => {
-    if (!model || !overview.data) return null
+    if (!model || !overview.data || shown.length === 0) return null
     const names = new Map(profiles.data?.map((p) => [p.id, p.name]))
     const nameOf = (id: string) => names.get(id) ?? id
-    return profilesBySystem(model, overview.data, hour, (id) => profileStyle(id, nameOf(id)), nameOf)
-  }, [model, overview.data, hour, profiles.data])
+    return profilesBySystem(model, overview.data, shown, hour, (id) => profileStyle(id, nameOf(id)), nameOf)
+  }, [model, overview.data, shown, hour, profiles.data])
 
   if (!model || !filter) {
     const error = discovery.error ?? pack.error

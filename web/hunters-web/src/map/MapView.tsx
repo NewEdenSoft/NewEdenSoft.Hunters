@@ -32,7 +32,7 @@ interface MapViewProps {
   npcKills?: ActivityColumns | null
   /** The shown hunting profiles: a glow and badges per system. */
   hunting?: HuntingLayer | null
-  /** Every hunting profile seen at each system, listed in the hover panel. */
+  /** The shown hunting profiles seen at each system, listed in the hover panel. */
   profilesAt?: Map<number, PlaceProfile[]> | null
 }
 
@@ -218,14 +218,13 @@ function PeakHint({ npcKills, index }: { npcKills: ActivityColumns; index: numbe
 }
 
 /**
- * The hunting profiles seen here, likely now first: at most four, with how many more. "now" means
- * usually seen here at this hour, "peak now" that this is its busiest hour here, "seen" otherwise.
+ * The shown hunting profiles seen here, likely now first. "now" means usually seen here at this hour,
+ * "peak now" that this is its busiest hour here, "seen" otherwise.
  */
 function ProfilesLines({ profiles }: { profiles: PlaceProfile[] }) {
-  const shown = profiles.slice(0, 4)
   return (
     <span className="mt-0.5 grid gap-0.5 border-t border-line pt-1 text-[0.8125rem]">
-      {shown.map((p) => (
+      {profiles.map((p) => (
         <span key={p.profile} className="flex items-baseline gap-2">
           <span className="w-5 font-display text-[0.6875rem] font-bold" style={{ color: p.colour }}>
             {p.code}
@@ -239,7 +238,6 @@ function ProfilesLines({ profiles }: { profiles: PlaceProfile[] }) {
           </span>
         </span>
       ))}
-      {profiles.length > shown.length && <span className="text-fg-faint">+{profiles.length - shown.length} more</span>}
     </span>
   )
 }

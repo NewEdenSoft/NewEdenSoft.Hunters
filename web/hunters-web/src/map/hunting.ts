@@ -85,18 +85,20 @@ export interface PlaceProfile {
 }
 
 /**
- * Every profile seen at each system (by system index), whether shown on the map or not: the ones
- * likely now first, then by score.
+ * The shown profiles seen at each system (by system index), for the hover panel: the ones likely now
+ * first, then by score.
  */
 export function profilesBySystem(
   model: MapModel,
   overview: HuntingOverview,
+  shown: string[],
   hour: number,
   styleOf: (profile: string) => ProfileStyle,
   nameOf: (profile: string) => string,
 ): Map<number, PlaceProfile[]> {
   const bySystem = new Map<number, PlaceProfile[]>()
   for (const systems of overview.profiles) {
+    if (!shown.includes(systems.profile)) continue
     const style = styleOf(systems.profile)
     systems.systemIds.forEach((id, i) => {
       const index = model.indexOf.get(id)
