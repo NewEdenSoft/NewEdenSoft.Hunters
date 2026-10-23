@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
 import { activityQuery, type ActivityColumns } from '../../api/activity'
 import { discoveryQuery } from '../../api/discovery'
+import { huntingOverviewQuery, huntingProfilesQuery, type HuntingProfileInfo } from '../../api/hunting'
 import { mapPackQuery } from '../../api/map'
 import { Label } from '../../components/ui/Label'
 import { Panel } from '../../components/ui/Panel'
@@ -29,7 +30,10 @@ import { parseSystemParam } from '../../map/systemSearch'
 import { useCharacterMarkers, useMapFocusTarget } from '../../map/useCharacterMarkers'
 import { panelDefinitions } from '../../panels/definitions'
 import { Panels } from '../../panels/Panels'
-import { mapLayouts, useMapLayout } from '../../settings/mapSettings'
+import { mapLayouts, useMapLayout, useShownHuntingProfiles } from '../../settings/mapSettings'
+import { buildHuntingLayer, type HuntingLayer } from '../../map/hunting'
+import { useUtcHour } from '../../map/useUtcHour'
+import { profileStyle } from '../../theme/themes'
 
 export interface MapSearch {
   colour?: MapFilterId
@@ -62,11 +66,15 @@ function MapPage() {
   // Discovery also says whether the server has activity data; it is asked again until it does.
   const discovery = useQuery({
     ...discoveryQuery,
-    refetchInterval: (query) =>
-      query.state.data && !query.state.data.mapPack ? 10_000 : query.state.data && !query.state.data.features.includes('activity') ? 300_000 : false,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (data && !data.mapPack) return 10_000
+      return data && !(data.features.includes('activity') && data.features.includes('hunting')) ? 300_000 : false
+    },
   })
   const sdeBuild = discovery.data?.mapPack?.sdeBuild
   const hasActivity = discovery.data?.features.includes('activity') ?? false
+  const hasHunting = discovery.data?.features.includes('hunting') ?? false
   const pack = useQuery({ ...mapPackQuery(sdeBuild ?? 0), enabled: sdeBuild !== undefined })
   const model = useMemo(() => (pack.data ? buildMapModel(pack.data) : null), [pack.data])
 
@@ -78,6 +86,18 @@ function MapPage() {
     () => (model ? createFilter(colour, model, { activity: activity.data ?? null, minNpc }) : null),
     [colour, model, activity.data, minNpc],
   )
+
+  // Hunting profiles: the list once the server has them, where they are seen once one is shown.
+  const [shownProfiles, toggleProfile] = useShownHuntingProfiles()
+  const profiles = useQuery({ ...huntingProfilesQuery, enabled: hasHunting })
+  const shown = useMemo(() => shownProfiles.filter((id) => profiles.data?.some((p) => p.id === id)), [shownProfiles, profiles.data])
+  const overview = useQuery({ ...huntingOverviewQuery, enabled: hasHunting && shown.length > 0 })
+  const hour = useUtcHour()
+  const hunting = useMemo(() => {
+    if (!model || !overview.data || shown.length === 0) return null
+    const names = new Map(profiles.data?.map((p) => [p.id, p.name]))
+    return buildHuntingLayer(model, overview.data, shown, hour, (id) => profileStyle(id, names.get(id) ?? id))
+  }, [model, overview.data, shown, hour, profiles.data])
 
   if (!model || !filter) {
     const error = discovery.error ?? pack.error
@@ -108,6 +128,10 @@ function MapPage() {
     <LoadedMap
       model={model}
       npcKills={activityFor(model, activity.data ?? null)?.npcKills ?? null}
+      hunting={hunting}
+      huntingProfiles={profiles.data ?? []}
+      shownProfiles={shown}
+      toggleProfile={toggleProfile}
       filter={filter}
       layout={layout}
       setLayout={setLayout}
@@ -129,6 +153,10 @@ function MapPage() {
 function LoadedMap({
   model,
   npcKills,
+  hunting,
+  huntingProfiles,
+  shownProfiles,
+  toggleProfile,
   filter,
   layout,
   setLayout,
@@ -143,6 +171,11 @@ function LoadedMap({
   model: MapModel
   /** NPC kills per system (last hour and the one before), for the hover panel; null without activity data. */
   npcKills: ActivityColumns | null
+  hunting: HuntingLayer | null
+  /** The server's hunting profiles; empty when it has none. */
+  huntingProfiles: HuntingProfileInfo[]
+  shownProfiles: string[]
+  toggleProfile: (id: string) => void
   filter: MapFilter
   layout: MapLayout
   setLayout: (layout: MapLayout) => void
@@ -185,6 +218,7 @@ function LoadedMap({
         selected={selected}
         onFocusSystem={focusSystem}
         npcKills={npcKills}
+        hunting={hunting}
         onClearSystem={() => setSystem(undefined)}
       />
       <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] grid w-[calc(100%-1.5rem)] max-w-80 -translate-x-1/2 justify-items-center gap-2">
@@ -224,6 +258,24 @@ function LoadedMap({
               </ControlGroup>
             )}
             {filter.notice ? <p className="text-[0.8125rem] text-fg-muted">{filter.notice}</p> : <MapLegend filter={filter} />}
+            {huntingProfiles.length > 0 && (
+              <ControlGroup label="Hunting">
+                {huntingProfiles.map((p) => {
+                  const style = profileStyle(p.id, p.name)
+                  return (
+                    <Toggle key={p.id} active={shownProfiles.includes(p.id)} onClick={() => toggleProfile(p.id)}>
+                      <span className="mr-1.5 font-display font-bold" style={{ color: style.colour }}>
+                        {style.code}
+                      </span>
+                      {p.name}
+                    </Toggle>
+                  )
+                })}
+              </ControlGroup>
+            )}
+            {shownProfiles.length > 0 && (
+              <p className="text-[0.75rem] text-fg-muted">The glow is where a shown profile is likely now: usually seen there at this hour (UTC).</p>
+            )}
           </div>
             ),
           },

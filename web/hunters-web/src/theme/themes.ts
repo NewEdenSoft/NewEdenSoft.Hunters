@@ -20,6 +20,18 @@ interface ThemeCatalog {
   fixed: Record<string, string>
   security: { steps: string[]; null: string }
   heat: Record<HeatMetric, number[]>
+  profiles: Record<string, ProfileStyle>
+}
+
+/** How a hunting profile's badge looks on the map. */
+export interface ProfileStyle {
+  code: string
+  colour: string
+}
+
+/** A hunting profile's badge: from themes.json, or the first letters of its name in the glow colour. */
+export function profileStyle(id: string, name: string): ProfileStyle {
+  return catalog.profiles[id] ?? { code: name.replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase() || '?', colour: catalog.fixed['hunt-glow'] }
 }
 
 /** The metrics with heat bands in themes.json, per hour. */

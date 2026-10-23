@@ -44,7 +44,19 @@
     "heat-2": "#7a4fd0",
     "heat-3": "#b45cf0",
     "heat-4": "#ef6fd8",
-    "heat-5": "#ffe3f7"
+    "heat-5": "#ffe3f7",
+    "hunt-glow": "#ffa23e"
+  },
+
+  "profiles": {
+    "carriers": { "code": "CV", "colour": "#ffb547" },
+    "supers": { "code": "SC", "colour": "#ff6a4d" },
+    "dreads": { "code": "DR", "colour": "#ff4d8d" },
+    "fax": { "code": "FX", "colour": "#4fd18b" },
+    "marauders": { "code": "MR", "colour": "#5cc8ff" },
+    "ishtars": { "code": "IS", "colour": "#a98bff" },
+    "smartbombers": { "code": "SB", "colour": "#ffe066" },
+    "crab": { "code": "CR", "colour": "#ff9a3c" }
   },
 
   "security": {

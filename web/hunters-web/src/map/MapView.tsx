@@ -3,6 +3,7 @@ import type { ActivityColumns } from '../api/activity'
 import { SystemContextMenu } from '../components/map/SystemContextMenu'
 import { securityColor } from '../theme/themes'
 import type { MapFilter } from './filters'
+import type { HuntingLayer } from './hunting'
 import { MapRenderer, type MapContextMenuRequest, type MapHover, type MapMarkerGroup } from './MapRenderer'
 import type { MapLayout, MapModel } from './model'
 import { formatSecurity } from './security'
@@ -29,6 +30,8 @@ interface MapViewProps {
   onClearSystem?: () => void
   /** NPC kills per system, shown in the hover panel with the change from the hour before. */
   npcKills?: ActivityColumns | null
+  /** The shown hunting profiles: a glow and badges per system. */
+  hunting?: HuntingLayer | null
 }
 
 /**
@@ -48,6 +51,7 @@ export function MapView({
   onFocusSystem,
   onClearSystem,
   npcKills = null,
+  hunting = null,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<MapRenderer | null>(null)
@@ -56,13 +60,13 @@ export function MapView({
   const closeMenu = useCallback(() => setMenu(null), [])
 
   // The renderer lives as long as the model; everything else is applied to it without recreating it.
-  const latest = useRef({ layout, filter, markers, focus, selected, onMarkerClick, onUserPan })
+  const latest = useRef({ layout, filter, markers, focus, selected, hunting, onMarkerClick, onUserPan })
   useEffect(() => {
-    latest.current = { layout, filter, markers, focus, selected, onMarkerClick, onUserPan }
+    latest.current = { layout, filter, markers, focus, selected, hunting, onMarkerClick, onUserPan }
   })
 
   useEffect(() => {
-    const { layout, filter, markers, focus, selected } = latest.current
+    const { layout, filter, markers, focus, selected, hunting } = latest.current
     const renderer = new MapRenderer(canvasRef.current!, model, layout, filter)
     renderer.onHover = setHover
     renderer.onMarkerClick = (id) => latest.current.onMarkerClick?.(id)
@@ -70,6 +74,7 @@ export function MapView({
     renderer.onContextMenu = setMenu
     renderer.onUserMove = () => setMenu(null)
     renderer.setSelected(selected)
+    renderer.setHunting(hunting)
     renderer.setMarkers(markers)
     if (focus) renderer.focusOn(focus.systemIndex, focus.zoomIn)
     rendererRef.current = renderer
@@ -94,6 +99,10 @@ export function MapView({
   useEffect(() => {
     rendererRef.current?.setSelected(selected)
   }, [selected])
+
+  useEffect(() => {
+    rendererRef.current?.setHunting(hunting)
+  }, [hunting])
 
   useEffect(() => {
     if (focus) rendererRef.current?.focusOn(focus.systemIndex, focus.zoomIn)

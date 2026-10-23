@@ -1,5 +1,6 @@
 import { MARKER_ICONS, type CharacterMarker } from '../characters/markers'
 import { HIDDEN, type MapFilter } from './filters'
+import type { HuntingBadgeGroup, HuntingLayer } from './hunting'
 import { GridIndex } from './gridIndex'
 import type { MapLayout, MapModel } from './model'
 
@@ -67,6 +68,16 @@ const MARKER_GAP = 3
 const MARKER_LEAD = 12
 const MARKER_CUT = 4
 const MARKER_FONT_PX = 11
+/** Hunting profile badges show from this zoom (pixels per light year); further out, the glow alone does. */
+const HUNT_BADGE_ZOOM = 50
+/** Hunting profile badges: smaller than the character markers, in a row below the system's name. */
+const HUNT_BADGE = 17
+const HUNT_GAP = 3
+const HUNT_CUT = 4
+const HUNT_FONT_PX = 10
+/** Faint badges (seen there, but not at this hour) are drawn at this opacity. */
+const HUNT_FAINT_ALPHA = 0.4
+
 /** Offline characters' markers are drawn at this opacity. */
 const OFFLINE_ALPHA = 0.45
 
@@ -117,6 +128,14 @@ interface MarkerRow {
   bounds: Box
 }
 
+/** One system's hunting badge row, in CSS pixels. */
+interface HuntRow {
+  group: HuntingBadgeGroup
+  sx: number
+  sy: number
+  bounds: Box
+}
+
 interface FocusAnimation {
   fromScale: number
   fromX: number
@@ -140,6 +159,8 @@ interface Palette {
   hover: string
   /** The focused system's rings and label. */
   selected: string
+  /** The glow behind systems where a shown hunting profile is likely now. */
+  huntGlow: string
   /** Resolved colours of the filter's groups. */
   groups: string[]
 }
@@ -187,6 +208,10 @@ export class MapRenderer {
   private regionFont = ''
   private markerFont = ''
   private markerGroups: MapMarkerGroup[] = []
+  private hunting: HuntingLayer | null = null
+  private huntFont = ''
+  /** Resolved badge colours, by CSS colour. */
+  private readonly huntColours = new Map<string, string>()
 
   private dpr = 1
   private width = 0
@@ -225,6 +250,7 @@ export class MapRenderer {
     const displayFont = getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim()
     this.regionFont = `600 ${REGION_FONT_PX}px ${displayFont || getComputedStyle(document.body).fontFamily}`
     this.markerFont = `600 ${MARKER_FONT_PX}px ${displayFont || getComputedStyle(document.body).fontFamily}`
+    this.huntFont = `700 ${HUNT_FONT_PX}px ${displayFont || getComputedStyle(document.body).fontFamily}`
 
     canvas.addEventListener('wheel', this.onWheel, { passive: false })
     canvas.addEventListener('pointerdown', this.onPointerDown)
@@ -273,6 +299,12 @@ export class MapRenderer {
   setSelected(index: number): void {
     if (index === this.selected) return
     this.selected = index
+    this.requestDraw()
+  }
+
+  /** The hunting profiles shown on the map (glow and badges), or null for none. Changing it only redraws. */
+  setHunting(layer: HuntingLayer | null): void {
+    this.hunting = layer
     this.requestDraw()
   }
 
@@ -421,6 +453,8 @@ export class MapRenderer {
       ctx.globalCompositeOperation = 'source-over'
     }
 
+    if (this.hunting) this.drawHuntGlow(radius, pad)
+
     for (let group = 0; group < this.byGroup.length; group++) {
       const systems = this.byGroup[group]
       if (systems.length === 0) continue
@@ -448,8 +482,12 @@ export class MapRenderer {
 
     if (this.selected >= 0) this.drawSelected(radius)
 
-    if (scale >= LABEL_ZOOM) this.drawLabels(radius)
-    else {
+    if (scale >= LABEL_ZOOM) {
+      // Badge rows first, so names can keep clear of them.
+      const huntRows = this.hunting && this.hunting.badges.length > 0 && scale >= HUNT_BADGE_ZOOM ? this.layoutHuntRows(radius) : []
+      this.drawLabels(radius, huntRows.map((r) => r.bounds), huntRows.map((r) => r.group.systemIndex))
+      if (huntRows.length > 0) this.drawHuntBadges(radius, huntRows)
+    } else {
       this.drawRegionLabels()
       // The focused system keeps its name when zoomed out, where no other system has one.
       if (this.selected >= 0) this.drawSelectedLabel(radius)
@@ -626,12 +664,23 @@ export class MapRenderer {
   }
 
   /** System names to the bottom right of each system in view, skipping any that would overlap one already drawn. */
-  private drawLabels(radius: number): void {
+  private drawLabels(radius: number, reserved: Box[] = [], first: number[] = []): void {
     const { ctx, xy, scale, offsetX, offsetY } = this
     ctx.font = this.labelFont
     ctx.textBaseline = 'top'
     const taken = new Set<number>()
     const lineHeight = LABEL_FONT_PX + 2
+    // Space other things are drawn in (hunting badges): no name goes there. The names of the systems
+    // those belong to are placed before it is taken, after the hovered and focused systems'.
+    const placeFirst = () => {
+      for (const i of first) if (i !== this.hovered && i !== this.selected) place(i, this.palette.label, false)
+    }
+    const reserve = () => {
+      for (const box of reserved) {
+        for (let cx = Math.floor(box.left / LABEL_CELL_PX); cx <= Math.floor(box.right / LABEL_CELL_PX); cx++)
+          for (let cy = Math.floor(box.top / LABEL_CELL_PX); cy <= Math.floor(box.bottom / LABEL_CELL_PX); cy++) taken.add(cx * 100_000 + cy)
+      }
+    }
 
     const place = (i: number, color: string, force: boolean) => {
       const x = xy[i * 2] * scale + offsetX + radius + 2
@@ -654,9 +703,103 @@ export class MapRenderer {
     // The hovered and the focused system always get their labels first.
     if (this.hovered >= 0) place(this.hovered, this.palette.labelHover, true)
     if (this.selected >= 0 && this.selected !== this.hovered) place(this.selected, this.palette.selected, true)
+    placeFirst()
+    reserve()
+    const done = new Set(first)
     for (let i = 0; i < this.model.count; i++) {
-      if (i !== this.hovered && i !== this.selected && this.filter.groups[i] !== HIDDEN) place(i, this.palette.label, false)
+      if (i !== this.hovered && i !== this.selected && !done.has(i) && this.filter.groups[i] !== HIDDEN) place(i, this.palette.label, false)
     }
+  }
+
+  /**
+   * A soft glow behind each system where a shown hunting profile is likely now: brighter and wider the
+   * stronger it is. Under the system dots, over the gates.
+   */
+  private drawHuntGlow(radius: number, pad: number): void {
+    const { ctx, xy, scale, offsetX, offsetY, palette } = this
+    const glow = this.hunting!.glow
+    const transparent = withAlpha(palette.huntGlow, 0)
+    for (let i = 0; i < glow.length; i++) {
+      const g = glow[i]
+      if (g <= 0) continue
+      const sx = xy[i * 2] * scale + offsetX
+      const sy = xy[i * 2 + 1] * scale + offsetY
+      const reach = Math.max(radius * 3.2, 9) * (0.7 + 0.5 * g)
+      if (sx < -reach - pad || sy < -reach - pad || sx > this.width + reach + pad || sy > this.height + reach + pad) continue
+      const gradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, reach)
+      gradient.addColorStop(0, withAlpha(palette.huntGlow, 0.25 + 0.6 * g))
+      gradient.addColorStop(1, transparent)
+      ctx.fillStyle = gradient
+      ctx.beginPath()
+      ctx.arc(sx, sy, reach, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  /**
+   * The shown hunting profiles seen at each system, as small badges in each profile's colour, in a row
+   * below the system's name with a short line from the system. Faint where the profile is not usually
+   * there at this hour. Drawn only when names are.
+   */
+  private drawHuntBadges(radius: number, rows: HuntRow[]): void {
+    const { ctx, palette } = this
+    const edge = radius * Math.SQRT1_2
+    ctx.font = this.huntFont
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.lineWidth = 1
+    for (const { group, sx, sy, bounds } of rows) {
+      const { left, top } = bounds
+
+      ctx.globalAlpha = group.badges.some((b) => !b.faint) ? 1 : HUNT_FAINT_ALPHA
+      ctx.strokeStyle = this.huntColour(group.badges[0].colour)
+      ctx.beginPath()
+      ctx.moveTo(sx + edge, sy + edge)
+      ctx.lineTo(left, top + HUNT_BADGE / 2)
+      ctx.stroke()
+
+      group.badges.forEach((badge, k) => {
+        const x = left + k * (HUNT_BADGE + HUNT_GAP)
+        const shape = chamfer(x, top, HUNT_BADGE, HUNT_CUT)
+        const colour = this.huntColour(badge.colour)
+        ctx.globalAlpha = 1
+        ctx.fillStyle = palette.halo
+        ctx.fill(shape)
+        ctx.globalAlpha = badge.faint ? HUNT_FAINT_ALPHA : 1
+        ctx.strokeStyle = colour
+        ctx.stroke(shape)
+        ctx.fillStyle = colour
+        ctx.fillText(badge.code, x + HUNT_BADGE / 2, top + HUNT_BADGE / 2 + 0.5)
+      })
+    }
+    ctx.globalAlpha = 1
+    ctx.textAlign = 'start'
+  }
+
+  /**
+   * Where each system's badge row goes, below its name: rows out of view are left out, and a row that
+   * would overlap one already placed (neighbouring systems) is left out too.
+   */
+  private layoutHuntRows(radius: number): HuntRow[] {
+    const { xy, scale, offsetX, offsetY } = this
+    const rows: HuntRow[] = []
+    for (const group of this.hunting!.badges) {
+      const sx = xy[group.systemIndex * 2] * scale + offsetX
+      const sy = xy[group.systemIndex * 2 + 1] * scale + offsetY
+      const left = sx + radius + 4
+      const top = sy + radius + LABEL_FONT_PX + 5
+      const bounds: Box = { left, top, right: left + group.badges.length * (HUNT_BADGE + HUNT_GAP) - HUNT_GAP, bottom: top + HUNT_BADGE }
+      if (bounds.left > this.width || bounds.right < 0 || bounds.top > this.height || bounds.bottom < 0) continue
+      if (rows.some((r) => overlap(r.bounds, bounds))) continue
+      rows.push({ group, sx, sy, bounds })
+    }
+    return rows
+  }
+
+  private huntColour(css: string): string {
+    let colour = this.huntColours.get(css)
+    if (colour === undefined) this.huntColours.set(css, (colour = resolveColor(css)))
+    return colour
   }
 
   /** Two rings around the focused system; its dot too if the filter hides it. */
@@ -974,6 +1117,7 @@ function resolvePalette(filter: MapFilter): Palette {
     labelHover: resolveColor('var(--fg)'),
     hover: resolveColor('var(--primary)'),
     selected: resolveColor('var(--primary)'),
+    huntGlow: resolveColor('var(--hunt-glow)'),
     groups: filter.colours.map(resolveColor),
   }
 }
@@ -1000,4 +1144,9 @@ function resolveColor(css: string): string {
   probe.ctx.fillRect(0, 0, 1, 1)
   const [r, g, b, a] = probe.ctx.getImageData(0, 0, 1, 1).data
   return `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`
+}
+
+/** An rgba() colour (as resolveColor returns) with another alpha. */
+function withAlpha(rgba: string, alpha: number): string {
+  return rgba.replace(/,\s*[\d.]+\)$/, `, ${alpha.toFixed(3)})`)
 }

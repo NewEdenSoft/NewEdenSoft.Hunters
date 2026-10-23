@@ -10,7 +10,8 @@ The visual direction is documented in [docs/design.md](../docs/design.md).
 |---|---|
 | `themes` | Selectable themes. Each sets only `primary`, `secondary` and `tint` (dark background hue). |
 | `derived` | Colours computed from the theme inputs. Each rule is `{"mix": [a, percent, b]}`. |
-| `fixed` | Colours that never change with the theme: alerts and the activity heat scale. |
+| `fixed` | Colours that never change with the theme: alerts, the activity heat scale, and `hunt-glow`, the glow behind systems where a shown hunting profile is likely now. |
+| `profiles` | Per hunting profile id (as the server names them): a two-letter `code` and the `colour` of its badge on the map. A profile without an entry gets the first letters of its name and the glow colour. |
 | `security` | Security status colours, index 0 = 0.0 up to index 10 = 1.0, and `null` for negative security. |
 | `heat` | Per metric, the lower bounds of the activity heat bands `heat-1` … `heat-5`, per hour: `npcKills`, `shipKills`, `jumps`, and `npcChange` (the rise or fall from the hour before). Below the first bound a system is drawn dim. Set from real ESI hours so the top band is roughly the busiest few percent of systems. |
 
