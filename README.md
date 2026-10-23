@@ -37,6 +37,8 @@ dotnet run --project src/Hunters.AppHost
 
 The Aspire dashboard link is printed on startup. The web dev server proxies `/api`, `/auth`, `/hubs`, `/openapi` and `/.well-known` to the server.
 
+Postgres runs as a persistent container with a data volume (`newedensoft.hunters.apphost-…-postgres-data`): it keeps running after the AppHost stops, and the data (accounts, collected intel) carries over to the next run. Its generated password is in the AppHost's user secrets (`Parameters:postgres-password`); keep it, or the volume can't be opened. To start over, remove the container and the volume with `docker rm -f` and `docker volume rm`.
+
 Run the desktop app:
 
 ```sh

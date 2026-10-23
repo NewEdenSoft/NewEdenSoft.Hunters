@@ -14,8 +14,12 @@ var eveCallbackUrl = builder.AddParameter("eve-callback-url")
 var adminCharacterId = builder.AddParameter("admin-character-id")
     .WithDescription("EVE character ID of the server admin. Optional.");
 
+// Persistent: the container outlives AppHost runs and its data is in a named volume, so collected
+// intel (90 days of hours and kills) builds up across sessions. Its generated password is kept in this
+// project's user secrets, which must stay for the volume to stay usable.
 var database = builder.AddPostgres("postgres")
     .WithDataVolume()
+    .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase("hunters");
 
 var server = builder.AddProject<Projects.Hunters_Server>("server")
