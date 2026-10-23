@@ -2,19 +2,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NewEdenSoft.Hunters.Intel.Activity;
 using NewEdenSoft.Hunters.Intel.Data;
+using NewEdenSoft.Hunters.Intel.Hunting;
 
 namespace NewEdenSoft.Hunters.Intel.Kills;
 
 /// <summary>
 /// Reads zKillboard's R2Z2 feed around the clock (docs/map-and-activity.md, "Kills") and stores each kill
 /// once as a slim <see cref="Kill"/>, with the feed position in the same save so a restart resumes
-/// where it stopped. zKillboard keeps files for about a day: a position older than
-/// <see cref="KillsOptions.ResumeWithin"/> skips to the newest. Kills older than the retention are
-/// deleted hourly. Failures are retried with the collector's backoff.
+/// where it stopped, and records the kill's hunting-profile sightings. zKillboard keeps files for about a
+/// day: a position older than <see cref="KillsOptions.ResumeWithin"/> skips to the newest. Kills and
+/// sightings older than the retention are deleted hourly. Failures are retried with the collector's backoff.
 /// </summary>
 public sealed partial class KillFeedService(
     IKillFeedSource source,
     IServiceScopeFactory scopes,
+    HuntingProfileStore profiles,
     IOptions<IntelOptions> options,
     TimeProvider time,
     ILogger<KillFeedService> logger) : BackgroundService
@@ -70,7 +72,7 @@ public sealed partial class KillFeedService(
                 return settings.RequestInterval;
             }
 
-            if (await StoreAsync(sequence, file, cancellationToken))
+            if (await StoreAsync(sequence, file, await profiles.WhenReadyAsync(cancellationToken), cancellationToken))
                 _stored++;
             _next = sequence + 1;
             _failures = 0;
@@ -102,16 +104,24 @@ public sealed partial class KillFeedService(
         return latest;
     }
 
-    /// <summary>Stores the kill (unless it is already stored) and the position, in one save. Returns whether the kill was new.</summary>
-    private async Task<bool> StoreAsync(long sequence, KillFeedFile file, CancellationToken cancellationToken)
+    /// <summary>
+    /// Records the kill's sightings, then stores the kill (unless it is already stored) and the position in
+    /// one save, then marks a battle the kill may have started. Sightings come first and skip what is
+    /// already there, so a crash in between only repeats harmless work. Returns whether the kill was new.
+    /// </summary>
+    private async Task<bool> StoreAsync(long sequence, KillFeedFile file, IReadOnlyList<ResolvedProfile> hunting, CancellationToken cancellationToken)
     {
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IntelDbContext>();
+        var kill = file.ToKill();
+        var settings = options.Value.Hunting;
+
+        await SightingStore.InsertAsync(db, SightingMatcher.Match(kill, hunting, settings.FleetAttackers), cancellationToken);
 
         // zKillboard can announce a kill again (a repost, a corrected value); the first one stays.
         var isNew = !await db.Kills.AnyAsync(k => k.KillmailId == file.KillmailId, cancellationToken);
         if (isNew)
-            db.Kills.Add(file.ToKill());
+            db.Kills.Add(kill);
 
         var position = await db.FeedPositions.FindAsync([FeedPosition.R2Z2], cancellationToken);
         if (position is null)
@@ -120,6 +130,10 @@ public sealed partial class KillFeedService(
         position.UpdatedAt = time.GetUtcNow();
 
         await db.SaveChangesAsync(cancellationToken);
+
+        // A player kill can tip the system into a battle, marking sightings around it.
+        if (isNew && !kill.Npc)
+            await SightingStore.MarkBattlesAsync(db, settings, kill.SystemId, kill.Time, null, cancellationToken);
         return isNew;
     }
 
@@ -133,6 +147,7 @@ public sealed partial class KillFeedService(
         var db = scope.ServiceProvider.GetRequiredService<IntelDbContext>();
         var cutoff = now - options.Value.Kills.Retention;
         var deleted = await db.Kills.Where(k => k.Time < cutoff).ExecuteDeleteAsync(cancellationToken);
+        await db.Sightings.Where(s => s.Time < cutoff).ExecuteDeleteAsync(cancellationToken);
         if (deleted > 0)
             LogPruned(deleted, cutoff);
         _nextPrune = now + PruneInterval;

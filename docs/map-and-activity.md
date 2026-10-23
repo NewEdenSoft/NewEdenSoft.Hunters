@@ -91,6 +91,37 @@ The intel service's `KillFeedService` (`src/Hunters.Intel/Kills`) reads zKillboa
 - **Slim kills** (`intel.Kills`, about 35,000 a day, kept for `Hunters:Kills:Retention`, 90 days): id and hash, sequence, time, system, zKillboard's `npc` and `solo`, total value; the victim's character, corporation, alliance, ship (or structure, or deployable such as a CRAB beacon) and **fitted** module types (slots, rigs and subsystems, not cargo); and **per attacker** the character (0 for NPCs), ship and weapon, as parallel arrays. Hunting profiles count pilots per ship and smartbombers by weapon, so the attackers are kept whole. A kill announced twice is stored once.
 - Failures back off like the ESI collector (1, 2, 4, 8, then every 15 minutes) and keep the position.
 
+### Hunting profiles
+
+A hunting profile is a kind of target: where it is seen, and when, is built up from the kills (`src/Hunters.Intel/Hunting`). The built-in profiles (`HuntingProfiles.All`) are defined in code:
+
+| Profile | Seen when |
+|---|---|
+| `carriers` | a pilot flies a Carrier (group 547); **indicator:** a CRAB beacon killed, 0.75 |
+| `supers` | a pilot flies a Supercarrier (659) or Titan (30); **indicator:** a CRAB beacon killed, 0.75 |
+| `dreads` | a pilot flies a Dreadnought (485) or Lancer Dreadnought (4594) |
+| `fax` | a pilot flies a Force Auxiliary (1538) |
+| `marauders` | a pilot flies a Marauder (900) |
+| `ishtars` | a pilot flies an Ishtar (type 12005) |
+| `smartbombers` | the victim has a Smart Bomb (group 72) fitted, or an attacker's last hit was one |
+| `crab` | a CRAB beacon is killed: every type in the group of "CONCORD Rogue Analysis Beacon" (the CONCORD and the CONCORD-Carrier beacon) |
+
+- **Pilots** are seen as the victim or as an attacker; attackers without a character (NPCs) are not.
+- **Indicators** are indirect evidence with a weight below 1. Anchoring a CRAB beacon is mostly a capital ratting habit, so a beacon killed shows a capital ratted there even when no capital is on any killmail. Indicator sightings have no pilot, are flagged as indicators, and add their weight, so direct and indirect evidence combine but can still be told apart.
+- **Resolving:** each rule's groups, types and type names are resolved against the SDE catalogue to a set of type ids, which is all matching looks at. What can't be found is logged as a warning and left out.
+
+Every kill the feed stores is matched as it arrives, into **`intel.Sightings`**: profile, kill, system, time, pilot (0 for none), victim or attacker, the type that matched, weight, indicator, and `IsFleet`. They are inserted with `ON CONFLICT DO NOTHING`, and unique indexes are the rules:
+
+- **One per pilot an hour:** one sighting per (profile, pilot, system, hour), so a pilot ratting all evening counts once an hour, not once a kill. Pilotless sightings count once per kill.
+- **The same kill twice** (a repost, a retry, a backfill) adds nothing.
+
+**Fleet fights** are kept out of the counts, but the sightings stay, so the thresholds can be tuned:
+
+- a kill with more than `Hunters:Hunting:FleetAttackers` (25) attackers marks its sightings `IsFleet`
+- `Hunters:Hunting:BattleKills` (20) player kills in the system within `Hunters:Hunting:BattleWindow` (15 minutes) either side of a sighting marks it `IsFleet`. Checked around each new player kill, so the earlier sightings of a growing fight are marked too.
+
+**Backfill:** `intel.HuntingProfileStates` keeps the resolved definition each profile's sightings were built with. At startup and on each new SDE catalogue, a profile whose definition changed (a rule edited, or a new SDE build adding a carrier hull) or that is new has its sightings deleted and rebuilt from the stored kills; a profile that was removed loses its sightings. Sightings expire with their kills.
+
 ## Live kill feed
 
 Two goals: clients only receive kills that are relevant to them, and the server is not overwhelmed by the feed, including during large fights.

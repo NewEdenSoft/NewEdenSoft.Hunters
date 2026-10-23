@@ -79,6 +79,9 @@ Intel service (`Hunters.Intel`, same `Hunters` section and `ConnectionStrings__h
 | `Hunters:Kills:Enabled` | `true` | Read zKillboard's R2Z2 feed and store kills |
 | `Hunters:Kills:Retention` | `90.00:00:00` | How long kills are kept |
 | `Hunters:Kills:ResumeWithin` | `20:00:00` | A saved feed position older than this starts again at the newest file (zKillboard keeps files about a day) |
+| `Hunters:Hunting:FleetAttackers` | `25` | A kill with more attackers is a fleet fight: its sightings aren't counted |
+| `Hunters:Hunting:BattleKills` | `20` | This many player kills in a system within the battle window of a sighting is a battle |
+| `Hunters:Hunting:BattleWindow` | `00:15:00` | The battle window, either side of a sighting |
 | `Hunters:Esi:Contact` | the project URL (Compose: `HUNTERS_PUBLIC_URL`) | Operator contact in the ESI, SDE and zKillboard `User-Agent` |
 | `Hunters:Sde:CachePath` | `/app/sde` in the image; local app data otherwise | Its own SDE cache (map data and item types). Not shared with the server's volume, which could be mid-download at the same moment |
 | `Hunters:Sde:RefreshInterval` | `06:00:00` | How often to check CCP for a new SDE build |

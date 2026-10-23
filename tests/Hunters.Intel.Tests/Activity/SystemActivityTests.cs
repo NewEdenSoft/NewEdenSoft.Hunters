@@ -121,8 +121,8 @@ public sealed class SystemActivityTests(IntelDatabase database) : IAsyncLifetime
             .ToListAsync();
 
         Assert.Equal(
-            ["ActivityWeekSamples", "FeedPositions", "Kills", "RegionActivityCurrent", "RegionActivityWeek", "SystemActivityCurrent",
-             "SystemActivityWeek", "SystemJumps", "SystemKills", "Versions", "__EFMigrationsHistory"],
+            ["ActivityWeekSamples", "FeedPositions", "HuntingProfileStates", "Kills", "RegionActivityCurrent", "RegionActivityWeek",
+             "Sightings", "SystemActivityCurrent", "SystemActivityWeek", "SystemJumps", "SystemKills", "Versions", "__EFMigrationsHistory"],
             tables);
     }
 }
