@@ -23,10 +23,143 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.ActivityWeekSamples", b =>
+                {
+                    b.Property<short>("HourOfWeek")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<short>("HourOfWeek"));
+
+                    b.Property<int>("JumpHours")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("KillHours")
+                        .HasColumnType("integer");
+
+                    b.HasKey("HourOfWeek");
+
+                    b.ToTable("ActivityWeekSamples", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.IntelVersion", b =>
+                {
+                    b.Property<string>("Dataset")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Dataset");
+
+                    b.ToTable("Versions", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.RegionActivityCurrent", b =>
+                {
+                    b.Property<int>("RegionId")
+                        .HasColumnType("integer");
+
+                    b.Property<short>("JumpsDayHours")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTimeOffset>("JumpsPeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<short>("KillsDayHours")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTimeOffset>("KillsPeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("RegionId");
+
+                    b.ToTable("RegionActivityCurrent", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.RegionActivityWeek", b =>
+                {
+                    b.Property<int>("RegionId")
+                        .HasColumnType("integer");
+
+                    b.Property<short>("HourOfWeek")
+                        .HasColumnType("smallint");
+
+                    b.Property<long>("NpcKills")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PodKills")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ShipJumps")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ShipKills")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("RegionId", "HourOfWeek");
+
+                    b.ToTable("RegionActivityWeek", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.SystemActivityCurrent", b =>
+                {
+                    b.Property<int>("SystemId")
+                        .HasColumnType("integer");
+
+                    b.Property<short>("JumpsDayHours")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTimeOffset>("JumpsPeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<short>("KillsDayHours")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTimeOffset>("KillsPeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SystemId");
+
+                    b.ToTable("SystemActivityCurrent", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.SystemActivityWeek", b =>
+                {
+                    b.Property<int>("SystemId")
+                        .HasColumnType("integer");
+
+                    b.Property<short>("HourOfWeek")
+                        .HasColumnType("smallint");
+
+                    b.Property<long>("NpcKills")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PodKills")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ShipJumps")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ShipKills")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("SystemId", "HourOfWeek");
+
+                    b.ToTable("SystemActivityWeek", "intel");
+                });
+
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.SystemJumpsSnapshot", b =>
                 {
                     b.Property<DateTimeOffset>("PeriodEnd")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Applied")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("FetchedAt")
                         .HasColumnType("timestamp with time zone");
@@ -48,6 +181,9 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                 {
                     b.Property<DateTimeOffset>("PeriodEnd")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Applied")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("FetchedAt")
                         .HasColumnType("timestamp with time zone");
@@ -71,6 +207,308 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.HasKey("PeriodEnd");
 
                     b.ToTable("SystemKills", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.RegionActivityCurrent", b =>
+                {
+                    b.OwnsOne("NewEdenSoft.Hunters.Intel.Data.ActivityMetric", "NpcKills", b1 =>
+                        {
+                            b1.Property<int>("RegionActivityCurrentRegionId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int>("Day")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("HoursToPeak")
+                                .HasColumnType("smallint");
+
+                            b1.Property<int>("LastHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("PeakHourOfWeek")
+                                .HasColumnType("smallint");
+
+                            b1.Property<double?>("PeakRatio")
+                                .HasColumnType("double precision");
+
+                            b1.Property<int?>("PreviousHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<double?>("Typical")
+                                .HasColumnType("double precision");
+
+                            b1.HasKey("RegionActivityCurrentRegionId");
+
+                            b1.ToTable("RegionActivityCurrent", "intel");
+
+                            b1.WithOwner()
+                                .HasForeignKey("RegionActivityCurrentRegionId");
+                        });
+
+                    b.OwnsOne("NewEdenSoft.Hunters.Intel.Data.ActivityMetric", "PodKills", b1 =>
+                        {
+                            b1.Property<int>("RegionActivityCurrentRegionId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int>("Day")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("HoursToPeak")
+                                .HasColumnType("smallint");
+
+                            b1.Property<int>("LastHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("PeakHourOfWeek")
+                                .HasColumnType("smallint");
+
+                            b1.Property<double?>("PeakRatio")
+                                .HasColumnType("double precision");
+
+                            b1.Property<int?>("PreviousHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<double?>("Typical")
+                                .HasColumnType("double precision");
+
+                            b1.HasKey("RegionActivityCurrentRegionId");
+
+                            b1.ToTable("RegionActivityCurrent", "intel");
+
+                            b1.WithOwner()
+                                .HasForeignKey("RegionActivityCurrentRegionId");
+                        });
+
+                    b.OwnsOne("NewEdenSoft.Hunters.Intel.Data.ActivityMetric", "ShipJumps", b1 =>
+                        {
+                            b1.Property<int>("RegionActivityCurrentRegionId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int>("Day")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("HoursToPeak")
+                                .HasColumnType("smallint");
+
+                            b1.Property<int>("LastHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("PeakHourOfWeek")
+                                .HasColumnType("smallint");
+
+                            b1.Property<double?>("PeakRatio")
+                                .HasColumnType("double precision");
+
+                            b1.Property<int?>("PreviousHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<double?>("Typical")
+                                .HasColumnType("double precision");
+
+                            b1.HasKey("RegionActivityCurrentRegionId");
+
+                            b1.ToTable("RegionActivityCurrent", "intel");
+
+                            b1.WithOwner()
+                                .HasForeignKey("RegionActivityCurrentRegionId");
+                        });
+
+                    b.OwnsOne("NewEdenSoft.Hunters.Intel.Data.ActivityMetric", "ShipKills", b1 =>
+                        {
+                            b1.Property<int>("RegionActivityCurrentRegionId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int>("Day")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("HoursToPeak")
+                                .HasColumnType("smallint");
+
+                            b1.Property<int>("LastHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("PeakHourOfWeek")
+                                .HasColumnType("smallint");
+
+                            b1.Property<double?>("PeakRatio")
+                                .HasColumnType("double precision");
+
+                            b1.Property<int?>("PreviousHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<double?>("Typical")
+                                .HasColumnType("double precision");
+
+                            b1.HasKey("RegionActivityCurrentRegionId");
+
+                            b1.ToTable("RegionActivityCurrent", "intel");
+
+                            b1.WithOwner()
+                                .HasForeignKey("RegionActivityCurrentRegionId");
+                        });
+
+                    b.Navigation("NpcKills")
+                        .IsRequired();
+
+                    b.Navigation("PodKills")
+                        .IsRequired();
+
+                    b.Navigation("ShipJumps")
+                        .IsRequired();
+
+                    b.Navigation("ShipKills")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.SystemActivityCurrent", b =>
+                {
+                    b.OwnsOne("NewEdenSoft.Hunters.Intel.Data.ActivityMetric", "NpcKills", b1 =>
+                        {
+                            b1.Property<int>("SystemActivityCurrentSystemId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int>("Day")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("HoursToPeak")
+                                .HasColumnType("smallint");
+
+                            b1.Property<int>("LastHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("PeakHourOfWeek")
+                                .HasColumnType("smallint");
+
+                            b1.Property<double?>("PeakRatio")
+                                .HasColumnType("double precision");
+
+                            b1.Property<int?>("PreviousHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<double?>("Typical")
+                                .HasColumnType("double precision");
+
+                            b1.HasKey("SystemActivityCurrentSystemId");
+
+                            b1.ToTable("SystemActivityCurrent", "intel");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SystemActivityCurrentSystemId");
+                        });
+
+                    b.OwnsOne("NewEdenSoft.Hunters.Intel.Data.ActivityMetric", "PodKills", b1 =>
+                        {
+                            b1.Property<int>("SystemActivityCurrentSystemId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int>("Day")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("HoursToPeak")
+                                .HasColumnType("smallint");
+
+                            b1.Property<int>("LastHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("PeakHourOfWeek")
+                                .HasColumnType("smallint");
+
+                            b1.Property<double?>("PeakRatio")
+                                .HasColumnType("double precision");
+
+                            b1.Property<int?>("PreviousHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<double?>("Typical")
+                                .HasColumnType("double precision");
+
+                            b1.HasKey("SystemActivityCurrentSystemId");
+
+                            b1.ToTable("SystemActivityCurrent", "intel");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SystemActivityCurrentSystemId");
+                        });
+
+                    b.OwnsOne("NewEdenSoft.Hunters.Intel.Data.ActivityMetric", "ShipJumps", b1 =>
+                        {
+                            b1.Property<int>("SystemActivityCurrentSystemId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int>("Day")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("HoursToPeak")
+                                .HasColumnType("smallint");
+
+                            b1.Property<int>("LastHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("PeakHourOfWeek")
+                                .HasColumnType("smallint");
+
+                            b1.Property<double?>("PeakRatio")
+                                .HasColumnType("double precision");
+
+                            b1.Property<int?>("PreviousHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<double?>("Typical")
+                                .HasColumnType("double precision");
+
+                            b1.HasKey("SystemActivityCurrentSystemId");
+
+                            b1.ToTable("SystemActivityCurrent", "intel");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SystemActivityCurrentSystemId");
+                        });
+
+                    b.OwnsOne("NewEdenSoft.Hunters.Intel.Data.ActivityMetric", "ShipKills", b1 =>
+                        {
+                            b1.Property<int>("SystemActivityCurrentSystemId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int>("Day")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("HoursToPeak")
+                                .HasColumnType("smallint");
+
+                            b1.Property<int>("LastHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<short?>("PeakHourOfWeek")
+                                .HasColumnType("smallint");
+
+                            b1.Property<double?>("PeakRatio")
+                                .HasColumnType("double precision");
+
+                            b1.Property<int?>("PreviousHour")
+                                .HasColumnType("integer");
+
+                            b1.Property<double?>("Typical")
+                                .HasColumnType("double precision");
+
+                            b1.HasKey("SystemActivityCurrentSystemId");
+
+                            b1.ToTable("SystemActivityCurrent", "intel");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SystemActivityCurrentSystemId");
+                        });
+
+                    b.Navigation("NpcKills")
+                        .IsRequired();
+
+                    b.Navigation("PodKills")
+                        .IsRequired();
+
+                    b.Navigation("ShipJumps")
+                        .IsRequired();
+
+                    b.Navigation("ShipKills")
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

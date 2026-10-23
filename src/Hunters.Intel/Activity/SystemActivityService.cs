@@ -7,12 +7,13 @@ namespace NewEdenSoft.Hunters.Intel.Activity;
 /// <summary>
 /// Collects ESI's hourly kills and jumps per solar system for everyone (docs/map-and-activity.md,
 /// "Hourly kills and jumps"). It fetches both at startup and again when ESI's copies expire, stores
-/// each hour once as a raw snapshot, and drops hours older than <see cref="ActivityOptions.Retention"/>.
-/// Failures are retried with a growing delay.
+/// each hour once as a raw snapshot, and signals the <see cref="ActivityAggregatorService"/>, which
+/// adds new hours to the derived tables and expires old ones. Failures are retried with a growing delay.
 /// </summary>
 public sealed partial class SystemActivityService(
     ISystemActivitySource source,
     IServiceScopeFactory scopes,
+    ActivityAggregatorService aggregator,
     IOptions<IntelOptions> options,
     TimeProvider time,
     ILogger<SystemActivityService> logger) : BackgroundService
@@ -40,7 +41,7 @@ public sealed partial class SystemActivityService(
         }
     }
 
-    /// <summary>Fetches both lists, stores new hours and prunes old ones. Returns how long to wait before the next poll.</summary>
+    /// <summary>Fetches both lists and stores new hours. Returns how long to wait before the next poll.</summary>
     public async Task<TimeSpan> PollAsync(CancellationToken cancellationToken)
     {
         try
@@ -52,6 +53,7 @@ public sealed partial class SystemActivityService(
             await using var scope = scopes.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IntelDbContext>();
 
+            var stored = false;
             if (!await db.SystemKills.AnyAsync(s => s.PeriodEnd == kills.PeriodEnd, cancellationToken))
             {
                 db.SystemKills.Add(new SystemKillsSnapshot
@@ -64,6 +66,7 @@ public sealed partial class SystemActivityService(
                     NpcKills = [.. kills.Systems.Select(s => s.NpcKills)],
                 });
                 LogStored("kills", kills.PeriodEnd, kills.Systems.Count);
+                stored = true;
             }
 
             if (!await db.SystemJumps.AnyAsync(s => s.PeriodEnd == jumps.PeriodEnd, cancellationToken))
@@ -76,13 +79,12 @@ public sealed partial class SystemActivityService(
                     ShipJumps = [.. jumps.Systems.Select(s => s.ShipJumps)],
                 });
                 LogStored("jumps", jumps.PeriodEnd, jumps.Systems.Count);
+                stored = true;
             }
 
             await db.SaveChangesAsync(cancellationToken);
-
-            var cutoff = now - options.Value.Activity.Retention;
-            await db.SystemKills.Where(s => s.PeriodEnd < cutoff).ExecuteDeleteAsync(cancellationToken);
-            await db.SystemJumps.Where(s => s.PeriodEnd < cutoff).ExecuteDeleteAsync(cancellationToken);
+            if (stored)
+                aggregator.Signal();
 
             _failures = 0;
             return NextPoll(now, kills.Expires, jumps.Expires);

@@ -30,10 +30,10 @@
 
 ```
 src/
-  Hunters.Domain            Map graph, path finding, filters, activity aggregation. No I/O.
+  Hunters.Domain            Map graph, path finding, filters. No I/O.
   Hunters.Contracts         DTOs, discovery document, SignalR hub interfaces. Versioned public API.
   Hunters.Server            ASP.NET Core host, EF Core (Postgres), auth, accounts, workers, optional web hosting.
-  Hunters.Intel             Worker service: collects public activity data into the intel schema (D22).
+  Hunters.Intel             Worker service: collects public activity data and derives the intel tables from it (D22).
   Hunters.Intel.Data        The intel schema: IntelDbContext, entities, migrations. Read by the server, written by intel.
   Hunters.Sde               CCP's SDE through NewEdenKit.Sde: map data (with 3D positions) and item types. Used by both.
   Hunters.Client            .NET client SDK: server profiles, login, token provider, REST + SignalR, ESI setup.

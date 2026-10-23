@@ -26,19 +26,29 @@ public sealed class IntelDatabase : IAsyncLifetime
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
 
-    /// <summary>The intel services against this database, with ESI and the SDE replaced by fakes.</summary>
-    public ServiceProvider Services(FakeSystemActivity activity, Action<IntelOptions>? configure = null, FakeSde? sde = null)
+    /// <summary>The intel services against this database, with ESI and the SDE (and optionally the clock) replaced by fakes.</summary>
+    public ServiceProvider Services(FakeSystemActivity activity, Action<IntelOptions>? configure = null, FakeSde? sde = null, TimeProvider? time = null)
     {
         sde ??= new FakeSde();
         var services = new ServiceCollection();
         services.AddLogging(l => l.SetMinimumLevel(LogLevel.Warning));
         services.AddOptions<IntelOptions>().Configure(o => configure?.Invoke(o));
-        services.AddDbContext<IntelDbContext>(o => o.UseNpgsql(ConnectionString, IntelDbContext.ConfigureNpgsql));
+        // Retrying, like Aspire's AddNpgsqlDbContext in the service: transactions must go through the execution strategy.
+        services.AddDbContext<IntelDbContext>(o => o.UseNpgsql(ConnectionString, npgsql =>
+        {
+            IntelDbContext.ConfigureNpgsql(npgsql);
+            npgsql.EnableRetryOnFailure();
+        }));
         services.AddIntelServices();
         services.RemoveAll<ISystemActivitySource>();
         services.AddSingleton<ISystemActivitySource>(activity);
         services.AddSingleton<ISdeMapSource>(sde);
         services.AddSingleton<ISdeTypeSource>(sde);
+        if (time is not null)
+        {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton(time);
+        }
         return services.BuildServiceProvider();
     }
 }
