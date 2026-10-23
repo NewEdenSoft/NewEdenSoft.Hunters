@@ -34,6 +34,8 @@ Services:
 
 The intel service ([D22](decisions.md#d22--a-separate-intel-service-with-a-derived-store)) collects public activity data (ESI's hourly kills and jumps, zKillboard's kill feed) into the database's `intel` schema and applies that schema's migrations at startup; the server only reads it. It needs the same connection string and nothing else; `HUNTERS_PUBLIC_URL` is sent to ESI and zKillboard as the operator contact. After changing the activity rules, recompute the derived tables from the raw hours with `docker compose run --rm intel rebuild-activity` (a few minutes for 90 days; safe while the service runs).
 
+**Memory:** the intel service's live managed heap is about 40 MB (the SDE catalogue is most of it), and it runs within a 64 MB GC heap: about 85 MB private and 180 MB working set, about half of which is the runtime's own mapped files. Without a limit, .NET's GC collects lazily on a machine with free memory, so the same process can sit at 300+ MB without needing it. Under a container memory limit (`mem_limit`, or `deploy.resources.limits.memory`), .NET caps its heap at 75% of the limit and collects accordingly; 256 MB leaves ample room.
+
 The `sde` volume caches CCP's SDE archive (about 100 MB), from which the server builds the map. Losing it only means downloading it again at the next start.
 
 **The `dpkeys` volume must persist.** Refresh tokens are encrypted with the Data Protection keys stored there; losing the keys makes every stored token unreadable and forces all users to log in again.

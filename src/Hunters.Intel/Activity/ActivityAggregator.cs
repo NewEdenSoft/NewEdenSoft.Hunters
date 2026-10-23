@@ -259,45 +259,72 @@ public sealed partial class ActivityAggregator(
         var systemWeek = await WeekStatsAsync(db, "SystemActivityWeek", "SystemId", killsEnd, jumpsEnd, samples, cancellationToken);
         var regionWeek = await WeekStatsAsync(db, "RegionActivityWeek", "RegionId", killsEnd, jumpsEnd, samples, cancellationToken);
 
+        List<(int Id, ActivityMetric[] Metrics)> Rows(IEnumerable<int> ids, Dictionary<int, Counts> now, Dictionary<int, WeekStats> week) =>
+        [
+            .. ids.Select(id =>
+            {
+                ActivityMetric[] metrics = [new(), new(), new(), new()];
+                Fill(metrics[0], metrics[1], metrics[2], metrics[3], now.GetValueOrDefault(id), week.GetValueOrDefault(id), killPrevious, jumpPrevious);
+                return (id, metrics);
+            }),
+        ];
+
+        // Written as columns in one statement per table: tracking ~5,000 rows of 33 columns in EF took
+        // well over 60 MB for a moment, enough to fail under a container memory limit.
+        var header = (killsEnd, jumpsEnd, (short)killHours.Count, (short)jumpHours.Count);
         await db.SystemActivityCurrent.ExecuteDeleteAsync(cancellationToken);
         await db.RegionActivityCurrent.ExecuteDeleteAsync(cancellationToken);
-
-        foreach (var id in systemNow.Keys.Union(systemWeek.Keys))
-        {
-            var row = new SystemActivityCurrent
-            {
-                SystemId = id,
-                KillsPeriodEnd = killsEnd,
-                JumpsPeriodEnd = jumpsEnd,
-                KillsDayHours = (short)killHours.Count,
-                JumpsDayHours = (short)jumpHours.Count,
-            };
-            Fill(row.NpcKills, row.ShipKills, row.PodKills, row.ShipJumps, systemNow.GetValueOrDefault(id), systemWeek.GetValueOrDefault(id), killPrevious, jumpPrevious);
-            db.SystemActivityCurrent.Add(row);
-        }
-
-        foreach (var id in regionNow.Keys.Union(regionWeek.Keys))
-        {
-            var row = new RegionActivityCurrent
-            {
-                RegionId = id,
-                KillsPeriodEnd = killsEnd,
-                JumpsPeriodEnd = jumpsEnd,
-                KillsDayHours = (short)killHours.Count,
-                JumpsDayHours = (short)jumpHours.Count,
-            };
-            Fill(row.NpcKills, row.ShipKills, row.PodKills, row.ShipJumps, regionNow.GetValueOrDefault(id), regionWeek.GetValueOrDefault(id), killPrevious, jumpPrevious);
-            db.RegionActivityCurrent.Add(row);
-        }
-
-        await db.SaveChangesAsync(cancellationToken);
+        await WriteCurrentAsync(db, "SystemActivityCurrent", "SystemId", header, Rows(systemNow.Keys.Union(systemWeek.Keys), systemNow, systemWeek), cancellationToken);
+        await WriteCurrentAsync(db, "RegionActivityCurrent", "RegionId", header, Rows(regionNow.Keys.Union(regionWeek.Keys), regionNow, regionWeek), cancellationToken);
         LogRefreshed(systemNow.Count, regionNow.Count, killsEnd);
+    }
+
+    /// <summary>Inserts current rows (the table was just emptied) from column arrays: one statement, a few arrays.</summary>
+    private static Task WriteCurrentAsync(
+        IntelDbContext db, string table, string key, (DateTimeOffset KillsEnd, DateTimeOffset JumpsEnd, short KillsDayHours, short JumpsDayHours) header,
+        List<(int Id, ActivityMetric[] Metrics)> rows, CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0)
+            return Task.CompletedTask;
+
+        string[] fields = ["LastHour", "PreviousHour", "Day", "Typical", "PeakRatio", "HoursToPeak", "PeakHourOfWeek"];
+        var parameters = new List<NpgsqlParameter>
+        {
+            new("killsEnd", header.KillsEnd),
+            new("jumpsEnd", header.JumpsEnd),
+            new("killsDay", header.KillsDayHours),
+            new("jumpsDay", header.JumpsDayHours),
+            IntArray("ids", [.. rows.Select(r => r.Id)]),
+        };
+        var columns = new List<string>();
+        var names = new List<string>();
+        for (var m = 0; m < ActivityMetrics.All.Length; m++)
+        {
+            var values = rows.Select(r => r.Metrics[m]).ToList();
+            parameters.Add(new NpgsqlParameter($"m{m}last", NpgsqlDbType.Array | NpgsqlDbType.Integer) { Value = values.Select(v => v.LastHour).ToArray() });
+            parameters.Add(new NpgsqlParameter($"m{m}prev", NpgsqlDbType.Array | NpgsqlDbType.Integer) { Value = values.Select(v => v.PreviousHour).ToArray() });
+            parameters.Add(new NpgsqlParameter($"m{m}day", NpgsqlDbType.Array | NpgsqlDbType.Integer) { Value = values.Select(v => v.Day).ToArray() });
+            parameters.Add(new NpgsqlParameter($"m{m}typical", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = values.Select(v => v.Typical).ToArray() });
+            parameters.Add(new NpgsqlParameter($"m{m}ratio", NpgsqlDbType.Array | NpgsqlDbType.Double) { Value = values.Select(v => v.PeakRatio).ToArray() });
+            parameters.Add(new NpgsqlParameter($"m{m}topeak", NpgsqlDbType.Array | NpgsqlDbType.Smallint) { Value = values.Select(v => v.HoursToPeak).ToArray() });
+            parameters.Add(new NpgsqlParameter($"m{m}peak", NpgsqlDbType.Array | NpgsqlDbType.Smallint) { Value = values.Select(v => v.PeakHourOfWeek).ToArray() });
+            columns.AddRange(fields.Select(f => $"\"{ActivityMetrics.All[m]}_{f}\""));
+            names.AddRange(new[] { "last", "prev", "day", "typical", "ratio", "topeak", "peak" }.Select(n => $"@m{m}{n}"));
+        }
+
+        // Table and column names come from this class, never from input.
+        var sql = $"""
+            INSERT INTO intel."{table}" ("{key}", {string.Join(", ", columns)}, "KillsPeriodEnd", "JumpsPeriodEnd", "KillsDayHours", "JumpsDayHours")
+            SELECT u.*, @killsEnd, @jumpsEnd, @killsDay, @jumpsDay
+            FROM unnest(@ids, {string.Join(", ", names)}) AS u
+            """;
+        return db.Database.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
     }
 
     /// <summary>The raw hours ending in the 24 hours up to the latest one, newest first.</summary>
     private static async Task<List<T>> LatestDayAsync<T>(IQueryable<T> hours, CancellationToken cancellationToken) where T : class
     {
-        var all = hours.OrderByDescending(h => EF.Property<DateTimeOffset>(h, "PeriodEnd"));
+        var all = hours.AsNoTracking().OrderByDescending(h => EF.Property<DateTimeOffset>(h, "PeriodEnd"));
         var latest = await all.Select(h => (DateTimeOffset?)EF.Property<DateTimeOffset>(h, "PeriodEnd")).FirstOrDefaultAsync(cancellationToken);
         if (latest is not { } end)
             return [];

@@ -16,31 +16,37 @@ public sealed class SdeSource(IHttpClientFactory httpClients, IOptions<SdeOption
     async Task<SdeMapData> ISdeMapSource.LoadAsync(CancellationToken cancellationToken)
     {
         var (build, store) = await LoadAsync([SdeDatasets.Regions, SdeDatasets.SolarSystems, SdeDatasets.Stargates], cancellationToken);
-        var regions = await store.ReadListAsync(SdeDatasets.Regions, cancellationToken);
-        var systems = await store.ReadListAsync(SdeDatasets.SolarSystems, cancellationToken);
-        var stargates = await store.ReadListAsync(SdeDatasets.Stargates, cancellationToken);
-
         return new SdeMapData(
             build,
-            [.. regions.Select(r => new SdeRegion(r.Id, r.Name.ToString()))],
-            [.. systems.Select(s => new SdeSolarSystem(
+            await SlimAsync(store, SdeDatasets.Regions, r => new SdeRegion(r.Id, r.Name.ToString()), cancellationToken),
+            await SlimAsync(store, SdeDatasets.SolarSystems, s => new SdeSolarSystem(
                 s.Id, s.Name.ToString(), s.RegionId, s.ConstellationId, s.SecurityStatus,
-                s.Position.X, s.Position.Y, s.Position.Z, s.Position2D?.X, s.Position2D?.Y))],
-            [.. stargates.Select(g => new SdeStargate(g.SolarSystemId, g.Destination.SolarSystemId))]);
+                s.Position.X, s.Position.Y, s.Position.Z, s.Position2D?.X, s.Position2D?.Y), cancellationToken),
+            await SlimAsync(store, SdeDatasets.Stargates, g => new SdeStargate(g.SolarSystemId, g.Destination.SolarSystemId), cancellationToken));
     }
 
     async Task<SdeTypeData> ISdeTypeSource.LoadAsync(CancellationToken cancellationToken)
     {
         var (build, store) = await LoadAsync([SdeDatasets.Types, SdeDatasets.Groups, SdeDatasets.Categories], cancellationToken);
-        var types = await store.ReadListAsync(SdeDatasets.Types, cancellationToken);
-        var groups = await store.ReadListAsync(SdeDatasets.Groups, cancellationToken);
-        var categories = await store.ReadListAsync(SdeDatasets.Categories, cancellationToken);
-
         return new SdeTypeData(
             build,
-            [.. types.Select(t => new SdeType(t.Id, t.Name.ToString(), t.GroupId, t.Published))],
-            [.. groups.Select(g => new SdeGroup(g.Id, g.Name.ToString(), g.CategoryId))],
-            [.. categories.Select(c => new SdeCategory(c.Id, c.Name.ToString()))]);
+            await SlimAsync(store, SdeDatasets.Types, t => new SdeType(t.Id, t.Name.ToString(), t.GroupId, t.Published), cancellationToken),
+            await SlimAsync(store, SdeDatasets.Groups, g => new SdeGroup(g.Id, g.Name.ToString(), g.CategoryId), cancellationToken),
+            await SlimAsync(store, SdeDatasets.Categories, c => new SdeCategory(c.Id, c.Name.ToString()), cancellationToken));
+    }
+
+    /// <summary>
+    /// Streams a dataset and keeps only what Hunters uses of each record. Reading whole datasets into
+    /// lists (<c>ReadListAsync</c>) held every record with all its languages and descriptions: about
+    /// 290 MB for the item types, which stayed reachable after the load.
+    /// </summary>
+    private static async Task<List<TSlim>> SlimAsync<TRecord, TSlim>(
+        SdeFileStore store, SdeDataset<TRecord> dataset, Func<TRecord, TSlim> slim, CancellationToken cancellationToken)
+    {
+        var records = new List<TSlim>();
+        await foreach (var record in store.ReadAsync(dataset, cancellationToken))
+            records.Add(slim(record));
+        return records;
     }
 
     private async Task<(long Build, SdeFileStore Store)> LoadAsync(IReadOnlyList<SdeDataset> datasets, CancellationToken cancellationToken)
