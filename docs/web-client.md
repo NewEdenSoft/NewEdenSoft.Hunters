@@ -61,7 +61,23 @@ Sizes follow the zoom: systems grow from 0.9 to 6.5 px radius and gates from 0.4
 
 Each frame: gates are stroked under the view transform: solid within a constellation, short dashes (6 px on, 4 px off) between constellations, long dashes (18 px on, 8 px off) between regions, with widths and dashes divided by the zoom so they look the same at every zoom. A gate is coloured with a gradient from its first system's filter colour to the other's, at 55% opacity; gates whose ends share a colour (about three quarters with the security filter) are batched into one `Path2D` per colour and style, and the others each get a gradient. Paths and gradients are built in world coordinates once per layout, filter and theme, and reused every frame; gates out of view are skipped. A gate to a hidden system keeps the neutral gate colour. Then systems in view are filled in one batch per colour group of the active filter; from zoom 28 px/ly, names are drawn to the bottom right of each system, skipping any that would overlap a name already drawn (the hovered system's name always wins). Below that zoom, region names are drawn instead, centred on the mean position of each region's systems, larger regions first and with clear space between names. A region whose systems spread more than twice as wide as the median region gets no label in that layout (Pochven in the top-down layout), since its centre would sit inside other regions. Theme colours are CSS `color-mix()` expressions, which Canvas cannot read, so they are resolved to `rgba()` once and again when the theme changes.
 
-**Colour filters.** A filter turns the map into a colour group per system (or `HIDDEN`), the group colours (CSS, theme variables allowed) and a legend. The renderer only draws groups, so new ways of colouring the map (activity, a route, fleet members) are new filters, not renderer changes. Hidden systems are not drawn, labelled or hoverable; their gates still are. The hover panel always shows the system's real security in its security colour, whatever the filter.
+**Colour filters.** A filter turns the map into a colour group per system (or `HIDDEN`), the group colours (CSS, theme variables allowed) and a legend. The renderer only draws groups, so new ways of colouring the map (activity, a route, fleet members) are new filters, not renderer changes. Hidden systems are not drawn, labelled or hoverable; their gates still are. The hover panel always shows the system's real security in its security colour, whatever the filter, and, once the server has activity data, its NPC kills in the last hour with the change from the hour before (green rising, red falling).
+
+**Activity colours.** Besides **Security**, the Map panel offers a short list of the server's hourly activity ([Serving activity](map-and-activity.md#serving-activity)), all for the last hour:
+
+| Colour | Shows |
+|---|---|
+| **NPC kills** | the count |
+| **NPC rising** | the rise from the hour before |
+| **NPC falling** | the fall from the hour before |
+| **Ship kills** | the count |
+| **Jumps** | the count |
+
+- **Bands:** each is drawn in the five heat bands (violet → magenta → white) with the bounds from `design/themes.json` (`heat`). Below the first band a system is quiet, drawn faint so any activity stands out.
+- **Minimum NPC kills:** rising and falling take one (Any, 25+, 100+, 250+), so small changes in quiet systems stay faint.
+- **No data:** without a previous hour (downtime), without activity data, or for another map version, the panel says why instead of a legend.
+- **Fetching:** the activity colours are offered once the discovery document lists `activity`. From then on the data (`/api/activity/current`, `api/activity.ts`) is fetched for the hover panel too, and asked for again every minute; the browser revalidates with the ETag, so that is a 304 until a new hour arrives.
+- **In the URL:** `?colour=npc-rising&min=100`.
 
 **System search and the focused system.** A search field sits at the top centre of the map, with the focused character's chip under it.
 

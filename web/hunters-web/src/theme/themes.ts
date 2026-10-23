@@ -19,7 +19,11 @@ interface ThemeCatalog {
   derived: Record<string, { mix: (string | number)[] }>
   fixed: Record<string, string>
   security: { steps: string[]; null: string }
+  heat: Record<HeatMetric, number[]>
 }
+
+/** The metrics with heat bands in themes.json, per hour. */
+export type HeatMetric = 'npcKills' | 'shipKills' | 'jumps' | 'npcChange'
 
 const catalog: ThemeCatalog = themesJson
 
@@ -40,6 +44,11 @@ export function getTheme(id: string | null | undefined): ThemeDefinition {
 /** Security status colour, for the security as EVE displays it. */
 export function securityColor(security: number): string {
   return securityBucketColor(securityBucket(security))
+}
+
+/** The lower bounds of the five heat bands (`heat-1` … `heat-5`) for a metric. */
+export function heatBands(metric: HeatMetric): number[] {
+  return catalog.heat[metric]
 }
 
 /** Colour of a {@link securityBucket}. */

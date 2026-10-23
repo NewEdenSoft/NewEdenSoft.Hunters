@@ -12,7 +12,7 @@ The visual direction is documented in [docs/design.md](../docs/design.md).
 | `derived` | Colours computed from the theme inputs. Each rule is `{"mix": [a, percent, b]}`. |
 | `fixed` | Colours that never change with the theme: alerts and the activity heat scale. |
 | `security` | Security status colours, index 0 = 0.0 up to index 10 = 1.0, and `null` for negative security. |
-| `heat` | Lower bounds of the activity heat bands (ship kills in the last hour) for `heat-1` … `heat-5`. |
+| `heat` | Per metric, the lower bounds of the activity heat bands `heat-1` … `heat-5`, per hour: `npcKills`, `shipKills`, `jumps`, and `npcChange` (the rise or fall from the hour before). Below the first bound a system is drawn dim. Set from real ESI hours so the top band is roughly the busiest few percent of systems. |
 
 ## Mix rules
 
