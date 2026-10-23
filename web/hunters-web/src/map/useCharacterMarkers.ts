@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { accountQuery } from '../api/account'
 import { getMarker, useCharacterPrefs } from '../characters/characterPrefs'
 import { useTracking } from '../tracking/trackingContext'
@@ -57,11 +57,13 @@ export function useCharacterMarkers(model: MapModel): MapMarkerGroup[] {
 
 /**
  * Where the map should go: the focused character's system when focus is asked for (as soon as its
- * location is known), and the followed character's system each time it changes system.
+ * location is known), the followed character's system each time it changes system, and a system
+ * focused by the user (`goTo`, and `initial` when the page opens with one). The latest request wins.
  */
-export function useMapFocusTarget(model: MapModel): MapFocusTarget | null {
+export function useMapFocusTarget(model: MapModel, initial = -1): [MapFocusTarget | null, (systemIndex: number) => void] {
   const tracking = useTracking()
-  const [target, setTarget] = useState<MapFocusTarget | null>(null)
+  const [target, setTarget] = useState<MapFocusTarget | null>(() => (initial >= 0 ? { systemIndex: initial, zoomIn: true } : null))
+  const goTo = useCallback((systemIndex: number) => setTarget({ systemIndex, zoomIn: true }), [])
 
   useEffect(() => {
     if (!tracking) return
@@ -94,5 +96,5 @@ export function useMapFocusTarget(model: MapModel): MapFocusTarget | null {
     }
   }, [tracking, model])
 
-  return target
+  return [target, goTo]
 }

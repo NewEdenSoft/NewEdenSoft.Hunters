@@ -76,12 +76,22 @@ const FOCUS_MS = 350
 /** A press that moves less than this is a click, not a drag. */
 const CLICK_SLOP_PX = 4
 
+/** Holding a finger this long on a system opens its menu (touch has no right click). */
+const LONG_PRESS_MS = 500
+
 /** One character's marker on the map; offline characters are drawn dimmed at their last known system. */
 export interface MapMarker {
   characterId: number
   name: string
   marker: CharacterMarker
   online: boolean
+}
+
+/** A system's menu was asked for (right click, or a long press): the system and where, in CSS pixels relative to the canvas. */
+export interface MapContextMenuRequest {
+  index: number
+  x: number
+  y: number
 }
 
 /** The markers of the characters in one system, drawn side by side at the end of one leader line. */
@@ -128,6 +138,8 @@ interface Palette {
   labelHover: string
   /** The hover ring and the character markers. */
   hover: string
+  /** The focused system's rings and label. */
+  selected: string
   /** Resolved colours of the filter's groups. */
   groups: string[]
 }
@@ -150,6 +162,10 @@ export class MapRenderer {
   onMarkerClick: ((characterId: number) => void) | null = null
   /** The user dragged the map (for example, to stop following a character). */
   onUserPan: (() => void) | null = null
+  /** The user asked for a system's menu: right click, or a long press on touch. */
+  onContextMenu: ((request: MapContextMenuRequest) => void) | null = null
+  /** The user moved the view in any way (drag, zoom, pinch): menus over the map close. */
+  onUserMove: (() => void) | null = null
 
   private readonly canvas: HTMLCanvasElement
   private readonly ctx: CanvasRenderingContext2D
@@ -181,6 +197,11 @@ export class MapRenderer {
   private offsetY = 0
   private fitted = false
   private hovered = -1
+  /** The focused system: always drawn, ringed and labelled. */
+  private selected = -1
+  private longPressTimer = 0
+  /** When a long press last opened a menu, so the browser's own long-press menu event is ignored. */
+  private longPressedAt = 0
   private frame = 0
   private pinchDistance = 0
   private pressedAt: { x: number; y: number } | null = null
@@ -211,6 +232,7 @@ export class MapRenderer {
     canvas.addEventListener('pointerup', this.onPointerUp)
     canvas.addEventListener('pointercancel', this.onPointerUp)
     canvas.addEventListener('pointerleave', this.onPointerLeave)
+    canvas.addEventListener('contextmenu', this.onContextMenuEvent)
 
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(canvas)
@@ -244,6 +266,13 @@ export class MapRenderer {
     this.palette = resolvePalette(filter)
     this.gates = this.buildGates()
     if (this.hovered >= 0 && filter.groups[this.hovered] === HIDDEN) this.setHovered(-1)
+    this.requestDraw()
+  }
+
+  /** The focused system (-1 for none): drawn even if the filter hides it, with a double ring and its name. */
+  setSelected(index: number): void {
+    if (index === this.selected) return
+    this.selected = index
     this.requestDraw()
   }
 
@@ -312,9 +341,13 @@ export class MapRenderer {
     this.canvas.removeEventListener('pointerup', this.onPointerUp)
     this.canvas.removeEventListener('pointercancel', this.onPointerUp)
     this.canvas.removeEventListener('pointerleave', this.onPointerLeave)
+    this.canvas.removeEventListener('contextmenu', this.onContextMenuEvent)
+    clearTimeout(this.longPressTimer)
     this.onHover = null
     this.onMarkerClick = null
     this.onUserPan = null
+    this.onContextMenu = null
+    this.onUserMove = null
   }
 
   // ---------- Drawing ----------
@@ -413,8 +446,14 @@ export class MapRenderer {
       ctx.stroke()
     }
 
+    if (this.selected >= 0) this.drawSelected(radius)
+
     if (scale >= LABEL_ZOOM) this.drawLabels(radius)
-    else this.drawRegionLabels()
+    else {
+      this.drawRegionLabels()
+      // The focused system keeps its name when zoomed out, where no other system has one.
+      if (this.selected >= 0) this.drawSelectedLabel(radius)
+    }
 
     if (this.markerGroups.length > 0) this.drawMarkers()
   }
@@ -612,11 +651,47 @@ export class MapRenderer {
       ctx.fillText(this.model.names[i], x, y)
     }
 
-    // The hovered system always gets its label first.
+    // The hovered and the focused system always get their labels first.
     if (this.hovered >= 0) place(this.hovered, this.palette.labelHover, true)
+    if (this.selected >= 0 && this.selected !== this.hovered) place(this.selected, this.palette.selected, true)
     for (let i = 0; i < this.model.count; i++) {
-      if (i !== this.hovered && this.filter.groups[i] !== HIDDEN) place(i, this.palette.label, false)
+      if (i !== this.hovered && i !== this.selected && this.filter.groups[i] !== HIDDEN) place(i, this.palette.label, false)
     }
+  }
+
+  /** Two rings around the focused system; its dot too if the filter hides it. */
+  private drawSelected(radius: number): void {
+    const { ctx, xy, scale, offsetX, offsetY, palette } = this
+    const sx = xy[this.selected * 2] * scale + offsetX
+    const sy = xy[this.selected * 2 + 1] * scale + offsetY
+    if (this.filter.groups[this.selected] === HIDDEN) {
+      ctx.beginPath()
+      ctx.arc(sx, sy, radius, 0, Math.PI * 2)
+      ctx.fillStyle = palette.selected
+      ctx.fill()
+    }
+    ctx.strokeStyle = palette.selected
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(sx, sy, radius + 5, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(sx, sy, radius + 9, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+
+  /** The focused system's name when zoomed out, to the bottom right of its rings. */
+  private drawSelectedLabel(radius: number): void {
+    const { ctx, xy, scale, offsetX, offsetY } = this
+    ctx.font = this.labelFont
+    ctx.textBaseline = 'top'
+    ctx.fillStyle = this.palette.selected
+    ctx.fillText(
+      this.model.names[this.selected],
+      xy[this.selected * 2] * scale + offsetX + radius + 10,
+      xy[this.selected * 2 + 1] * scale + offsetY + radius + 4,
+    )
   }
 
   private labelWidth(i: number): number {
@@ -713,14 +788,31 @@ export class MapRenderer {
     const step = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 0.05 : 0.0015
     this.zoomAt(e.offsetX, e.offsetY, Math.exp(-e.deltaY * step))
     this.updateHover(e.offsetX, e.offsetY)
+    this.onUserMove?.()
   }
 
   private readonly onPointerDown = (e: PointerEvent) => {
+    // Only the main button pans and clicks; the right button opens a system's menu (onContextMenuEvent).
+    if (e.pointerType === 'mouse' && e.button !== 0) return
     this.canvas.setPointerCapture(e.pointerId)
     this.pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY })
     this.pinchDistance = this.pointers.size === 2 ? this.pointerDistance() : 0
     this.pressedAt = this.pointers.size === 1 ? { x: e.offsetX, y: e.offsetY } : null
     this.panned = false
+
+    // Touch has no right click: holding a finger still on a system opens its menu.
+    clearTimeout(this.longPressTimer)
+    if (e.pointerType !== 'mouse' && this.pressedAt) {
+      const { x, y } = this.pressedAt
+      this.longPressTimer = window.setTimeout(() => {
+        if (this.pointers.size !== 1 || this.panned) return
+        const index = this.systemAt(x, y)
+        if (index < 0) return
+        this.longPressedAt = performance.now()
+        this.pressedAt = null // So lifting the finger is not a tap.
+        this.onContextMenu?.({ index, x, y })
+      }, LONG_PRESS_MS)
+    }
   }
 
   private readonly onPointerMove = (e: PointerEvent) => {
@@ -735,8 +827,10 @@ export class MapRenderer {
     if (this.pointers.size === 2) {
       const distance = this.pointerDistance()
       const [a, b] = [...this.pointers.values()]
+      clearTimeout(this.longPressTimer)
       if (this.pinchDistance > 0) this.zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, distance / this.pinchDistance)
       this.pinchDistance = distance
+      this.onUserMove?.()
       return
     }
 
@@ -749,8 +843,10 @@ export class MapRenderer {
       }
       this.panned = true
       this.animation = null
+      clearTimeout(this.longPressTimer)
       this.onUserPan?.()
     }
+    this.onUserMove?.()
 
     this.offsetX += e.offsetX - previous.x
     this.offsetY += e.offsetY - previous.y
@@ -759,6 +855,7 @@ export class MapRenderer {
   }
 
   private readonly onPointerUp = (e: PointerEvent) => {
+    clearTimeout(this.longPressTimer)
     const click = this.pointers.size === 1 && !this.panned && this.pressedAt !== null
     this.pointers.delete(e.pointerId)
     this.pinchDistance = 0
@@ -783,10 +880,25 @@ export class MapRenderer {
   }
 
   private updateHover(x: number, y: number): void {
+    this.setHovered(this.systemAt(x, y))
+  }
+
+  /** The visible system under a point on screen (CSS pixels), or -1. The focused system is always visible. */
+  private systemAt(x: number, y: number): number {
     const worldX = (x - this.offsetX) / this.scale
     const worldY = (y - this.offsetY) / this.scale
     const nearest = this.grid.nearest(worldX, worldY, HOVER_RADIUS_PX / this.scale)
-    this.setHovered(nearest >= 0 && this.filter.groups[nearest] !== HIDDEN ? nearest : -1)
+    return nearest >= 0 && (this.filter.groups[nearest] !== HIDDEN || nearest === this.selected) ? nearest : -1
+  }
+
+  /** A right click on a system opens its menu; elsewhere the browser's own menu stays. */
+  private readonly onContextMenuEvent = (e: MouseEvent) => {
+    const index = this.systemAt(e.offsetX, e.offsetY)
+    if (index < 0) return
+    e.preventDefault()
+    // Touch browsers that also send this after a long press: the long press has opened the menu already.
+    if (performance.now() - this.longPressedAt < 1000) return
+    this.onContextMenu?.({ index, x: e.offsetX, y: e.offsetY })
   }
 
   private setHovered(index: number): void {
@@ -861,6 +973,7 @@ function resolvePalette(filter: MapFilter): Palette {
     label: resolveColor('var(--fg-muted)'),
     labelHover: resolveColor('var(--fg)'),
     hover: resolveColor('var(--primary)'),
+    selected: resolveColor('var(--primary)'),
     groups: filter.colours.map(resolveColor),
   }
 }
