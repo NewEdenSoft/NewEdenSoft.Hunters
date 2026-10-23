@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HuntingOverview } from '../api/hunting'
-import { buildHuntingLayer, likelyNow } from './hunting'
+import { buildHuntingLayer, likelyNow, profilesBySystem } from './hunting'
 import { buildMapModel } from './model'
 
 const point = { x: 0, y: 0 }
@@ -63,5 +63,24 @@ describe('buildHuntingLayer', () => {
 
     expect(layer.badges).toEqual([])
     expect([...layer.glow]).toEqual([0, 0, 0, 0])
+  })
+})
+
+describe('profilesBySystem', () => {
+  it('lists the shown profiles seen at a system, likely now first, then by score', () => {
+    const bySystem = profilesBySystem(model, overview, ['carriers', 'crab'], 19, style, (id) => id.toUpperCase())
+
+    // S2: carriers likely 1 (score 2), CRAB likely 3 (score 3).
+    expect(bySystem.get(1)!.map((p) => `${p.name} ${p.likely} ${p.peakNow}`)).toEqual(['CRAB 3 1', 'CARRIERS 1 1'])
+    // S3: carriers seen, but only at 03:00.
+    expect(bySystem.get(2)!.map((p) => `${p.name} ${p.likely} ${p.peakNow}`)).toEqual(['CARRIERS 0 0'])
+    expect(bySystem.has(3)).toBe(false)
+  })
+
+  it('leaves out the profiles not shown', () => {
+    const bySystem = profilesBySystem(model, overview, ['crab'], 19, style, (id) => id)
+
+    expect([...bySystem.keys()]).toEqual([1])
+    expect(bySystem.get(1)!.map((p) => p.profile)).toEqual(['crab'])
   })
 })

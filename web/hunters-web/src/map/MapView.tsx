@@ -3,7 +3,7 @@ import type { ActivityColumns } from '../api/activity'
 import { SystemContextMenu } from '../components/map/SystemContextMenu'
 import { securityColor } from '../theme/themes'
 import type { MapFilter } from './filters'
-import type { HuntingLayer } from './hunting'
+import type { HuntingLayer, PlaceProfile } from './hunting'
 import { MapRenderer, type MapContextMenuRequest, type MapHover, type MapMarkerGroup } from './MapRenderer'
 import type { MapLayout, MapModel } from './model'
 import { formatSecurity } from './security'
@@ -32,6 +32,8 @@ interface MapViewProps {
   npcKills?: ActivityColumns | null
   /** The shown hunting profiles: a glow and badges per system. */
   hunting?: HuntingLayer | null
+  /** The shown hunting profiles seen at each system, listed in the hover panel. */
+  profilesAt?: Map<number, PlaceProfile[]> | null
 }
 
 /**
@@ -52,6 +54,7 @@ export function MapView({
   onClearSystem,
   npcKills = null,
   hunting = null,
+  profilesAt = null,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<MapRenderer | null>(null)
@@ -120,6 +123,7 @@ export function MapView({
           hover={hover}
           characters={here?.map((m) => (m.online ? m.name : `${m.name} (offline)`)).join(', ')}
           npcKills={npcKills}
+          profiles={profilesAt?.get(hover.index)}
         />
       )}
       {menu && (
@@ -148,11 +152,13 @@ function SystemPanel({
   hover,
   characters,
   npcKills,
+  profiles,
 }: {
   model: MapModel
   hover: MapHover
   characters?: string
   npcKills: ActivityColumns | null
+  profiles?: PlaceProfile[]
 }) {
   const { areaWidth } = hover
   const security = model.security[hover.index]
@@ -171,6 +177,7 @@ function SystemPanel({
         {model.regionNames.get(model.regionIds[hover.index])}
       </span>
       {npcKills && <NpcKillsLine npcKills={npcKills} index={hover.index} />}
+      {profiles && profiles.length > 0 && <ProfilesLines profiles={profiles} />}
       {characters && <span className="text-[0.8125rem] text-primary">{characters}</span>}
     </div>
   )
@@ -181,7 +188,7 @@ function NpcKillsLine({ npcKills, index }: { npcKills: ActivityColumns; index: n
   const last = npcKills.lastHour[index]
   const change = npcKills.previousHour ? last - npcKills.previousHour[index] : null
   return (
-    <span className="flex items-baseline gap-2 text-[0.8125rem] text-fg-muted">
+    <span className="flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] text-fg-muted">
       NPC kills
       <span className="font-mono font-semibold text-fg">{last}</span>
       {change !== null && change !== 0 && (
@@ -190,6 +197,47 @@ function NpcKillsLine({ npcKills, index }: { npcKills: ActivityColumns; index: n
         </span>
       )}
       {change === 0 && <span className="font-mono text-fg-faint">±0</span>}
+      <PeakHint npcKills={npcKills} index={index} />
+    </span>
+  )
+}
+
+/** Usual NPC kills for this hour of the week, and whether the system is in its busy hours. */
+function PeakHint({ npcKills, index }: { npcKills: ActivityColumns; index: number }) {
+  const typical = npcKills.typical?.[index]
+  const ratio = npcKills.peakRatio[index]
+  const toPeak = npcKills.hoursToPeak[index]
+  const peak =
+    ratio !== null && ratio >= 0.8 ? 'Peak now' : toPeak !== null && toPeak > 0 && toPeak <= 6 ? `Peak in ${toPeak} h` : null
+  return (
+    <>
+      {typical !== undefined && typical !== null && <span className="text-fg-faint">usual {Math.round(typical)}</span>}
+      {peak && <span className={peak === 'Peak now' ? 'text-warning' : 'text-fg-muted'}>{peak}</span>}
+    </>
+  )
+}
+
+/**
+ * The shown hunting profiles seen here, likely now first. "now" means usually seen here at this hour,
+ * "peak now" that this is its busiest hour here, "seen" otherwise.
+ */
+function ProfilesLines({ profiles }: { profiles: PlaceProfile[] }) {
+  return (
+    <span className="mt-0.5 grid gap-0.5 border-t border-line pt-1 text-[0.8125rem]">
+      {profiles.map((p) => (
+        <span key={p.profile} className="flex items-baseline gap-2">
+          <span className="w-5 font-display text-[0.6875rem] font-bold" style={{ color: p.colour }}>
+            {p.code}
+          </span>
+          <span className={p.likely > 0 ? 'min-w-0 truncate text-fg' : 'min-w-0 truncate text-fg-muted'}>{p.name}</span>
+          <span
+            className={p.likely > 0 ? 'ml-auto shrink-0 text-warning' : 'ml-auto shrink-0 text-fg-faint'}
+            title={p.likely > 0 ? 'Usually seen here at this hour (UTC)' : 'Seen here, but not usually at this hour'}
+          >
+            {p.likely > 0 ? (p.peakNow >= 0.8 ? 'peak now' : 'now') : 'seen'}
+          </span>
+        </span>
+      ))}
     </span>
   )
 }

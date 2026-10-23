@@ -71,3 +71,53 @@ export function buildHuntingLayer(
 
   return { glow, badges: [...badges].map(([systemIndex, row]) => ({ systemIndex, badges: row })) }
 }
+
+/** A profile seen at a system, for the hover panel. */
+export interface PlaceProfile {
+  profile: string
+  name: string
+  code: string
+  colour: string
+  score: number
+  likely: number
+  /** This hour against the busiest hour of the day there, 0–1. */
+  peakNow: number
+}
+
+/**
+ * The shown profiles seen at each system (by system index), for the hover panel: the ones likely now
+ * first, then by score.
+ */
+export function profilesBySystem(
+  model: MapModel,
+  overview: HuntingOverview,
+  shown: string[],
+  hour: number,
+  styleOf: (profile: string) => ProfileStyle,
+  nameOf: (profile: string) => string,
+): Map<number, PlaceProfile[]> {
+  const bySystem = new Map<number, PlaceProfile[]>()
+  for (const systems of overview.profiles) {
+    if (!shown.includes(systems.profile)) continue
+    const style = styleOf(systems.profile)
+    systems.systemIds.forEach((id, i) => {
+      const index = model.indexOf.get(id)
+      if (index === undefined) return
+      const hours = systems.hours[i]
+      const busiest = Math.max(0, ...hours)
+      let list = bySystem.get(index)
+      if (!list) bySystem.set(index, (list = []))
+      list.push({
+        profile: systems.profile,
+        name: nameOf(systems.profile),
+        code: style.code,
+        colour: style.colour,
+        score: systems.score[i],
+        likely: likelyNow(systems.score[i], hours, hour),
+        peakNow: busiest > 0 ? (hours[hour] ?? 0) / busiest : 0,
+      })
+    })
+  }
+  for (const list of bySystem.values()) list.sort((a, b) => b.likely - a.likely || b.score - a.score)
+  return bySystem
+}

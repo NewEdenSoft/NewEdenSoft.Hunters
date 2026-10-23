@@ -433,22 +433,25 @@ export class MapRenderer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const radius = this.systemRadius()
     const margin = this.systemMargin()
-    const pad = radius + margin + 2
+    // Some filters draw groups larger (busier activity), so the size reads without the colour.
+    const sizes = this.filter.sizes
+    const pad = radius * Math.max(1, ...(sizes ?? [])) + margin + 2
 
     // Zoomed in, clear a ring around each system so gates stop short of it: one batched cut-out of
     // the gate layer, cheaper than shortening every gate per frame.
     if (margin > 0) {
       ctx.globalCompositeOperation = 'destination-out'
       ctx.beginPath()
-      for (const systems of this.byGroup) {
+      this.byGroup.forEach((systems, group) => {
+        const r = radius * (sizes?.[group] ?? 1) + margin
         for (const i of systems) {
           const sx = xy[i * 2] * scale + offsetX
           const sy = xy[i * 2 + 1] * scale + offsetY
           if (sx < -pad || sy < -pad || sx > this.width + pad || sy > this.height + pad) continue
-          ctx.moveTo(sx + radius + margin, sy)
-          ctx.arc(sx, sy, radius + margin, 0, Math.PI * 2)
+          ctx.moveTo(sx + r, sy)
+          ctx.arc(sx, sy, r, 0, Math.PI * 2)
         }
-      }
+      })
       ctx.fill()
       ctx.globalCompositeOperation = 'source-over'
     }
@@ -458,13 +461,14 @@ export class MapRenderer {
     for (let group = 0; group < this.byGroup.length; group++) {
       const systems = this.byGroup[group]
       if (systems.length === 0) continue
+      const r = radius * (sizes?.[group] ?? 1)
       ctx.beginPath()
       for (const i of systems) {
         const sx = xy[i * 2] * scale + offsetX
         const sy = xy[i * 2 + 1] * scale + offsetY
         if (sx < -pad || sy < -pad || sx > this.width + pad || sy > this.height + pad) continue
-        ctx.moveTo(sx + radius, sy)
-        ctx.arc(sx, sy, radius, 0, Math.PI * 2)
+        ctx.moveTo(sx + r, sy)
+        ctx.arc(sx, sy, r, 0, Math.PI * 2)
       }
       ctx.fillStyle = palette.groups[group]
       ctx.fill()
@@ -474,13 +478,13 @@ export class MapRenderer {
       const sx = xy[this.hovered * 2] * scale + offsetX
       const sy = xy[this.hovered * 2 + 1] * scale + offsetY
       ctx.beginPath()
-      ctx.arc(sx, sy, radius + 4, 0, Math.PI * 2)
+      ctx.arc(sx, sy, this.radiusOf(this.hovered, radius) + 4, 0, Math.PI * 2)
       ctx.lineWidth = 1.5
       ctx.strokeStyle = palette.hover
       ctx.stroke()
     }
 
-    if (this.selected >= 0) this.drawSelected(radius)
+    if (this.selected >= 0) this.drawSelected(this.radiusOf(this.selected, radius))
 
     if (scale >= LABEL_ZOOM) {
       // Badge rows first, so names can keep clear of them.
@@ -800,6 +804,12 @@ export class MapRenderer {
     let colour = this.huntColours.get(css)
     if (colour === undefined) this.huntColours.set(css, (colour = resolveColor(css)))
     return colour
+  }
+
+  /** A system's drawn radius: the filter may draw its group larger. */
+  private radiusOf(i: number, radius: number): number {
+    const group = this.filter.groups[i]
+    return group === HIDDEN ? radius : radius * (this.filter.sizes?.[group] ?? 1)
   }
 
   /** Two rings around the focused system; its dot too if the filter hides it. */

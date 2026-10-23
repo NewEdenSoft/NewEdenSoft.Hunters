@@ -18,6 +18,8 @@ export interface MapFilter {
   legend: MapLegendItem[]
   /** Why the filter shows nothing yet (no activity data, no previous hour), or null. */
   notice: string | null
+  /** Optional radius multiplier per group, so busier systems are also drawn larger. */
+  sizes?: number[]
 }
 
 export interface MapLegendItem {
@@ -77,6 +79,8 @@ export function securityFilter(model: MapModel): MapFilter {
 
 /** Group 0 is quiet (below the first band), drawn faint so any activity stands out; groups 1–5 are the heat bands. */
 const HEAT_COLOURS = ['var(--line)', 'var(--heat-1)', 'var(--heat-2)', 'var(--heat-3)', 'var(--heat-4)', 'var(--heat-5)']
+/** The heat groups' sizes: quiet systems smaller, the busiest twice the normal size (docs/design.md: activity also reads as size). */
+export const HEAT_SIZES = [0.8, 1, 1.2, 1.45, 1.7, 2]
 
 /** The heat group of a value: 0 below the first bound, else the band it reaches (1–5). */
 export function heatGroup(value: number, bands: number[]): number {
@@ -124,7 +128,7 @@ export function countFilter(
   const bands = heatBands(bandsOf)
   const groups = new Uint8Array(model.count)
   for (let i = 0; i < model.count; i++) groups[i] = heatGroup(values[i], bands)
-  return { id, label, groups, colours: HEAT_COLOURS, legend: heatLegend(bands, (b) => `${b}+`), notice: null }
+  return { id, label, groups, colours: HEAT_COLOURS, legend: heatLegend(bands, (b) => `${b}+`), notice: null, sizes: HEAT_SIZES }
 }
 
 /**
@@ -145,7 +149,7 @@ export function changeFilter(id: MapFilterId, label: string, model: MapModel, co
     groups[i] = heatGroup((lastHour[i] - previousHour[i]) * direction, bands)
   }
   const sign = direction > 0 ? '+' : '−'
-  return { id, label, groups, colours: HEAT_COLOURS, legend: heatLegend(bands, (b) => `${sign}${b}`), notice: null }
+  return { id, label, groups, colours: HEAT_COLOURS, legend: heatLegend(bands, (b) => `${sign}${b}`), notice: null, sizes: HEAT_SIZES }
 }
 
 /** The `?colour=` search parameter: a filter id other than the default, or undefined. */
