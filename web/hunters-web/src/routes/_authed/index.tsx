@@ -31,7 +31,7 @@ import { useCharacterMarkers, useMapFocusTarget } from '../../map/useCharacterMa
 import { panelDefinitions } from '../../panels/definitions'
 import { Panels } from '../../panels/Panels'
 import { mapLayouts, useMapLayout, useShownHuntingProfiles } from '../../settings/mapSettings'
-import { buildHuntingLayer, type HuntingLayer } from '../../map/hunting'
+import { buildHuntingLayer, profilesBySystem, type HuntingLayer, type PlaceProfile } from '../../map/hunting'
 import { useUtcHour } from '../../map/useUtcHour'
 import { profileStyle } from '../../theme/themes'
 import { ProfileMark } from '../../components/map/ProfileMark'
@@ -99,6 +99,13 @@ function MapPage() {
     const names = new Map(profiles.data?.map((p) => [p.id, p.name]))
     return buildHuntingLayer(model, overview.data, shown, hour, (id) => profileStyle(id, names.get(id) ?? id))
   }, [model, overview.data, shown, hour, profiles.data])
+  // The hover panel lists the shown profiles seen at a system.
+  const profilesAt = useMemo(() => {
+    if (!model || !overview.data || shown.length === 0) return null
+    const names = new Map(profiles.data?.map((p) => [p.id, p.name]))
+    const nameOf = (id: string) => names.get(id) ?? id
+    return profilesBySystem(model, overview.data, shown, hour, (id) => profileStyle(id, nameOf(id)), nameOf)
+  }, [model, overview.data, shown, hour, profiles.data])
 
   if (!model || !filter) {
     const error = discovery.error ?? pack.error
@@ -130,6 +137,7 @@ function MapPage() {
       model={model}
       npcKills={activityFor(model, activity.data ?? null)?.npcKills ?? null}
       hunting={hunting}
+      profilesAt={profilesAt}
       huntingProfiles={profiles.data ?? []}
       shownProfiles={shown}
       toggleProfile={toggleProfile}
@@ -155,6 +163,7 @@ function LoadedMap({
   model,
   npcKills,
   hunting,
+  profilesAt,
   huntingProfiles,
   shownProfiles,
   toggleProfile,
@@ -173,6 +182,8 @@ function LoadedMap({
   /** NPC kills per system (last hour and the one before), for the hover panel; null without activity data. */
   npcKills: ActivityColumns | null
   hunting: HuntingLayer | null
+  /** The hunting profiles seen at each system, for the hover panel. */
+  profilesAt: Map<number, PlaceProfile[]> | null
   /** The server's hunting profiles; empty when it has none. */
   huntingProfiles: HuntingProfileInfo[]
   shownProfiles: string[]
@@ -220,6 +231,7 @@ function LoadedMap({
         onFocusSystem={focusSystem}
         npcKills={npcKills}
         hunting={hunting}
+        profilesAt={profilesAt}
         onClearSystem={() => setSystem(undefined)}
       />
       <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] grid w-[calc(100%-1.5rem)] max-w-80 -translate-x-1/2 justify-items-center gap-2">
