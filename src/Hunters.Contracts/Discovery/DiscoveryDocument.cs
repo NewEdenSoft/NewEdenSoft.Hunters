@@ -26,4 +26,7 @@ public static class HuntersFeatures
 {
     /// <summary>The server has activity data to serve (<c>/api/activity/*</c>).</summary>
     public const string Activity = "activity";
+
+    /// <summary>The server has hunting profiles to serve (<c>/api/hunting/*</c>).</summary>
+    public const string Hunting = "hunting";
 }

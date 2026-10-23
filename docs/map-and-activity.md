@@ -139,6 +139,19 @@ Every kill the feed stores is matched as it arrives, into **`intel.Sightings`**:
 - **When:** at startup, then whenever new sightings arrive (the kill reader and the profile service signal it), at most every `Hunters:Hunting:UpdateInterval` (5 minutes), and at least hourly so the windows and the decay move on.
 - **Readers:** each recompute bumps the `hunting` row of `intel.Versions`, in the same transaction.
 
+### Serving hunting
+
+The API server's `HuntingService` (`src/Hunters.Server/Features/Hunting`) follows the `hunting` version like activity (every `Hunters:Activity:PollInterval`) and loads the stats tables and profile names into memory in one repeatable-read snapshot: a few thousand small rows, about 1–2 MB. Until the intel service has computed its first aggregates, the endpoints answer 503 (`hunting_unavailable`) and the discovery document doesn't list the `hunting` feature. All need a session (D19).
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/hunting/profiles` | the profiles: `id`, `name` |
+| `GET /api/hunting/overview` | every profile, **sparse**: only systems with sightings, highest score first, as columns: `systemIds`, `score`, `week`, `month`, `lastSeen`, and `hours` (24 per system). Built once per version and served precompressed. For colouring the map by a profile. |
+| `GET /api/hunting/systems/{id}` | the profiles seen in a system, highest score first, each with `score`, `week`, `month`, `monthIndicator` (indirect evidence), `pilots`, `lastSeen` and `hours`. Empty when none were; 404 for systems not on the map. |
+| `GET /api/hunting/regions/{id}` | the same for a region |
+
+Responses carry an ETag from the version (304 when it still matches) and `max-age` of a minute. "Likely now" and "peak now" for a profile are worked out by the client from `hours` and the current hour: the share of the current hour, or the current hour's weight ÷ the busiest hour's.
+
 ## Live kill feed
 
 Two goals: clients only receive kills that are relevant to them, and the server is not overwhelmed by the feed, including during large fights.

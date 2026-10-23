@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Net.Http.Headers;
 using NewEdenSoft.Hunters.Contracts.Activity;
 using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Server.Features.Map;
+using NewEdenSoft.Hunters.Server.Infrastructure.WebHosting;
 
 namespace NewEdenSoft.Hunters.Server.Features.Activity;
 
@@ -141,17 +141,7 @@ public static class ActivityEndpoints
         return null;
     }
 
-    /// <summary>
-    /// Sets the ETag and a lifetime up to when the next hour is expected; returns whether the client's
-    /// copy is still current.
-    /// </summary>
-    private static bool Cache(HttpContext http, string etag, ActivitySnapshot snapshot, TimeProvider time)
-    {
-        var untilNext = snapshot.Header.KillsPeriodEnd + NextHourAfter - time.GetUtcNow();
-        var maxAge = (int)Math.Clamp(untilNext.TotalSeconds, 0, 3600);
-        http.Response.Headers.ETag = etag;
-        http.Response.Headers.CacheControl = $"private, max-age={maxAge}";
-
-        return http.Request.GetTypedHeaders().IfNoneMatch.Any(e => e.Tag.Value == etag || e.Equals(EntityTagHeaderValue.Any));
-    }
+    /// <summary>Sets the ETag and a lifetime up to when the next hour is expected; returns whether the client's copy is still current.</summary>
+    private static bool Cache(HttpContext http, string etag, ActivitySnapshot snapshot, TimeProvider time) =>
+        Revalidation.IsNotModified(http, etag, snapshot.Header.KillsPeriodEnd + NextHourAfter - time.GetUtcNow());
 }

@@ -6,6 +6,7 @@ using NewEdenSoft.Hunters.Server.Features.Admin;
 using NewEdenSoft.Hunters.Server.Features.Admission;
 using NewEdenSoft.Hunters.Server.Features.Auth;
 using NewEdenSoft.Hunters.Server.Features.Discovery;
+using NewEdenSoft.Hunters.Server.Features.Hunting;
 using NewEdenSoft.Hunters.Server.Features.Map;
 using NewEdenSoft.Hunters.Server.Infrastructure;
 using NewEdenSoft.Hunters.Server.Infrastructure.Eve;
@@ -39,6 +40,7 @@ builder.Services.AddAccountsFeature();
 builder.Services.AddAdmissionFeature();
 builder.Services.AddMapFeature(builder.Configuration);
 builder.AddActivityFeature();
+builder.Services.AddHuntingFeature();
 
 var app = builder.Build();
 
@@ -65,6 +67,7 @@ app.MapAccounts();
 app.MapAdmin();
 app.MapMap();
 app.MapActivity();
+app.MapHunting();
 
 if (hunters.Web.Enabled)
     app.MapWebAppFallback();

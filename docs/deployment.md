@@ -62,7 +62,7 @@ Environment variables use `__` for nesting (`Hunters__Web__Enabled`).
 | `Hunters:Sde:CachePath` | `/app/sde` in the image; local app data otherwise | SDE archive and extracted map data |
 | `Hunters:Sde:RefreshInterval` | `06:00:00` | How often to check CCP for a new SDE build |
 | `Hunters:Activity:Enabled` | `true` | Serve the intel service's activity tables |
-| `Hunters:Activity:PollInterval` | `00:00:30` | How often to check for a new activity version |
+| `Hunters:Activity:PollInterval` | `00:00:30` | How often to check for a new activity or hunting version (`Hunters:Activity:Enabled` covers both) |
 | `Hunters:Admins:{n}` | — | Admin character IDs |
 | `Hunters:Esi:Contact` | repository URL | Contact sent to ESI in the User-Agent |
 | `ConnectionStrings:hunters` | — | PostgreSQL connection string |
