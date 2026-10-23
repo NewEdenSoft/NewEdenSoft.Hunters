@@ -15,6 +15,8 @@ const paths = {
   collapse: 'M6 15 L12 9 L18 15',
   expand: 'M6 9 L12 15 L18 9',
   reset: 'M4 12 A8 8 0 1 0 6.5 6.2 M4 3.5 L4 8 L8.5 8',
+  search: 'M10.5 17 A6.5 6.5 0 1 0 10.5 4 A6.5 6.5 0 1 0 10.5 17 Z M15.2 15.2 L20 20',
+  target: 'M12 19 A7 7 0 1 0 12 5 A7 7 0 1 0 12 19 Z M12 14.5 A2.5 2.5 0 1 0 12 9.5 A2.5 2.5 0 1 0 12 14.5 Z M12 2 L12 5 M12 19 L12 22 M2 12 L5 12 M19 12 L22 12',
 } as const
 
 export type IconName = keyof typeof paths

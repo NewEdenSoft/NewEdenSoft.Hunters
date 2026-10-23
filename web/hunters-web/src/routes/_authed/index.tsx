@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { discoveryQuery } from '../../api/discovery'
 import { mapPackQuery } from '../../api/map'
 import { Label } from '../../components/ui/Label'
@@ -13,7 +13,9 @@ import { buildMapModel, type MapLayout, type MapModel } from '../../map/model'
 import { MapView } from '../../map/MapView'
 import { CharactersPanel } from '../../components/characters/CharactersPanel'
 import { FocusChip } from '../../components/characters/FocusChip'
+import { SystemSearch } from '../../components/map/SystemSearch'
 import { focusCharacter, stopFollowing } from '../../map/mapFocus'
+import { parseSystemParam } from '../../map/systemSearch'
 import { useCharacterMarkers, useMapFocusTarget } from '../../map/useCharacterMarkers'
 import { panelDefinitions } from '../../panels/definitions'
 import { Panels } from '../../panels/Panels'
@@ -21,18 +23,21 @@ import { mapLayouts, useMapLayout } from '../../settings/mapSettings'
 
 export interface MapSearch {
   colour?: MapFilterId
+  /** The focused system: the origin for nearby intel, ringed on the map. */
+  system?: number
 }
 
 export const Route = createFileRoute('/_authed/')({
   // The map is the app: it fills the window beside the rail, with panels floating over it.
   staticData: { fullBleed: true },
-  // The colour filter is in the URL, so a view can be linked; the default is left out. The layout is
-  // a user setting (settings/mapSettings.ts).
+  // The colour filter and the focused system are in the URL, so a view can be linked; defaults are
+  // left out. The layout is a user setting (settings/mapSettings.ts).
   validateSearch: (search: Record<string, unknown>): MapSearch => ({
     colour:
       mapFilters.some((f) => f.id === search.colour) && search.colour !== mapFilters[0].id
         ? (search.colour as MapFilterId)
         : undefined,
+    system: parseSystemParam(search.system),
   }),
   component: MapPage,
 })
@@ -74,12 +79,27 @@ function MapPage() {
   }
 
   const setColour = (id: MapFilterId) =>
-    void navigate({ search: { colour: id === mapFilters[0].id ? undefined : id }, replace: true })
+    void navigate({ search: (prev) => ({ ...prev, colour: id === mapFilters[0].id ? undefined : id }), replace: true })
+  const setSystem = (id: number | undefined) => void navigate({ search: (prev) => ({ ...prev, system: id }), replace: true })
 
-  return <LoadedMap model={model} filter={filter} layout={layout} setLayout={setLayout} colour={colour} setColour={setColour} />
+  return (
+    <LoadedMap
+      model={model}
+      filter={filter}
+      layout={layout}
+      setLayout={setLayout}
+      colour={colour}
+      setColour={setColour}
+      system={search.system}
+      setSystem={setSystem}
+    />
+  )
 }
 
-/** The map once its pack is loaded: the canvas with the characters' markers, the focus chip and the panels. */
+/**
+ * The map once its pack is loaded: the canvas with the characters' markers and the focused system, the
+ * system search and character chip at the top, and the panels.
+ */
 function LoadedMap({
   model,
   filter,
@@ -87,6 +107,8 @@ function LoadedMap({
   setLayout,
   colour,
   setColour,
+  system,
+  setSystem,
 }: {
   model: MapModel
   filter: MapFilter
@@ -94,9 +116,25 @@ function LoadedMap({
   setLayout: (layout: MapLayout) => void
   colour: MapFilterId
   setColour: (id: MapFilterId) => void
+  system: number | undefined
+  setSystem: (id: number | undefined) => void
 }) {
   const markers = useCharacterMarkers(model)
-  const focus = useMapFocusTarget(model)
+  const selected = system === undefined ? -1 : (model.indexOf.get(system) ?? -1)
+  // Opened with a focused system: the map starts there.
+  const [focus, goTo] = useMapFocusTarget(model, selected)
+
+  // A system id from an old link that is not on this map: forget it.
+  useEffect(() => {
+    if (system !== undefined && selected < 0) setSystem(undefined)
+  }, [system, selected, setSystem])
+
+  /** Focus a system: the map goes there, taking over from a followed character as dragging does. */
+  const focusSystem = (index: number) => {
+    stopFollowing()
+    goTo(index)
+    setSystem(model.ids[index])
+  }
 
   return (
     <div className="relative size-full">
@@ -108,8 +146,14 @@ function LoadedMap({
         focus={focus}
         onMarkerClick={focusCharacter}
         onUserPan={stopFollowing}
+        selected={selected}
+        onFocusSystem={focusSystem}
+        onClearSystem={() => setSystem(undefined)}
       />
-      <FocusChip />
+      <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] grid w-[calc(100%-1.5rem)] max-w-80 -translate-x-1/2 justify-items-center gap-2">
+        <SystemSearch model={model} selected={selected} onSelect={focusSystem} onClear={() => setSystem(undefined)} />
+        <FocusChip />
+      </div>
 
       <Panels
         items={[

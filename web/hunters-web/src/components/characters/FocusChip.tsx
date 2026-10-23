@@ -7,8 +7,8 @@ import { cn } from '../ui/styles'
 import { MarkerBadge } from './MarkerBadge'
 
 /**
- * The focused character, at the top of the map: its marker and name, Follow (keep the map on it as
- * it moves; dragging the map stops following) and dismiss.
+ * The focused character, at the top of the map under the system search: its marker and name, Follow
+ * (keep the map on it as it moves; dragging the map stops following) and dismiss.
  */
 export function FocusChip() {
   const { focused, followed } = useMapFocus()
@@ -19,7 +19,7 @@ export function FocusChip() {
   const following = followed === character.id
 
   return (
-    <div className="pointer-events-auto absolute top-3 left-1/2 z-[1000] flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 border border-line-strong bg-surface/92 py-1 pr-1 pl-2 shadow-[0_8px_28px_rgb(0_0_0/0.45)] backdrop-blur-sm">
+    <div className="pointer-events-auto flex max-w-full items-center gap-2 border border-line-strong bg-surface/92 py-1 pr-1 pl-2 shadow-[0_8px_28px_rgb(0_0_0/0.45)] backdrop-blur-sm">
       <MarkerBadge marker={getMarker(character.id, character.name)} className="size-5" />
       <span className="max-w-48 truncate font-display text-[0.6875rem] font-semibold tracking-[0.16em] text-fg uppercase">{character.name}</span>
       <button

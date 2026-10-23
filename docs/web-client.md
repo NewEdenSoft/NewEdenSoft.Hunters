@@ -63,7 +63,21 @@ Each frame: gates are stroked under the view transform: solid within a constella
 
 **Colour filters.** A filter turns the map into a colour group per system (or `HIDDEN`), the group colours (CSS, theme variables allowed) and a legend. The renderer only draws groups, so new ways of colouring the map (activity, a route, fleet members) are new filters, not renderer changes. Hidden systems are not drawn, labelled or hoverable; their gates still are. The hover panel always shows the system's real security in its security colour, whatever the filter.
 
-The layout is a user setting, kept in local storage like the theme (`settings/mapSettings.ts`, key `hunters.map.layout`) and chosen in the Map panel or on the Settings page. The colour filter is in the URL (`/?colour=…`, default left out), so a view can be linked.
+**System search and the focused system.** A search field sits at the top centre of the map, with the focused character's chip under it.
+
+- **Search:** typing a system's name lists up to eight matches with security and region (`map/systemSearch.ts`):
+  - case and punctuation are ignored, so `1dq1a` finds 1DQ1-A
+  - the exact name comes first, then names that start with the text, then names that contain it
+  - **/** anywhere on the page starts a search; Up and Down choose, Enter focuses, Escape closes
+- **The system menu:** a right click on a system opens its menu (`SystemContextMenu`), with **Focus system**, or **Clear focus** on the focused one. On touch, holding a finger still on a system for half a second opens it; a short tap still shows the hover panel. A right click on empty space leaves the browser's own menu.
+- **The focused system:** the origin later intel builds on (nearby systems, details).
+  - It's kept in the URL (`?system=<id>`), so the map opens on it when linked or reloaded; an id that isn't on the map is dropped.
+  - Focusing one moves the map there (zooming in to read names) and stops following a character, as dragging does; the character's chip stays.
+  - It's drawn with a double ring and its name in the primary colour, at every zoom, even when the colour filter hides it.
+  - The search field shows it with a button to clear it.
+- **How it's built:** `MapRenderer.setSelected` draws it; `onContextMenu` reports right clicks and long presses; `useMapFocusTarget` moves the map for the latest request, a character's or a system's.
+
+The layout is a user setting, kept in local storage like the theme (`settings/mapSettings.ts`, key `hunters.map.layout`) and chosen in the Map panel or on the Settings page. The colour filter and the focused system are in the URL (`/?colour=…&system=…`, defaults left out), so a view can be linked.
 
 The map pack is fetched by the SDE build named in the discovery document and kept in the TanStack Query cache for the session; IndexedDB persistence comes next. The page offers both layouts in the pack: CCP's 2D map, the default, and top-down.
 

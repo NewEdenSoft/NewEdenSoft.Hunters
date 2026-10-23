@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { SystemContextMenu } from '../components/map/SystemContextMenu'
 import { securityColor } from '../theme/themes'
 import type { MapFilter } from './filters'
-import { MapRenderer, type MapHover, type MapMarkerGroup } from './MapRenderer'
+import { MapRenderer, type MapContextMenuRequest, type MapHover, type MapMarkerGroup } from './MapRenderer'
 import type { MapLayout, MapModel } from './model'
 import { formatSecurity } from './security'
 
@@ -20,29 +21,51 @@ interface MapViewProps {
   focus?: MapFocusTarget | null
   onMarkerClick?: (characterId: number) => void
   onUserPan?: () => void
+  /** The focused system's index, or -1: ringed and always labelled. */
+  selected?: number
+  /** Focus a system from its menu (right click, or a long press on touch). */
+  onFocusSystem?: (index: number) => void
+  onClearSystem?: () => void
 }
 
 /**
- * Hosts the canvas renderer: the map, the characters' markers, focusing on a system, and a panel
- * with the hovered system's name, security, region and the account's characters there.
+ * Hosts the canvas renderer: the map, the characters' markers, focusing on a system, the focused
+ * system, a system's menu, and a panel with the hovered system's name, security, region and the
+ * account's characters there.
  */
-export function MapView({ model, layout, filter, markers = [], focus = null, onMarkerClick, onUserPan }: MapViewProps) {
+export function MapView({
+  model,
+  layout,
+  filter,
+  markers = [],
+  focus = null,
+  onMarkerClick,
+  onUserPan,
+  selected = -1,
+  onFocusSystem,
+  onClearSystem,
+}: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<MapRenderer | null>(null)
   const [hover, setHover] = useState<MapHover | null>(null)
+  const [menu, setMenu] = useState<MapContextMenuRequest | null>(null)
+  const closeMenu = useCallback(() => setMenu(null), [])
 
   // The renderer lives as long as the model; everything else is applied to it without recreating it.
-  const latest = useRef({ layout, filter, markers, focus, onMarkerClick, onUserPan })
+  const latest = useRef({ layout, filter, markers, focus, selected, onMarkerClick, onUserPan })
   useEffect(() => {
-    latest.current = { layout, filter, markers, focus, onMarkerClick, onUserPan }
+    latest.current = { layout, filter, markers, focus, selected, onMarkerClick, onUserPan }
   })
 
   useEffect(() => {
-    const { layout, filter, markers, focus } = latest.current
+    const { layout, filter, markers, focus, selected } = latest.current
     const renderer = new MapRenderer(canvasRef.current!, model, layout, filter)
     renderer.onHover = setHover
     renderer.onMarkerClick = (id) => latest.current.onMarkerClick?.(id)
     renderer.onUserPan = () => latest.current.onUserPan?.()
+    renderer.onContextMenu = setMenu
+    renderer.onUserMove = () => setMenu(null)
+    renderer.setSelected(selected)
     renderer.setMarkers(markers)
     if (focus) renderer.focusOn(focus.systemIndex, focus.zoomIn)
     rendererRef.current = renderer
@@ -65,6 +88,10 @@ export function MapView({ model, layout, filter, markers = [], focus = null, onM
   }, [markers])
 
   useEffect(() => {
+    rendererRef.current?.setSelected(selected)
+  }, [selected])
+
+  useEffect(() => {
     if (focus) rendererRef.current?.focusOn(focus.systemIndex, focus.zoomIn)
   }, [focus])
 
@@ -72,12 +99,27 @@ export function MapView({ model, layout, filter, markers = [], focus = null, onM
 
   return (
     <div className="relative size-full overflow-hidden">
-      <canvas ref={canvasRef} className="block size-full touch-none" aria-label="Map of known space" />
+      {/* No text selection or callout on a long press: that opens the system's menu. */}
+      <canvas ref={canvasRef} className="block size-full touch-none select-none [-webkit-touch-callout:none]" aria-label="Map of known space" />
       {hover && (
         <SystemPanel
           model={model}
           hover={hover}
           characters={here?.map((m) => (m.online ? m.name : `${m.name} (offline)`)).join(', ')}
+        />
+      )}
+      {menu && (
+        <SystemContextMenu
+          model={model}
+          index={menu.index}
+          x={menu.x}
+          y={menu.y}
+          onClose={closeMenu}
+          items={
+            menu.index === selected
+              ? [{ label: 'Clear focus', icon: 'close', onSelect: () => onClearSystem?.() }]
+              : [{ label: 'Focus system', icon: 'target', onSelect: () => onFocusSystem?.(menu.index) }]
+          }
         />
       )}
     </div>
