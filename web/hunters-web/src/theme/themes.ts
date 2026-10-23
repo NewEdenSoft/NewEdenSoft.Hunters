@@ -27,6 +27,8 @@ interface ThemeCatalog {
 export interface ProfileStyle {
   code: string
   colour: string
+  /** An icon from map/profileIcons.ts, drawn instead of the code. */
+  icon?: string
 }
 
 /** A hunting profile's badge: from themes.json, or the first letters of its name in the glow colour. */

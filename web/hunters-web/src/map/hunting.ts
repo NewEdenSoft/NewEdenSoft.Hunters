@@ -1,12 +1,15 @@
 import type { HuntingOverview } from '../api/hunting'
 import type { ProfileStyle } from '../theme/themes'
 import type { MapModel } from './model'
+import { profileIcon } from './profileIcons'
 
 /** A shown profile's badge at a system. */
 export interface HuntingBadge {
   profile: string
   code: string
   colour: string
+  /** An SVG path (24 x 24) drawn instead of the code. */
+  icon?: string
   /** Seen there, but not usually at this hour: drawn faint. */
   faint: boolean
 }
@@ -65,7 +68,7 @@ export function buildHuntingLayer(
       if (strongest > 0 && likely[i] > 0) glow[index] = Math.max(glow[index], Math.sqrt(likely[i] / strongest))
       let row = badges.get(index)
       if (!row) badges.set(index, (row = []))
-      row.push({ profile, code: style.code, colour: style.colour, faint: likely[i] <= 0 })
+      row.push({ profile, code: style.code, colour: style.colour, icon: profileIcon(style.icon), faint: likely[i] <= 0 })
     })
   }
 

@@ -34,6 +34,7 @@ import { mapLayouts, useMapLayout, useShownHuntingProfiles } from '../../setting
 import { buildHuntingLayer, type HuntingLayer } from '../../map/hunting'
 import { useUtcHour } from '../../map/useUtcHour'
 import { profileStyle } from '../../theme/themes'
+import { ProfileMark } from '../../components/map/ProfileMark'
 
 export interface MapSearch {
   colour?: MapFilterId
@@ -264,9 +265,7 @@ function LoadedMap({
                   const style = profileStyle(p.id, p.name)
                   return (
                     <Toggle key={p.id} active={shownProfiles.includes(p.id)} onClick={() => toggleProfile(p.id)}>
-                      <span className="mr-1.5 font-display font-bold" style={{ color: style.colour }}>
-                        {style.code}
-                      </span>
+                      <ProfileMark style={style} className="mr-1.5" />
                       {p.name}
                     </Toggle>
                   )

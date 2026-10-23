@@ -105,8 +105,10 @@ A hunting profile is a kind of target: where it is seen, and when, is built up f
 | `ishtars` | a pilot flies an Ishtar (type 12005) |
 | `smartbombers` | the victim has a Smart Bomb (group 72) fitted, or an attacker's last hit was one |
 | `crab` | a CRAB beacon is killed: every type in the group of "CONCORD Rogue Analysis Beacon" (the CONCORD and the CONCORD-Carrier beacon) |
+| `smartbomb-camps` | an attacker's last hit was a Smart Bomb (72) **on a capsule** (29): PvP smartbombing, typically a camp on a low-sec pipe gate. **Keeps fights:** a burst of pods is its target, so the battle rule doesn't apply to it (the 25-attacker rule still does) |
 
 - **Pilots** are seen as the victim or as an attacker; attackers without a character (NPCs) are not.
+- **Rule kinds:** a pilot's **ship**; a **module** fitted on the victim or an attacker's weapon; a pilotless **victim** type (a deployable); an attacker's **weapon**, optionally only on given victims (smart bombs on capsules).
 - **Indicators** are indirect evidence with a weight below 1. Anchoring a CRAB beacon is mostly a capital ratting habit, so a beacon killed shows a capital ratted there even when no capital is on any killmail. Indicator sightings have no pilot, are flagged as indicators, and add their weight, so direct and indirect evidence combine but can still be told apart.
 - **Resolving:** each rule's groups, types and type names are resolved against the SDE catalogue to a set of type ids, which is all matching looks at. What can't be found is logged as a warning and left out.
 

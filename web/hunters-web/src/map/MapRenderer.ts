@@ -768,8 +768,21 @@ export class MapRenderer {
         ctx.globalAlpha = badge.faint ? HUNT_FAINT_ALPHA : 1
         ctx.strokeStyle = colour
         ctx.stroke(shape)
-        ctx.fillStyle = colour
-        ctx.fillText(badge.code, x + HUNT_BADGE / 2, top + HUNT_BADGE / 2 + 0.5)
+        if (badge.icon) {
+          // Icons are strokes in a 24 x 24 box, drawn at 85% of the badge.
+          const size = HUNT_BADGE * 0.85
+          ctx.save()
+          ctx.translate(x + (HUNT_BADGE - size) / 2, top + (HUNT_BADGE - size) / 2)
+          ctx.scale(size / 24, size / 24)
+          ctx.lineWidth = 1.9
+          ctx.lineCap = 'round'
+          ctx.lineJoin = 'round'
+          ctx.stroke(iconPath(badge.icon))
+          ctx.restore()
+        } else {
+          ctx.fillStyle = colour
+          ctx.fillText(badge.code, x + HUNT_BADGE / 2, top + HUNT_BADGE / 2 + 0.5)
+        }
       })
     }
     ctx.globalAlpha = 1

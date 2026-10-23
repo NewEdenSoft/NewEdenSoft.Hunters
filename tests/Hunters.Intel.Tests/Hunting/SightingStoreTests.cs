@@ -80,10 +80,35 @@ public sealed class SightingStoreTests(IntelDatabase database) : IAsyncLifetime
             db.Kills.Add(Frigate(200, Time.AddMinutes(5), system: FakeSde.Perimeter));
             await db.SaveChangesAsync();
 
-            await SightingStore.MarkBattlesAsync(db, new HuntingOptions(), FakeSde.Jita, Time.AddMinutes(10), null, CancellationToken.None);
+            await SightingStore.MarkBattlesAsync(db, new HuntingOptions(), FakeSde.Jita, Time.AddMinutes(10), null, [], CancellationToken.None);
         }
 
         Assert.Equal([true, false], (await SightingsAsync()).Select(s => s.IsFleet));
+    }
+
+    [Fact]
+    public async Task A_smartbomb_camp_keeps_its_burst_of_pod_kills()
+    {
+        // 20 pods smartbombed within ten minutes: a battle by the rule, but the camp is the target.
+        var pods = Enumerable.Range(0, 20).Select(i =>
+        {
+            var pod = SightingMatcherTests.Kill(FakeSde.Capsule, victim: 91000000 + i, attackers: [(Pilot, FakeSde.Rifter, FakeSde.Smartbomb)]);
+            pod.KillmailId = 300 + i;
+            pod.Hash = $"h{300 + i}";
+            pod.Time = Time.AddSeconds(i * 30);
+            return pod;
+        }).ToArray();
+        await RecordAsync(pods);
+        await using (var db = Db())
+        {
+            db.Kills.AddRange(pods);
+            await db.SaveChangesAsync();
+            await SightingStore.MarkBattlesAsync(db, new HuntingOptions(), FakeSde.Jita, Time.AddMinutes(5), null, ["smartbomb-camps"], CancellationToken.None);
+        }
+
+        var sightings = await SightingsAsync();
+        Assert.False(Assert.Single(sightings, s => s.Profile == "smartbomb-camps").IsFleet);
+        Assert.True(Assert.Single(sightings, s => s.Profile == "smartbombers").IsFleet);
     }
 
     [Fact]
@@ -94,7 +119,7 @@ public sealed class SightingStoreTests(IntelDatabase database) : IAsyncLifetime
         {
             db.Kills.AddRange(Enumerable.Range(0, 30).Select(i => Carrier(100 + i, Time.AddSeconds(i * 10), pilot: 0, npc: true)));
             await db.SaveChangesAsync();
-            await SightingStore.MarkBattlesAsync(db, new HuntingOptions(), FakeSde.Jita, Time, null, CancellationToken.None);
+            await SightingStore.MarkBattlesAsync(db, new HuntingOptions(), FakeSde.Jita, Time, null, [], CancellationToken.None);
         }
 
         Assert.False(Assert.Single(await SightingsAsync()).IsFleet);

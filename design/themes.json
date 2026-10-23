@@ -56,7 +56,8 @@
     "marauders": { "code": "MR", "colour": "#5cc8ff" },
     "ishtars": { "code": "IS", "colour": "#a98bff" },
     "smartbombers": { "code": "SB", "colour": "#ffe066" },
-    "crab": { "code": "CR", "colour": "#ff9a3c" }
+    "crab": { "code": "CR", "colour": "#ff9a3c" },
+    "smartbomb-camps": { "code": "SK", "colour": "#ff4d4d", "icon": "skull" }
   },
 
   "security": {

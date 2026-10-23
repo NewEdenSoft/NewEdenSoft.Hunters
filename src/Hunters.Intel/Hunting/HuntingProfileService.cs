@@ -147,7 +147,8 @@ public sealed partial class HuntingProfileService(
             after = batch[^1].KillmailId;
         }
 
-        await SightingStore.MarkBattlesAsync(db, settings, null, null, [.. profiles.Select(p => p.Id)], cancellationToken);
+        await SightingStore.MarkBattlesAsync(db, settings, null, null, [.. profiles.Select(p => p.Id)],
+            [.. profiles.Where(p => p.Profile.KeepsFights).Select(p => p.Id)], cancellationToken);
         return (kills, sightings);
     }
 

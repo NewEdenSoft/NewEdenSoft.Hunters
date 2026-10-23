@@ -68,6 +68,17 @@ public static class SightingMatcher
 
                         break;
 
+                    case RuleKind.Weapon:
+                        if (rule.Victims is { } victims && !victims.Contains(kill.VictimShipTypeId))
+                            break;
+                        for (var i = 0; i < kill.AttackerCharacterIds.Length; i++)
+                        {
+                            if (kill.AttackerCharacterIds[i] != 0 && rule.Types.Contains(kill.AttackerWeaponTypeIds[i]))
+                                See(profile, rule, kill.AttackerCharacterIds[i], SightingRole.Attacker, kill.AttackerWeaponTypeIds[i]);
+                        }
+
+                        break;
+
                     case RuleKind.Victim:
                         // The beacon's owner is not the pilot seen: the evidence is the beacon itself.
                         if (rule.Types.Contains(kill.VictimShipTypeId))
@@ -116,15 +127,18 @@ public static class SightingStore
     /// Marks sightings in a battle as fleet: at least <see cref="HuntingOptions.BattleKills"/> player kills
     /// in the system within <see cref="HuntingOptions.BattleWindow"/> either side. Live, for the window
     /// around a new kill (earlier sightings of a growing fight get marked too); for a backfill, for whole
-    /// profiles. Returns how many were marked.
+    /// profiles. Profiles in <paramref name="keepingFights"/> are left alone: bursts of kills are their
+    /// target. Returns how many were marked.
     /// </summary>
-    public static Task<int> MarkBattlesAsync(IntelDbContext db, HuntingOptions options, int? systemId, DateTimeOffset? around, string[]? profiles, CancellationToken cancellationToken) =>
+    public static Task<int> MarkBattlesAsync(
+        IntelDbContext db, HuntingOptions options, int? systemId, DateTimeOffset? around, string[]? profiles, string[] keepingFights, CancellationToken cancellationToken) =>
         db.Database.ExecuteSqlRawAsync("""
             UPDATE intel."Sightings" s SET "IsFleet" = true
             WHERE NOT s."IsFleet"
               AND (@system::int IS NULL OR s."SystemId" = @system)
               AND (@around::timestamptz IS NULL OR s."Time" BETWEEN @around - @window AND @around + @window)
               AND (@profiles::text[] IS NULL OR s."Profile" = ANY(@profiles))
+              AND NOT (s."Profile" = ANY(@keeping))
               AND (SELECT count(*) FROM intel."Kills" k
                    WHERE k."SystemId" = s."SystemId" AND NOT k."Npc"
                      AND k."Time" BETWEEN s."Time" - @window AND s."Time" + @window) >= @battle
@@ -133,6 +147,7 @@ public static class SightingStore
                 new NpgsqlParameter("system", NpgsqlDbType.Integer) { Value = (object?)systemId ?? DBNull.Value },
                 new NpgsqlParameter("around", NpgsqlDbType.TimestampTz) { Value = (object?)around ?? DBNull.Value },
                 new NpgsqlParameter("profiles", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = (object?)profiles ?? DBNull.Value },
+                new NpgsqlParameter("keeping", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = keepingFights },
                 new NpgsqlParameter("window", NpgsqlDbType.Interval) { Value = options.BattleWindow },
                 new NpgsqlParameter("battle", NpgsqlDbType.Integer) { Value = options.BattleKills },
             ],
