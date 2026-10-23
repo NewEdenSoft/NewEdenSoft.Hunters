@@ -102,6 +102,12 @@ function columnsFor(model: MapModel, activity: ActivityCurrent | null): Activity
   return activity.systems
 }
 
+/** The activity columns for this map's systems, or null when there are none that line up with it. */
+export function activityFor(model: MapModel, activity: ActivityCurrent | null): ActivityCurrent['systems'] | null {
+  const systems = columnsFor(model, activity)
+  return typeof systems === 'string' ? null : systems
+}
+
 /** A count in the last hour, in heat bands. */
 export function countFilter(
   id: MapFilterId,

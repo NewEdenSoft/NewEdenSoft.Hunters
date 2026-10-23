@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
-import { activityQuery } from '../../api/activity'
+import { activityQuery, type ActivityColumns } from '../../api/activity'
 import { discoveryQuery } from '../../api/discovery'
 import { mapPackQuery } from '../../api/map'
 import { Label } from '../../components/ui/Label'
@@ -9,6 +9,7 @@ import { Panel } from '../../components/ui/Panel'
 import { Status } from '../../components/ui/Status'
 import { Toggle } from '../../components/ui/Toggle'
 import {
+  activityFor,
   createFilter,
   mapFilters,
   minNpcChoices,
@@ -69,9 +70,9 @@ function MapPage() {
   const pack = useQuery({ ...mapPackQuery(sdeBuild ?? 0), enabled: sdeBuild !== undefined })
   const model = useMemo(() => (pack.data ? buildMapModel(pack.data) : null), [pack.data])
 
-  // Activity is fetched only while an activity colour is chosen.
+  // Activity is fetched whenever the server has it: the hover panel always shows NPC kills.
   const needsActivity = mapFilters.find((f) => f.id === colour)?.activity ?? false
-  const activity = useQuery({ ...activityQuery, enabled: needsActivity })
+  const activity = useQuery({ ...activityQuery, enabled: needsActivity || hasActivity })
   const minNpc = search.min ?? 0
   const filter = useMemo(
     () => (model ? createFilter(colour, model, { activity: activity.data ?? null, minNpc }) : null),
@@ -106,6 +107,7 @@ function MapPage() {
   return (
     <LoadedMap
       model={model}
+      npcKills={activityFor(model, activity.data ?? null)?.npcKills ?? null}
       filter={filter}
       layout={layout}
       setLayout={setLayout}
@@ -126,6 +128,7 @@ function MapPage() {
  */
 function LoadedMap({
   model,
+  npcKills,
   filter,
   layout,
   setLayout,
@@ -138,6 +141,8 @@ function LoadedMap({
   setSystem,
 }: {
   model: MapModel
+  /** NPC kills per system (last hour and the one before), for the hover panel; null without activity data. */
+  npcKills: ActivityColumns | null
   filter: MapFilter
   layout: MapLayout
   setLayout: (layout: MapLayout) => void
@@ -179,6 +184,7 @@ function LoadedMap({
         onUserPan={stopFollowing}
         selected={selected}
         onFocusSystem={focusSystem}
+        npcKills={npcKills}
         onClearSystem={() => setSystem(undefined)}
       />
       <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] grid w-[calc(100%-1.5rem)] max-w-80 -translate-x-1/2 justify-items-center gap-2">

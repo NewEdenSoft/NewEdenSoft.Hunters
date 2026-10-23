@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ActivityColumns } from '../api/activity'
 import { SystemContextMenu } from '../components/map/SystemContextMenu'
 import { securityColor } from '../theme/themes'
 import type { MapFilter } from './filters'
@@ -26,6 +27,8 @@ interface MapViewProps {
   /** Focus a system from its menu (right click, or a long press on touch). */
   onFocusSystem?: (index: number) => void
   onClearSystem?: () => void
+  /** NPC kills per system, shown in the hover panel with the change from the hour before. */
+  npcKills?: ActivityColumns | null
 }
 
 /**
@@ -44,6 +47,7 @@ export function MapView({
   selected = -1,
   onFocusSystem,
   onClearSystem,
+  npcKills = null,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<MapRenderer | null>(null)
@@ -106,6 +110,7 @@ export function MapView({
           model={model}
           hover={hover}
           characters={here?.map((m) => (m.online ? m.name : `${m.name} (offline)`)).join(', ')}
+          npcKills={npcKills}
         />
       )}
       {menu && (
@@ -129,7 +134,17 @@ export function MapView({
 /** Wider than the panel ever gets (max-w-72), so it is never pushed off the right edge. */
 const PANEL_ROOM = 300
 
-function SystemPanel({ model, hover, characters }: { model: MapModel; hover: MapHover; characters?: string }) {
+function SystemPanel({
+  model,
+  hover,
+  characters,
+  npcKills,
+}: {
+  model: MapModel
+  hover: MapHover
+  characters?: string
+  npcKills: ActivityColumns | null
+}) {
   const { areaWidth } = hover
   const security = model.security[hover.index]
   // Beside the system, or to its left near the right edge (a phone is narrow).
@@ -146,7 +161,26 @@ function SystemPanel({ model, hover, characters }: { model: MapModel; hover: Map
         </span>
         {model.regionNames.get(model.regionIds[hover.index])}
       </span>
+      {npcKills && <NpcKillsLine npcKills={npcKills} index={hover.index} />}
       {characters && <span className="text-[0.8125rem] text-primary">{characters}</span>}
     </div>
+  )
+}
+
+/** NPC kills in the last hour, and how many more or fewer than the hour before (when there is one). */
+function NpcKillsLine({ npcKills, index }: { npcKills: ActivityColumns; index: number }) {
+  const last = npcKills.lastHour[index]
+  const change = npcKills.previousHour ? last - npcKills.previousHour[index] : null
+  return (
+    <span className="flex items-baseline gap-2 text-[0.8125rem] text-fg-muted">
+      NPC kills
+      <span className="font-mono font-semibold text-fg">{last}</span>
+      {change !== null && change !== 0 && (
+        <span className={change > 0 ? 'font-mono text-ok' : 'font-mono text-danger'} title="Since the hour before">
+          {change > 0 ? `▲ +${change}` : `▼ ${change}`}
+        </span>
+      )}
+      {change === 0 && <span className="font-mono text-fg-faint">±0</span>}
+    </span>
   )
 }
