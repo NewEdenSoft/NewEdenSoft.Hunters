@@ -113,9 +113,10 @@ function Tag({ primary, children }: { primary?: boolean; children: ReactNode }) 
   )
 }
 
-const commandClass =
-  'inline-flex cursor-pointer items-center gap-1 border border-line-strong px-1.5 py-1 font-display text-[0.6875rem] font-semibold tracking-[0.08em] ' +
-  'text-fg uppercase no-underline hover:border-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-fg'
+const chipClass =
+  'inline-flex cursor-pointer items-center gap-1 border border-line-strong px-1.5 py-1 font-display text-[0.6875rem] font-semibold ' +
+  'text-fg no-underline hover:border-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-fg'
+const commandClass = chipClass + ' tracking-[0.08em] uppercase'
 
 function Command({ icon, label, title, onClick, active }: { icon: IconName; label: string; title: string; onClick: () => void; active?: boolean }) {
   return (
@@ -142,7 +143,7 @@ function ExternalLink({ href, label, title }: { href: string; label: string; tit
   )
 }
 
-/** Focus (or clear it), and set a character's destination. */
+/** Focus (or clear it), and set the destination: on every tracked character, or (▾) on one. */
 function CommandBar({
   name,
   systemId,
@@ -157,6 +158,8 @@ function CommandBar({
   onClearFocus: () => void
 }) {
   const [choosing, setChoosing] = useState(false)
+  const destination = useDestination(systemId, name)
+  const tracked = destination.tracked
 
   return (
     <div className="grid gap-2">
@@ -166,74 +169,143 @@ function CommandBar({
         ) : (
           <Command icon="target" label="Focus" title="Make this system the focus: the staging point for nearby intel and jump range" onClick={onFocus} />
         )}
-        <Command
-          icon="flag"
-          label="Destination"
-          title="Set a character's autopilot destination here, in the game"
-          active={choosing}
-          onClick={() => setChoosing(!choosing)}
-        />
+        {/* A split button: the destination for every tracked character, or ▾ to choose one. */}
+        <div role="group" aria-label="Destination" className="flex">
+          <button
+            type="button"
+            disabled={tracked.length === 0 || destination.busy}
+            onClick={() => void destination.setFor(tracked)}
+            title={
+              tracked.length === 0
+                ? 'No tracked characters: choose one with the arrow'
+                : `Set the autopilot destination here for every tracked character: ${tracked.map((c) => c.name).join(', ')}`
+            }
+            className={cn(commandClass, 'disabled:cursor-default disabled:opacity-50 disabled:hover:border-line-strong disabled:hover:bg-transparent')}
+          >
+            <Icon name="flag" className="size-3.5" />
+            Destination
+            {tracked.length > 0 && <span className="font-mono text-fg-muted">{tracked.length}</span>}
+          </button>
+          <button
+            type="button"
+            aria-label="Set the destination for one character"
+            title="Set the destination for one character"
+            aria-expanded={choosing}
+            onClick={() => setChoosing(!choosing)}
+            className={cn(commandClass, '-ml-px px-1', choosing && 'border-primary text-primary')}
+          >
+            <Icon name={choosing ? 'collapse' : 'expand'} className="size-3.5" />
+          </button>
+        </div>
       </div>
-      {choosing && <DestinationPicker systemId={systemId} name={name} onDone={() => setChoosing(false)} />}
+      {choosing && <DestinationPicker destination={destination} />}
+      {destination.status && (
+        <div
+          role="status"
+          className={cn('grid text-[0.75rem]', destination.status.tone === 'ok' ? 'text-ok' : destination.status.tone === 'danger' ? 'text-danger' : 'text-fg-muted')}
+        >
+          {destination.status.lines.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-/** The account's usable characters, online ones first: choosing one sets its destination through ESI. */
-function DestinationPicker({ systemId, name, onDone }: { systemId: number; name: string; onDone: () => void }) {
+interface DestinationCharacter {
+  id: number
+  name: string
+  isMain: boolean
+  online: boolean
+}
+
+interface Destination {
+  /** The tracked characters that can be used (no new login needed). */
+  tracked: DestinationCharacter[]
+  /** Every usable character of the account, online first, then the main. */
+  usable: DestinationCharacter[]
+  busy: boolean
+  /** One line per outcome: who it was set for, then each failure. */
+  status: { tone: 'ok' | 'danger' | 'muted'; lines: string[] } | null
+  setFor: (characters: DestinationCharacter[]) => Promise<void>
+}
+
+/** Sets characters' autopilot destination to the system through ESI, with the tracker's tokens. */
+function useDestination(systemId: number, name: string): Destination {
   const tracking = useTracking()
   const account = useQuery(accountQuery)
-  const [status, setStatus] = useState<{ tone: 'ok' | 'danger' | 'muted'; text: string } | null>(null)
-  const characters = (account.data?.characters ?? [])
-    .filter((c) => c.status === 'Active')
-    .map((c) => ({ ...c, online: tracking?.tracker.get(c.id)?.isOnline === true }))
-    .sort((a, b) => Number(b.online) - Number(a.online) || Number(b.isMain) - Number(a.isMain) || a.name.localeCompare(b.name))
+  const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState<Destination['status']>(null)
 
-  const set = async (characterId: number, characterName: string) => {
-    if (!tracking) return
-    setStatus({ tone: 'muted', text: `Setting ${characterName}'s destination…` })
+  const usable = (account.data?.characters ?? [])
+    .filter((c) => c.status === 'Active')
+    .map((c) => ({ id: c.id, name: c.name, isMain: c.isMain, online: tracking?.tracker.get(c.id)?.isOnline === true }))
+    .sort((a, b) => Number(b.online) - Number(a.online) || Number(b.isMain) - Number(a.isMain) || a.name.localeCompare(b.name))
+  const trackedIds = new Set(tracking?.tracker.characters.filter((c) => c.status !== 'needsLogin').map((c) => c.characterId))
+  const tracked = usable.filter((c) => trackedIds.has(c.id))
+
+  /** One character: renews a rejected token once. Returns null when set, else why not. */
+  const setOne = async (characterId: number): Promise<string | null> => {
+    if (!tracking) return 'Not signed in.'
     try {
       let result = await setDestination(systemId, await tracking.tokens.getAccessToken(characterId))
       if (result.status === 'unauthorized') {
         tracking.tokens.invalidate(characterId)
         result = await setDestination(systemId, await tracking.tokens.getAccessToken(characterId))
       }
-      if (result.status === 'ok') {
-        setStatus({ tone: 'ok', text: `Destination set: ${characterName} → ${name}.` })
-        setTimeout(onDone, 1500)
-      } else {
-        setStatus({ tone: 'danger', text: result.status === 'forbidden' ? `${characterName} has not allowed setting waypoints; log in with it again.` : result.error })
-      }
+      if (result.status === 'ok') return null
+      return result.status === 'forbidden' ? 'not allowed to set waypoints; log in with it again' : result.error
     } catch (error) {
-      setStatus({ tone: 'danger', text: (error as Error).message })
+      return (error as Error).message
     }
   }
 
+  const setFor = async (characters: DestinationCharacter[]) => {
+    if (characters.length === 0) return
+    setBusy(true)
+    setStatus({ tone: 'muted', lines: [`Setting the destination for ${characters.map((c) => c.name).join(', ')}…`] })
+    const results = await Promise.all(characters.map(async (c) => ({ c, error: await setOne(c.id) })))
+    const done = results.filter((r) => r.error === null).map((r) => r.c.name)
+    const failed = results.filter((r) => r.error !== null)
+    setBusy(false)
+    if (failed.length === 0) {
+      setStatus({ tone: 'ok', lines: [`Destination ${name} set for ${done.join(', ')}.`] })
+    } else {
+      setStatus({
+        tone: 'danger',
+        lines: [...(done.length > 0 ? [`Set for ${done.join(', ')}.`] : []), ...failed.map((r) => `${r.c.name}: ${r.error}`)],
+      })
+    }
+  }
+
+  return { tracked, usable, busy, status, setFor }
+}
+
+/** The account's usable characters, online ones first: choosing one sets only its destination. */
+function DestinationPicker({ destination }: { destination: Destination }) {
+  const { usable } = destination
   return (
     <div className="grid gap-1.5 border-l-2 border-primary pl-2.5">
-      <span className="text-[0.75rem] text-fg-muted">Set the destination for:</span>
-      {characters.length === 0 ? (
+      <span className="text-[0.75rem] text-fg-muted">Set the destination for one character:</span>
+      {usable.length === 0 ? (
         <span className="text-[0.8125rem] text-fg-muted">No character can: each needs a working login.</span>
       ) : (
         <div className="flex flex-wrap gap-1">
-          {characters.map((c) => (
+          {usable.map((c) => (
             <button
               key={c.id}
               type="button"
-              onClick={() => void set(c.id, c.name)}
+              disabled={destination.busy}
+              onClick={() => void destination.setFor([c])}
               title={c.online ? 'Online' : 'Not online: the destination shows when it logs in, if at all'}
-              className={cn(commandClass, 'normal-case tracking-normal', !c.online && 'text-fg-muted')}
+              className={cn(chipClass, !c.online && 'text-fg-muted')}
             >
               <span className={cn('size-1.5 rounded-full', c.online ? 'bg-ok' : 'bg-fg-faint')} />
               {c.name}
             </button>
           ))}
         </div>
-      )}
-      {status && (
-        <span role="status" className={cn('text-[0.75rem]', status.tone === 'ok' ? 'text-ok' : status.tone === 'danger' ? 'text-danger' : 'text-fg-muted')}>
-          {status.text}
-        </span>
       )}
     </div>
   )

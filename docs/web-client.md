@@ -136,7 +136,11 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
 - **Header:** the name, security (in its colour) and region, with links to the system on **zKillboard** and **Dotlan** (spaces in the name as underscores), each opening in a new tab.
 - **Commands:**
   - **Focus**, or **Unfocus** when it is the focused system
-  - **Destination:** lists the account's usable characters (online ones first, then the main). Choosing one sets that character's autopilot destination in the game through ESI `POST /ui/autopilot/waypoint` (`clear_other_waypoints`, scope `esi-ui.write_waypoint.v1`, already asked for at login), with the token the tracker uses (`Tracking.tokens`). A rejected token is renewed once; a 403 asks the user to log in with the character again.
+  - **Destination**, a split button:
+    - the main part sets the autopilot destination on **every tracked character** at once (the Track switch on, no new login needed), and shows how many
+    - **▾** opens a list of the account's usable characters (online first, then the main) to set it for just one
+
+    Both go through ESI `POST /ui/autopilot/waypoint` (`clear_other_waypoints`, scope `esi-ui.write_waypoint.v1`, already asked for at login), with the token the tracker uses (`Tracking.tokens`), in parallel. A rejected token is renewed once; a 403 asks the user to log in with the character again. The outcome is listed under the buttons, one line per failure.
 - **Last hour:** NPC kills, ship kills, pod kills and jumps from the current activity hour: the last hour, the change from the hour before (green ▲ rising, red ▼ falling, – without an hour before), the last 24 hours, and the usual for this hour of the week. *Peak now* or *Peak in N h* by the metric's name. Shown once the server has activity.
 - **Hunting profiles:** every profile seen there (`GET /api/hunting/systems/{id}`), not only the ones shown on the map. Each has its badge, then **peak now**, **now** (usually seen there at this hour, UTC) or **seen**, the pilots in 30 days, and how long since it was last seen. The ones likely now come first, then by score.
 - **Recent kills:** the newest 10 (`GET /api/kills/systems/{id}`, asked again every minute while shown, once the discovery document lists `kills`). Each kill shows:

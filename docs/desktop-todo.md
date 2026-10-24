@@ -28,7 +28,7 @@ See [System panel](web-client.md#map). Needs the server's `GET /api/kills/system
 - [ ] **Header:** name, security and region, with zKillboard (`https://zkillboard.com/system/{id}/`) and Dotlan (`https://evemaps.dotlan.net/system/{Name_With_Underscores}`) links.
 - [ ] **Commands:**
   - Focus / Unfocus
-  - Destination: the usable characters, online first, then the main. ESI `POST /ui/autopilot/waypoint?add_to_beginning=false&clear_other_waypoints=true&destination_id=…` with the character's token; retry once on 401, and ask for a new login on 403.
+  - Destination as a split button: the main part sets it on every tracked character (showing how many); ▾ lists the usable characters (online first, then the main) to set it for one. ESI `POST /ui/autopilot/waypoint?add_to_beginning=false&clear_other_waypoints=true&destination_id=…` with the character's token; retry once on 401, and ask for a new login on 403.
 - [ ] **Last hour:** NPC, ship and pod kills and jumps, each with the last hour, the change from the hour before (▲ / ▼ / –), the last 24 hours and the usual, plus Peak now / Peak in N h. Port `metricRows` and `peakHint` from `map/systemInfo.ts`.
 - [ ] **Hunting profiles:** all seen there, with peak now / now / seen, pilots and last seen, likely now first. Port `profileStatus` and `sortProfiles`.
 - [ ] **Recent kills:** the newest 10, refreshed every minute. Each has the ship icon, ship and pilot, the final blow (pilot and ship, or the NPC) with +N, NPC, time ago and ISK value, and links to the kill on zKillboard. Names come from ESI `/universe/names`. Port `formatIsk`, `timeAgo` and `partyName`.
