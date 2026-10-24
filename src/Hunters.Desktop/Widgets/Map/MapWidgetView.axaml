@@ -7,6 +7,25 @@
              x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.MapWidgetView"
              x:DataType="mw:MapWidgetViewModel">
 
+  <UserControl.Styles>
+    <!-- Search results in the HUD's colours rather than Fluent's -->
+    <Style Selector="ListBox#SearchResults ListBoxItem">
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="ListBox#SearchResults ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox#SearchResults ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+    </Style>
+    <Style Selector="ListBox#SearchResults ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+      <Setter Property="BorderThickness" Value="2,0,0,0" />
+    </Style>
+  </UserControl.Styles>
+
   <UserControl.Resources>
     <!-- Translucent panels over the map -->
     <ControlTheme x:Key="MapOverlay" TargetType="ContentControl">
@@ -20,14 +39,6 @@
         </ControlTemplate>
       </Setter>
     </ControlTheme>
-
-    <DataTemplate x:Key="Choice" x:DataType="m:ChoiceViewModel">
-      <Button Classes="hud toggle"
-              Classes.primary="{Binding IsSelected}"
-              Classes.ghost="{Binding !IsSelected}"
-              Command="{Binding SelectCommand}"
-              Content="{Binding Label, Converter={x:Static w:UpperCaseConverter.Instance}}" />
-    </DataTemplate>
   </UserControl.Resources>
 
   <Panel>
@@ -36,6 +47,7 @@
                   Layout="{Binding Layout}"
                   Filter="{Binding Filter}"
                   Markers="{Binding Markers}"
+                  SelectedSystemId="{Binding SelectedSystemId}"
                   HaloColor="{DynamicResource Hud.BgColor}"
                   GateColor="{DynamicResource Hud.LineStrongColor}"
                   TextColor="{DynamicResource Hud.FgColor}"
@@ -59,48 +71,47 @@
       </ContentControl>
     </Canvas>
 
-    <!-- Controls; hidden by the code-behind when the map is too small for them (a small overlay) -->
-    <ContentControl x:Name="Controls" Theme="{StaticResource MapOverlay}" Padding="12" Margin="12"
-                    HorizontalAlignment="Left" VerticalAlignment="Top"
-                    IsVisible="{Binding IsLoaded}">
-      <StackPanel Spacing="12">
-        <StackPanel Spacing="6">
-          <TextBlock Classes="label" Text="LAYOUT" />
-          <ItemsControl ItemsSource="{Binding LayoutChoices}" ItemTemplate="{StaticResource Choice}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal" Spacing="4" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-          </ItemsControl>
+    <!-- System search, and the focused system; hidden by the code-behind when the map is too small for them -->
+    <StackPanel x:Name="SearchArea" Margin="12" Width="260" Spacing="6"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                IsVisible="{Binding IsLoaded}">
+      <ContentControl Theme="{StaticResource MapOverlay}" DataContext="{Binding Search}" x:DataType="mw:SystemSearchViewModel">
+        <StackPanel>
+          <TextBox x:Name="SearchBox" Classes="hud" Text="{Binding Query}" PlaceholderText="Search systems  /"
+                   AutomationProperties.Name="Search systems" />
+          <ListBox x:Name="SearchResults" ItemsSource="{Binding Results}" SelectedItem="{Binding Highlighted}"
+                   IsVisible="{Binding HasResults}" Background="Transparent" Padding="0,2">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="mw:MapSystemInfo">
+                <Grid ColumnDefinitions="*,Auto" Margin="0,1">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8,0,0,0">
+                    <TextBlock Classes="mono" FontSize="12" FontWeight="SemiBold" Text="{Binding Security}" Foreground="{Binding SecurityBrush}" VerticalAlignment="Center" />
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Region}" VerticalAlignment="Center" MaxWidth="110" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
         </StackPanel>
-        <StackPanel Spacing="6">
-          <TextBlock Classes="label" Text="COLOUR" />
-          <ItemsControl ItemsSource="{Binding FilterChoices}" ItemTemplate="{StaticResource Choice}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal" Spacing="4" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-          </ItemsControl>
-        </StackPanel>
-        <ItemsControl ItemsSource="{Binding Legend}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="1" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="mw:MapLegendItemViewModel">
-              <StackPanel MinWidth="28" Spacing="4">
-                <Border Height="6" Background="{Binding Brush}" />
-                <TextBlock Classes="mono muted" FontSize="10" HorizontalAlignment="Center" Text="{Binding Label}" />
-              </StackPanel>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </StackPanel>
-    </ContentControl>
+      </ContentControl>
+
+      <!-- The focused system, with clear -->
+      <ContentControl Theme="{StaticResource MapOverlay}" Padding="10,6"
+                      IsVisible="{Binding SelectedSystem, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <Grid ColumnDefinitions="Auto,*,Auto" DataContext="{Binding SelectedSystem}" x:DataType="mw:MapSystemInfo">
+          <Ellipse Width="10" Height="10" Stroke="{DynamicResource Hud.PrimaryBrush}" StrokeThickness="2" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}" FontWeight="SemiBold" Foreground="{DynamicResource Hud.PrimaryBrush}" />
+            <TextBlock Classes="mono" FontSize="12" FontWeight="SemiBold" Text="{Binding Security}" Foreground="{Binding SecurityBrush}" VerticalAlignment="Center" />
+            <TextBlock Classes="muted" FontSize="12" Text="{Binding Region}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <Button Grid.Column="2" Classes="hud toggle ghost" Content="✕" Margin="8,0,0,0"
+                  Command="{Binding $parent[UserControl].((mw:MapWidgetViewModel)DataContext).ClearSystemCommand}"
+                  ToolTip.Tip="Clear the focused system" AutomationProperties.Name="Clear focus" />
+        </Grid>
+      </ContentControl>
+    </StackPanel>
 
     <!-- The focused character, with follow and dismiss -->
     <ContentControl Theme="{StaticResource MapOverlay}" Padding="8,6" Margin="12"

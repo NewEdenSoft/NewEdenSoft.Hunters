@@ -13,12 +13,15 @@ namespace NewEdenSoft.Hunters.Desktop.Map;
 /// <summary>A hovered system and where it is on screen, relative to the control.</summary>
 public readonly record struct MapHover(int Index, Point Position);
 
+/// <summary>A system's menu was asked for (a right click on it), at a point on the control.</summary>
+public readonly record struct MapSystemMenuRequest(int Index, Point Position);
+
 /// <summary>A tracked character to mark on the map: where it is, and how it is marked.</summary>
 public sealed record MapCharacterMarker(long CharacterId, string Name, int SolarSystemId, CharacterMarker Marker, bool IsOnline);
 
 /// <summary>
 /// Draws the map with Skia (docs/decisions.md, D21) and handles pan (drag), zoom (wheel), hover,
-/// clicks on character markers, and animated focus on a system.
+/// clicks on character markers, a system's menu (right click), and animated focus on a system.
 /// The drawing itself is in <see cref="MapScene"/>; this control owns the camera and the input, and
 /// rebuilds the scene when the model, layout, filter or theme colours change. It has no background
 /// of its own, so the map shows over its parent (a panel, or an overlay at the user's opacity).
@@ -37,6 +40,10 @@ public sealed class MapControl : Control
     /// <summary>Characters to mark on the map, at their systems.</summary>
     public static readonly StyledProperty<IReadOnlyList<MapCharacterMarker>?> MarkersProperty =
         AvaloniaProperty.Register<MapControl, IReadOnlyList<MapCharacterMarker>?>(nameof(Markers));
+
+    /// <summary>The focused system: ringed and always named. Null for none.</summary>
+    public static readonly StyledProperty<int?> SelectedSystemIdProperty =
+        AvaloniaProperty.Register<MapControl, int?>(nameof(SelectedSystemId));
 
     /// <summary>Outline around region names, usually the page background.</summary>
     public static readonly StyledProperty<Color> HaloColorProperty =
@@ -119,6 +126,12 @@ public sealed class MapControl : Control
         set => SetValue(MarkersProperty, value);
     }
 
+    public int? SelectedSystemId
+    {
+        get => GetValue(SelectedSystemIdProperty);
+        set => SetValue(SelectedSystemIdProperty, value);
+    }
+
     public Color HaloColor
     {
         get => GetValue(HaloColorProperty);
@@ -157,6 +170,9 @@ public sealed class MapControl : Control
 
     /// <summary>The user dragged the map (for example, to stop following a character).</summary>
     public event EventHandler? UserPanned;
+
+    /// <summary>A system was right-clicked: its menu should open there.</summary>
+    public event EventHandler<MapSystemMenuRequest>? SystemMenuRequested;
 
     /// <summary>
     /// Moves the map to a system with a short animation, zooming in to at least <see cref="FocusScale"/>
@@ -233,7 +249,7 @@ public sealed class MapControl : Control
             CentreOn(_scene.X(index), _scene.Y(index), focus.ZoomIn ? ClampScale(Math.Max(_scale, FocusScale)) : _scale);
         }
 
-        context.Custom(new DrawOperation(new Rect(Bounds.Size), _scene, Camera(), _hovered, _markerGroups));
+        context.Custom(new DrawOperation(new Rect(Bounds.Size), _scene, Camera(), _hovered, _markerGroups, SelectedIndex));
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -250,6 +266,10 @@ public sealed class MapControl : Control
         else if (change.Property == MarkersProperty)
         {
             GroupMarkers();
+        }
+        else if (change.Property == SelectedSystemIdProperty)
+        {
+            InvalidateVisual();
         }
         else if (change.Property == FilterProperty || change.Property == HaloColorProperty || change.Property == GateColorProperty ||
                  change.Property == TextColorProperty || change.Property == MutedTextColorProperty || change.Property == HoverColorProperty)
@@ -286,7 +306,22 @@ public sealed class MapControl : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var point = e.GetCurrentPoint(this);
+        if (point.Properties.IsRightButtonPressed && _dragFrom is null)
+        {
+            // Over a system, its menu; elsewhere nothing.
+            var at = e.GetPosition(this);
+            var index = _scene?.HitTest(Camera(), (float)at.X, (float)at.Y, SelectedIndex) ?? -1;
+            if (index >= 0)
+            {
+                SystemMenuRequested?.Invoke(this, new MapSystemMenuRequest(index, at));
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        if (!point.Properties.IsLeftButtonPressed)
             return;
 
         _dragFrom = _pressedAt = e.GetPosition(this);
@@ -351,6 +386,10 @@ public sealed class MapControl : Control
     }
 
     private MapCamera Camera() => new(_scale, _offsetX, _offsetY, (float)Bounds.Width, (float)Bounds.Height);
+
+    /// <summary>The focused system's index on the current map, or -1.</summary>
+    private int SelectedIndex =>
+        SelectedSystemId is { } id && _scene is not null && _scene.Model.IndexOf.TryGetValue(id, out var index) ? index : -1;
 
     private float ClampScale(float scale) => Math.Clamp(scale, _fitScale * 0.5f, _fitScale * 80);
 
@@ -428,7 +467,7 @@ public sealed class MapControl : Control
         ToSkia(HaloColor), ToSkia(GateColor), ToSkia(TextColor), ToSkia(MutedTextColor), ToSkia(TextColor), ToSkia(HoverColor));
 
     private void UpdateHover(Point at) =>
-        SetHovered(_scene?.HitTest(Camera(), (float)at.X, (float)at.Y) ?? -1);
+        SetHovered(_scene?.HitTest(Camera(), (float)at.X, (float)at.Y, SelectedIndex) ?? -1);
 
     private void SetHovered(int index)
     {
@@ -459,7 +498,8 @@ public sealed class MapControl : Control
     }
 
     /// <summary>Draws one frame on Avalonia's render thread, from a scene and camera captured on the UI thread.</summary>
-    private sealed class DrawOperation(Rect bounds, MapScene scene, MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup> markers) : ICustomDrawOperation
+    private sealed class DrawOperation(Rect bounds, MapScene scene, MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup> markers, int selected)
+        : ICustomDrawOperation
     {
         public Rect Bounds => bounds;
 
@@ -480,7 +520,7 @@ public sealed class MapControl : Control
             var canvas = lease.SkCanvas;
             canvas.Save();
             canvas.ClipRect(new SKRect(0, 0, (float)bounds.Width, (float)bounds.Height));
-            scene.Draw(canvas, camera, hovered, markers);
+            scene.Draw(canvas, camera, hovered, markers, selected);
             canvas.Restore();
         }
     }

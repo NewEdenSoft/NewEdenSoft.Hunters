@@ -150,7 +150,7 @@ After login the saved overlays are restored, and the main window hides to the tr
 | `IOverlayPlatform` | Click-through and overlay window styles per OS. Windows: `WS_EX_LAYERED \| WS_EX_TRANSPARENT`, `WS_EX_TOOLWINDOW`. |
 | `TrayIconService` | The tray icon and menu. |
 
-Widgets so far: the [Map](#map), [Characters](#characters-widget), and placeholders for Nearby activity and Fleet, whose content arrives with the features they show.
+Widgets so far: the [Map](#map) and its [Map controls](#map-controls), [Characters](#characters-widget), and placeholders for Nearby activity and Fleet, whose content arrives with the features they show.
 
 Widget ideas:
 
@@ -165,7 +165,7 @@ The account's characters at a glance, small enough for an overlay: each row has 
 
 ## Map
 
-The **Map** widget draws known space from the server's map pack, like the [web map](web-client.md#map): the same layouts, sizes, gate styles, colours, labels and colour filters, drawn with SkiaSharp ([D21](decisions.md#d21--the-map-is-2d-drawn-with-canvas-2d-web-and-skia-desktop)). Drag to pan, scroll to zoom; hovering a system shows its name, security and region. Docked, it fills its page; popped out, it is an overlay like any widget. The map has no background of its own, so it shows over the overlay's background at the user's opacity. The layout and colour controls hide when the map is smaller than 560 × 360, as in a small overlay.
+The **Map** widget draws known space from the server's map pack, like the [web map](web-client.md#map): the same layouts, sizes, gate styles, colours, labels and colour filters, drawn with SkiaSharp ([D21](decisions.md#d21--the-map-is-2d-drawn-with-canvas-2d-web-and-skia-desktop)). Drag to pan, scroll to zoom; hovering a system shows its name, security and region. Docked, it fills its page; popped out, it is an overlay like any widget. The map has no background of its own, so it shows over the overlay's background at the user's opacity. The layout, colour and legend are in a widget of their own, [Map controls](#map-controls), so the map keeps its space.
 
 | Piece | Role |
 |---|---|
@@ -174,9 +174,12 @@ The **Map** widget draws known space from the server's map pack, like the [web m
 | `Map/MapFilter.cs` | Colour filters: a colour group per system, or `Hidden`. Security is the first. |
 | `Map/GridIndex.cs` | Uniform grid for the nearest system to the cursor. |
 | `Map/MapScene.cs` | Everything for one layout, filter and theme, built once: gates by style and colour, gradients, label widths, region names. Draws a frame on any `SKCanvas`; gates go on a layer of their own, so the margins around systems are cut out of the gates only. |
-| `Map/MapControl.cs` | The Avalonia control: camera, pan, zoom and hover. It draws the scene with a custom draw operation on Avalonia's own Skia canvas, so no bitmap is copied. |
-| `Widgets/Map/MapWidgetViewModel.cs` | Loads the map pack while the widget is on screen; the hover panel's system. |
-| `Map/MapPreferences.cs` | The layout setting, saved in the desktop settings (`Map.Layout`) and chosen on the map or the Settings page. CCP's 2D map is the default. |
+| `Map/MapControl.cs` | The Avalonia control: camera, pan, zoom, hover, and right clicks on systems. It draws the scene with a custom draw operation on Avalonia's own Skia canvas, so no bitmap is copied. |
+| `Map/SystemSearch.cs` | Finds systems by name, ranked like the web's search. |
+| `Widgets/Map/MapWidgetViewModel.cs` | Loads the map pack while the widget is on screen; the hover panel's system; the focused system. |
+| `Widgets/Map/SystemSearchViewModel.cs` | The search box's query, results and keyboard highlight. |
+| `Widgets/Map/MapControlsWidgetViewModel.cs` | The [Map controls](#map-controls) widget. |
+| `Map/MapPreferences.cs` | The layout setting, saved in the desktop settings (`Map.Layout`) and chosen in Map controls or on the Settings page. CCP's 2D map is the default. |
 
 `MapScene` is immutable: the UI thread builds a new one when the model, layout, filter or theme colours change, and frames are drawn on the render thread from the scene and camera captured with them. Theme colours reach the control as `DynamicResource` bindings, so a theme change rebuilds the scene.
 
@@ -184,9 +187,15 @@ The **Map** widget draws known space from the server's map pack, like the [web m
 
 **Focus and follow.** Clicking a character in the [Characters widget](#characters-widget), or its marker on the map, focuses the map on it: the map pans and zooms (to at least 60 px/ly, where system names show) to the character's system in a short animation. A docked map's page is selected first; a character whose location is not known yet is focused as soon as it is. A focused character gets a chip at the top right of the map with its marker, name, **Follow** and dismiss. The follow button on each row of the Characters widget does the same. While following, the map pans to the character each time it changes system and keeps the user's zoom. Dragging the map stops following; focusing another character does too. `MapFocus` holds the focused and followed character for the widget, the map and the main window; `MapControl.FocusOn` animates the camera, and marker clicks use the same layout as drawing (`MapScene.HitTestMarker`).
 
+**Search and the focused system.** As on the [web map](web-client.md#map), a system can be **focused**: it is the origin for nearby intel, and the map rings it twice in the theme's primary colour and always names it, even zoomed out. The search box at the top left finds systems by name (case and punctuation ignored, so `1dq1a` finds 1DQ1-A): exact names first, then names starting with the query, then names containing it. **/** puts the cursor in it; ↑ and ↓ move through the results, **Enter** or a click focuses one, **Esc** clears the search. Right-clicking a system opens its menu: **Focus** it, or **Clear focus** on the focused one. Focusing moves the map there (zooming in to names) and stops following a character, as dragging does; the character's chip stays. The focused system shows as a chip under the search, with a button to clear it. It is kept for the session, not saved. The search hides when the map is smaller than 300 × 220, as in a small overlay.
+
 The map pack is downloaded the first time the widget is on screen in a session and kept in memory for the session. While the server is still preparing it, the page asks again every 10 seconds. A disk cache by SDE build comes later.
 
-Next for the map: region focus, activity colouring, route highlight on hover, fleet member markers.
+Next for the map: activity colouring, hunting profiles, the Nearby panel, route highlight on hover, fleet member markers.
+
+## Map controls
+
+How the [map](#map) is drawn: its **layout** (CCP's 2D map or top-down), its **colour** filter, and the filter's legend. It is a widget of its own, so the map stays clear: dock it as a page, or pop it out as an overlay next to the map. Its state is the map's (`MapWidgetViewModel.FilterId`, `MapPreferences.Layout`), so both stay in step wherever they are shown.
 
 ## Platform support
 

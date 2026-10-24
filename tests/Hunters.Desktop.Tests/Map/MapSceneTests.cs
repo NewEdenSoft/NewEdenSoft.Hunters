@@ -104,6 +104,37 @@ public sealed class MapSceneTests
     }
 
     [Fact]
+    public void The_focused_system_is_ringed_and_hoverable_even_when_hidden()
+    {
+        var security = MapFilters.Security(_model, _catalog);
+        var groups = (byte[])security.Groups.Clone();
+        var jita = _model.IndexOf[10];
+        groups[jita] = MapFilter.Hidden;
+        var scene = Scene(security with { Groups = groups });
+        var camera = new MapCamera(Scale: 40, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
+        var radius = MapScene.SystemRadius(40);
+
+        SKColor Sample(int selected, int x, int y)
+        {
+            using var surface = SKSurface.Create(new SKImageInfo(400, 300));
+            surface.Canvas.Clear(SKColors.Navy);
+            scene.Draw(surface.Canvas, camera, hovered: -1, selected: selected);
+            using var image = surface.Snapshot();
+            using var pixels = image.PeekPixels();
+            return pixels.GetPixelColor(x, y);
+        }
+
+        // The inner ring above Jita, and its dot, only when focused.
+        var ringY = (int)MathF.Round(150 - radius - 5);
+        Assert.Equal(SKColors.Navy, Sample(-1, 200, ringY));
+        Assert.NotEqual(SKColors.Navy, Sample(jita, 200, ringY));
+        Assert.Equal(Palette.Accent, Sample(jita, 200, 150));
+
+        Assert.Equal(-1, scene.HitTest(camera, 200, 150));
+        Assert.Equal(jita, scene.HitTest(camera, 200, 150, selected: jita));
+    }
+
+    [Fact]
     public void Clicks_find_the_marker_that_was_drawn()
     {
         var scene = Scene(MapFilters.Security(_model, _catalog));
