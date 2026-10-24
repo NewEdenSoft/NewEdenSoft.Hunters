@@ -19,8 +19,8 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// The map of known space, as a widget: docked in the main window or floating as an overlay. The
 /// map pack named by the server's discovery document is downloaded the first time the widget is on
 /// screen in a session and kept in memory for the session. Tracked characters are marked on it at
-/// their systems, with the markers chosen on the Account page. A system can be focused, from the
-/// search box or a system's menu: the map goes there and rings it. The layout and colour are chosen
+/// their systems, with the markers chosen on the Account page. A click selects a system. A system can
+/// be focused, from the search box or a system's menu: the map goes there and rings it. The layout and colour are chosen
 /// in the Map controls widget. Once the map is loaded, the server's activity is asked for every minute
 /// while the widget is on screen (revalidated with its ETag, so mostly a 304), for the activity colours
 /// and the hover panel; with hunting profiles shown, where they are seen too, for their glow and badges.
@@ -85,6 +85,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                 EnsureLoaded();
                 UpdateMarkers();
                 focus.Clear();
+                FocusedSystemId = null;
                 SelectedSystemId = null;
             }
         };
@@ -138,14 +139,24 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
     public SystemSearchViewModel Search { get; }
 
-    /// <summary>The focused system: ringed on the map, and the origin for nearby intel. Kept for the session.</summary>
+    /// <summary>The focused system: double-ringed on the map, and the origin for nearby intel. Kept for the session.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SelectedSystem))]
-    public partial int? SelectedSystemId { get; private set; }
+    [NotifyPropertyChangedFor(nameof(FocusedSystem))]
+    public partial int? FocusedSystemId { get; private set; }
 
     /// <summary>The focused system's name, security and region, for its chip; null when none is focused.</summary>
-    public MapSystemInfo? SelectedSystem =>
-        SelectedSystemId is { } id && Model is { } model && model.IndexOf.TryGetValue(id, out var index) ? Describe(index) : null;
+    public MapSystemInfo? FocusedSystem =>
+        FocusedSystemId is { } id && Model is { } model && model.IndexOf.TryGetValue(id, out var index) ? Describe(index) : null;
+
+    /// <summary>The selected system: the one last clicked, with a crosshair on the map. Null for none.</summary>
+    [ObservableProperty]
+    public partial int? SelectedSystemId { get; private set; }
+
+    /// <summary>A click on a system selects it; a click on empty space (-1) clears the selection.</summary>
+    public void SelectSystem(int index) =>
+        SelectedSystemId = Model is { } model && index >= 0 && index < model.Count ? model.Ids[index] : null;
+
+    public void ClearSelection() => SelectedSystemId = null;
 
     /// <summary>Focuses a system: the map goes there, taking over from a followed character as dragging does.</summary>
     public void FocusSystem(int index)
@@ -155,12 +166,12 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
         _focus.StopFollowing();
         _awaitingLocation = null;
-        SelectedSystemId = model.Ids[index];
+        FocusedSystemId = model.Ids[index];
         FocusTarget = new MapFocusTarget(model.Ids[index], ZoomIn: true);
     }
 
     [RelayCommand]
-    public void ClearSystem() => SelectedSystemId = null;
+    public void ClearSystem() => FocusedSystemId = null;
 
     /// <summary>The account's tracked characters with a known location, main first.</summary>
     [ObservableProperty]
@@ -402,7 +413,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     partial void OnModelChanged(MapModel? value)
     {
         Search.SetModel(value);
-        OnPropertyChanged(nameof(SelectedSystem));
+        OnPropertyChanged(nameof(FocusedSystem));
         RebuildHunting();
     }
 

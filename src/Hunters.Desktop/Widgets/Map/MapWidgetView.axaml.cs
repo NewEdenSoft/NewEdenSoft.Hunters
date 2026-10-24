@@ -29,6 +29,11 @@ public partial class MapWidgetView : UserControl
             _menu?.Hide();
         };
         Map.SystemMenuRequested += OnSystemMenuRequested;
+        Map.SystemClicked += (_, index) =>
+        {
+            _menu?.Hide();
+            _viewModel?.SelectSystem(index);
+        };
         // The map handles the wheel itself; an open menu closes as it zooms.
         Map.AddHandler(PointerWheelChangedEvent, (_, _) => _menu?.Hide(), handledEventsToo: true);
 
@@ -61,15 +66,26 @@ public partial class MapWidgetView : UserControl
         SearchArea.IsHitTestVisible = fits;
     }
 
-    /// <summary>"/" puts the cursor in the search box, unless something else is being typed in.</summary>
+    /// <summary>
+    /// "/" puts the cursor in the search box and Esc clears the selection, unless something else is
+    /// being typed in.
+    /// </summary>
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Handled || e.KeySymbol != "/" || e.Source is TextBox || !SearchArea.IsHitTestVisible || _viewModel?.IsLoaded != true)
+        if (e.Handled || e.Source is TextBox || _viewModel?.IsLoaded != true)
             return;
 
-        SearchBox.Focus();
-        e.Handled = true;
+        if (e.Key == Key.Escape && _viewModel.SelectedSystemId is not null)
+        {
+            _viewModel.ClearSelection();
+            e.Handled = true;
+        }
+        else if (e.KeySymbol == "/" && SearchArea.IsHitTestVisible)
+        {
+            SearchBox.Focus();
+            e.Handled = true;
+        }
     }
 
     private void OnSearchKeyDown(object? sender, KeyEventArgs e)
@@ -111,7 +127,7 @@ public partial class MapWidgetView : UserControl
         if (_viewModel?.Model is not { } model)
             return;
 
-        var isFocused = _viewModel.SelectedSystemId == model.Ids[request.Index];
+        var isFocused = _viewModel.FocusedSystemId == model.Ids[request.Index];
         var item = new MenuItem { Header = isFocused ? "Clear focus" : $"Focus {model.Names[request.Index]}" };
         item.Click += (_, _) =>
         {
