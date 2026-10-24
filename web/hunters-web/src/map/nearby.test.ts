@@ -21,12 +21,17 @@ describe('nearbyRequest', () => {
       jumps: 5,
       ly: 8,
       profile: 'carriers',
+      sort: 'npc-rising',
       limit: NEARBY_FETCH,
     })
   })
 
   it('sorts by activity for a profile the server does not list', () => {
-    expect(nearbyRequest({ ...defaultNearby, sort: 'gone' }, 1, 8, ['carriers'])?.profile).toBeNull()
+    expect(nearbyRequest({ ...defaultNearby, sort: 'gone' }, 1, 8, ['carriers'])).toMatchObject({ profile: null, sort: 'npc-rising' })
+  })
+
+  it('sorts by the most NPC kills when asked', () => {
+    expect(nearbyRequest({ ...defaultNearby, sort: 'npc-kills' }, 1, 8, ['carriers'])).toMatchObject({ profile: null, sort: 'npc-kills' })
   })
 
   it('asks nothing without a focus, or with neither gates nor jump range', () => {

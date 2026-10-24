@@ -1,4 +1,4 @@
-import type { ReachRequest, ReachSystem } from '../api/reach'
+import type { ReachRequest, ReachSort, ReachSystem } from '../api/reach'
 
 /** What the Nearby panel looks for around the focused system (Nearby panel, kept in this browser). */
 export interface NearbySetting {
@@ -6,7 +6,7 @@ export interface NearbySetting {
   jumps: number | null
   /** Cyno targets within the Jump range panel's light years too. */
   byJumpRange: boolean
-  /** "activity" (the rise in NPC kills), or a hunting profile's id (its "likely now"). */
+  /** "activity" (the rise in NPC kills), "npc-kills" (the most), or a hunting profile's id (its "likely now"). */
   sort: string
   /** Show the systems without any activity too (hidden by default). */
   showQuiet: boolean
@@ -45,9 +45,15 @@ export function nearbyRequest(setting: NearbySetting, from: number | null, range
     from,
     jumps: setting.jumps,
     ly: setting.byJumpRange ? rangeLy : null,
-    profile: setting.sort !== 'activity' && profiles.includes(setting.sort) ? setting.sort : null,
+    profile: profiles.includes(setting.sort) ? setting.sort : null,
+    sort: npcSort(setting.sort),
     limit: NEARBY_FETCH,
   }
+}
+
+/** The server's order when not sorting by a profile: the most NPC kills, or else their rise. */
+export function npcSort(sort: string): ReachSort {
+  return sort === 'npc-kills' ? 'npc-kills' : 'npc-rising'
 }
 
 /**

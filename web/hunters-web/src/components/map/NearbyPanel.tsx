@@ -47,7 +47,7 @@ export function NearbyPanel({
     profiles.map((p) => p.id),
   )
   const reach = useQuery({
-    ...reachQuery(request ?? { from: 0, jumps: null, ly: null, profile: null, limit: 0 }),
+    ...reachQuery(request ?? { from: 0, jumps: null, ly: null, profile: null, sort: 'npc-rising', limit: 0 }),
     enabled: request !== null,
   })
   const names = new Map(profiles.map((p) => [p.id, p.name]))
@@ -78,24 +78,23 @@ export function NearbyPanel({
           {setting.byJumpRange ? 'On' : 'Off'} · {formatLy(range.ly)}
         </Toggle>
       </ControlGroup>
-      {profiles.length > 0 && (
-        <label className="grid gap-1.5">
-          <Label>Sort by</Label>
-          {/* A list, not toggles: one per profile would fill the panel. */}
-          <select
-            value={request?.profile ?? 'activity'}
-            onChange={(e) => update({ sort: e.target.value })}
-            className="border border-line-strong bg-bg px-2 py-1 text-[0.8125rem] text-fg focus:border-primary focus:outline-none"
-          >
-            <option value="activity">NPC kills rising</option>
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}: likely now
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      <label className="grid gap-1.5">
+        <Label>Sort by</Label>
+        {/* A list, not toggles: one per profile would fill the panel. */}
+        <select
+          value={request?.profile ?? (request?.sort === 'npc-kills' ? 'npc-kills' : 'activity')}
+          onChange={(e) => update({ sort: e.target.value })}
+          className="border border-line-strong bg-bg px-2 py-1 text-[0.8125rem] text-fg focus:border-primary focus:outline-none"
+        >
+          <option value="activity">NPC kills rising</option>
+          <option value="npc-kills">NPC kills</option>
+          {profiles.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}: likely now
+            </option>
+          ))}
+        </select>
+      </label>
 
       {focused < 0 ? (
         <p className="text-[0.8125rem] text-fg-muted">Focus a system (double click it) to see what is near it.</p>
@@ -110,7 +109,11 @@ export function NearbyPanel({
           <p className="flex flex-wrap items-baseline gap-x-2 text-[0.75rem] text-fg-muted">
             <span>
               {active.length} active near {model.names[focused]}
-              {request.profile ? `, ${names.get(request.profile)} likely now first` : ', NPC kills rising first'}
+              {request.profile
+                ? `, ${names.get(request.profile)} likely now first`
+                : request.sort === 'npc-kills'
+                  ? ', most NPC kills first'
+                  : ', NPC kills rising first'}
               {shown.length < (setting.showQuiet ? around.length : active.length) && ` (first ${NEARBY_LIMIT})`}.
             </span>
             {quiet > 0 && (

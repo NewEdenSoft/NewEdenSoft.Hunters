@@ -42,6 +42,9 @@ export interface ReachSystem {
   profiles: ReachProfile[]
 }
 
+/** The orders without a profile: the rise in NPC kills (the default), or the most NPC kills. */
+export type ReachSort = 'npc-rising' | 'npc-kills'
+
 export interface IntelReach {
   from: number
   jumps: number | null
@@ -53,14 +56,16 @@ export interface IntelReach {
   activityVersion: number | null
   huntingVersion: number | null
   systems: ReachSystem[]
+  sort: ReachSort
 }
 
 export interface ReachRequest {
   from: number
   jumps: number | null
   ly: number | null
-  /** Sort by this profile's "likely now"; null sorts by the rise in NPC kills. */
+  /** Sort by this profile's "likely now"; null sorts by `sort`. */
   profile: string | null
+  sort: ReachSort
   limit: number
 }
 
@@ -69,7 +74,7 @@ export const reachQuery = (request: ReachRequest) =>
   queryOptions({
     queryKey: ['intel', 'reach', request],
     queryFn: ({ signal }) => {
-      const query = new URLSearchParams({ from: String(request.from), limit: String(request.limit) })
+      const query = new URLSearchParams({ from: String(request.from), limit: String(request.limit), sort: request.sort })
       if (request.jumps !== null) query.set('jumps', String(request.jumps))
       if (request.ly !== null) query.set('ly', String(request.ly))
       if (request.profile !== null) query.set('profile', request.profile)
