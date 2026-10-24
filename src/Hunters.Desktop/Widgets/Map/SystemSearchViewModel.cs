@@ -5,7 +5,7 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 
 /// <summary>
 /// The search box on the map: systems matching what is typed (<see cref="SystemSearch"/>), with one
-/// highlighted for the keyboard. Choosing one hands its index to the map, which focuses it.
+/// highlighted for the keyboard. Choosing one hands its index to the map, which selects it and goes there.
 /// </summary>
 public sealed partial class SystemSearchViewModel(Func<int, MapSystemInfo> describe, Action<int> choose) : ObservableObject
 {
@@ -41,7 +41,7 @@ public sealed partial class SystemSearchViewModel(Func<int, MapSystemInfo> descr
         Highlighted = Results[((at + step) % Results.Count + Results.Count) % Results.Count];
     }
 
-    /// <summary>Focuses the highlighted result (Enter); false when there is none.</summary>
+    /// <summary>Chooses the highlighted result (Enter); false when there is none.</summary>
     public bool ChooseHighlighted()
     {
         if (Highlighted is not { } result)
