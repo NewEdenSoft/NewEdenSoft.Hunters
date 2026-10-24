@@ -15,10 +15,10 @@ import { TrackingContext, type Tracking } from './trackingContext'
  * tracking; the tracker, its tokens and names go with it.
  */
 export function TrackingProvider({ account, children }: { account: AccountInfo; children: ReactNode }) {
-  const [tracking] = useState<Tracking>(() => ({
-    tracker: new CharacterTracker(fetchLocationEsi, new ServerTokenProvider()),
-    names: new EveNames(fetchNames),
-  }))
+  const [tracking] = useState<Tracking>(() => {
+    const tokens = new ServerTokenProvider()
+    return { tracker: new CharacterTracker(fetchLocationEsi, tokens), names: new EveNames(fetchNames), tokens }
+  })
   const prefsVersion = useCharacterPrefs()
 
   useEffect(() => {

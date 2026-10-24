@@ -28,6 +28,37 @@ export interface HuntingOverview {
   profiles: HuntingProfileSystems[]
 }
 
+/** A profile seen in one system. */
+export interface HuntingPlaceProfile {
+  profile: string
+  name: string
+  score: number
+  week: number
+  month: number
+  /** The part of `month` from indirect evidence (CRAB beacons for Carriers). */
+  monthIndicator: number
+  /** Different pilots seen in the last 30 days. */
+  pilots: number
+  lastSeen: string
+  /** 24 weighted sightings by hour of the day (UTC). */
+  hours: number[]
+}
+
+/** The profiles seen in one system, highest score first; empty when none were. */
+export interface HuntingPlace {
+  id: number
+  version: number
+  updatedAt: string
+  profiles: HuntingPlaceProfile[]
+}
+
+export const systemHuntingQuery = (systemId: number) =>
+  queryOptions({
+    queryKey: ['hunting', 'system', systemId],
+    queryFn: ({ signal }) => api<HuntingPlace>(`/api/hunting/systems/${systemId}`, { signal }),
+    staleTime: 5 * 60_000,
+  })
+
 export const huntingProfilesQuery = queryOptions({
   queryKey: ['hunting', 'profiles'],
   queryFn: ({ signal }) => api<HuntingProfileInfo[]>('/api/hunting/profiles', { signal }),
