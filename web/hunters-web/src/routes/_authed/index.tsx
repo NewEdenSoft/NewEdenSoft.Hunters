@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
-import { activityQuery, type ActivityColumns } from '../../api/activity'
+import { activityQuery } from '../../api/activity'
 import { discoveryQuery } from '../../api/discovery'
 import { huntingOverviewQuery, huntingProfilesQuery, type HuntingProfileInfo } from '../../api/hunting'
 import { mapPackQuery } from '../../api/map'
@@ -41,6 +41,8 @@ import { profileStyle } from '../../theme/themes'
 import { HuntingPanel } from '../../components/map/HuntingPanel'
 import { JumpRangePanel } from '../../components/map/JumpRangePanel'
 import { ControlGroup } from '../../components/ui/ControlGroup'
+import { SystemInfoPanel } from '../../components/map/SystemInfoPanel'
+import type { ActivityMetrics } from '../../api/activity'
 
 export interface MapSearch {
   colour?: MapFilterId
@@ -83,6 +85,7 @@ function MapPage() {
   const packFormat = discovery.data?.mapPack?.format
   const hasActivity = discovery.data?.features.includes('activity') ?? false
   const hasHunting = discovery.data?.features.includes('hunting') ?? false
+  const hasKills = discovery.data?.features.includes('kills') ?? false
   const pack = useQuery({ ...mapPackQuery(sdeBuild ?? 0, packFormat), enabled: sdeBuild !== undefined })
   const model = useMemo(() => (pack.data ? buildMapModel(pack.data) : null), [pack.data])
 
@@ -142,7 +145,9 @@ function MapPage() {
   return (
     <LoadedMap
       model={model}
-      npcKills={activityFor(model, activity.data ?? null)?.npcKills ?? null}
+      activity={activityFor(model, activity.data ?? null)}
+      hasHunting={hasHunting}
+      hasKills={hasKills}
       hunting={hunting}
       profilesAt={profilesAt}
       huntingProfiles={profiles.data ?? []}
@@ -168,7 +173,9 @@ function MapPage() {
  */
 function LoadedMap({
   model,
-  npcKills,
+  activity,
+  hasHunting,
+  hasKills,
   hunting,
   profilesAt,
   huntingProfiles,
@@ -186,8 +193,11 @@ function LoadedMap({
   setSystem,
 }: {
   model: MapModel
-  /** NPC kills per system (last hour and the one before), for the hover panel; null without activity data. */
-  npcKills: ActivityColumns | null
+  /** The current hour's activity for this map (the hover panel's NPC kills, the System panel); null without it. */
+  activity: ActivityMetrics | null
+  hasHunting: boolean
+  /** The server serves recent kills (the System panel). */
+  hasKills: boolean
   hunting: HuntingLayer | null
   /** The hunting profiles seen at each system, for the hover panel. */
   profilesAt: Map<number, PlaceProfile[]> | null
@@ -276,7 +286,7 @@ function LoadedMap({
           if (getMapBehaviour().doubleClickFocus) focusSystem(index)
         }}
         onFocusSystem={focusSystem}
-        npcKills={npcKills}
+        npcKills={activity?.npcKills ?? null}
         hunting={hunting}
         profilesAt={profilesAt}
         jumpRange={jumpRange}
@@ -343,6 +353,21 @@ function LoadedMap({
           },
           { definition: panel('jump-range'), content: <JumpRangePanel model={model} focused={focused} /> },
           { definition: panel('characters'), content: <CharactersPanel /> },
+          {
+            definition: panel('system'),
+            content: (
+              <SystemInfoPanel
+                model={model}
+                selection={selection}
+                focused={focused}
+                activity={activity}
+                hasHunting={hasHunting}
+                hasKills={hasKills}
+                onFocus={focusSystem}
+                onClearFocus={() => setSystem(undefined)}
+              />
+            ),
+          },
         ]}
       />
     </div>

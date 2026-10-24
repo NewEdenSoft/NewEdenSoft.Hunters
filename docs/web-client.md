@@ -37,7 +37,7 @@ Panels float over the map, the web version of the desktop's widgets (`src/panels
 
 **Stacking:** the panel clicked or focused last (a click, a tap, or tabbing into it) is on top. The search at the top of the map, with the character chip and the Selected card, is a layer in the same order, so a panel moved under it comes over it when clicked, and the search comes back over the panel when clicked or opened with **/**. The order is renumbered 1..n on every change (`panels/stacking.ts`), so z-indexes stay small, older saved layouts are renumbered when read, and the map's right-click menu stays above everything. The search's place in the order is not saved; it starts on top.
 
-Panels snap to the map's edges (12 px in) and to the panels beside them (lined up, or 8 px apart) when dropped within 12 px. A panel fits its content until the user resizes it. When the window shrinks, panels are drawn inside it without changing what is saved, so they go back to their places when it grows again. Panels so far: **Map** (layout, colour, legend), **Hunting** (the profiles shown on the map, below the Map panel), **Jump range** (closed until opened from the rail, since the range is off until chosen) and **Characters** (below). Nearby activity and Fleet follow.
+Panels snap to the map's edges (12 px in) and to the panels beside them (lined up, or 8 px apart) when dropped within 12 px. A panel fits its content until the user resizes it. When the window shrinks, panels are drawn inside it without changing what is saved, so they go back to their places when it grows again. Panels so far: **Map** (layout, colour, legend), **Hunting** (the profiles shown on the map, below the Map panel), **Jump range** (closed until opened from the rail, since the range is off until chosen), **Characters** (below) and **System** (below Characters; see [System panel](#map)). Nearby activity and Fleet follow.
 
 **On a phone** (below Tailwind's `sm`, 40rem; `useIsPhone`), `Panels` shows the same panels as a **bottom sheet** (`BottomSheet.tsx`) instead: a strip of tabs along the bottom of the map, one per panel. The selected tab shows its name; the others show only their icon (with the name as a tooltip), so four or more tabs fit a phone's width. Tapping a tab opens the sheet on that panel (up to half the screen, scrolling inside); tapping the open tab closes it, and picking a character to show on the map closes it too. The rail becomes a bar along the bottom (map, Account, Settings, log out; no panel toggles), above the safe area. Touch has no hover, so a tap on the map shows the system under the finger (a tap on a marker focuses it), and the system panel stays on screen. The devtools are left out on a phone, where they would cover the bar.
 
@@ -130,6 +130,23 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
 - **Without a focus** nothing is drawn, and the panel says to focus a system.
 - **Drawing:** a soft blue glow under each system in range, reaching past the system's drawn size, and a thin blue ring just outside it, drawn over the systems. With an activity colour on, busy systems are drawn larger and brighter; the ring keeps them readable as in range.
 - **How it's built:** `map/jumpRange.ts` (`jumpRangeOf` returns 1 per system in range), and `MapRenderer.setJumpRange` draws the glow under the hunting glow and the systems and the rings over them.
+
+**System panel.** The **System** panel (`components/map/SystemInfoPanel.tsx`) shows the **selected** system, or the **focused** one while nothing is selected, tagged *Selected* and/or *Focused*. The Selected card under the search stays as well.
+
+- **Header:** the name, security (in its colour) and region, with links to the system on **zKillboard** and **Dotlan** (spaces in the name as underscores), each opening in a new tab.
+- **Commands:**
+  - **Focus**, or **Unfocus** when it is the focused system
+  - **Destination:** lists the account's usable characters (online ones first, then the main). Choosing one sets that character's autopilot destination in the game through ESI `POST /ui/autopilot/waypoint` (`clear_other_waypoints`, scope `esi-ui.write_waypoint.v1`, already asked for at login), with the token the tracker uses (`Tracking.tokens`). A rejected token is renewed once; a 403 asks the user to log in with the character again.
+- **Last hour:** NPC kills, ship kills, pod kills and jumps from the current activity hour: the last hour, the change from the hour before (green ▲ rising, red ▼ falling, – without an hour before), the last 24 hours, and the usual for this hour of the week. *Peak now* or *Peak in N h* by the metric's name. Shown once the server has activity.
+- **Hunting profiles:** every profile seen there (`GET /api/hunting/systems/{id}`), not only the ones shown on the map. Each has its badge, then **peak now**, **now** (usually seen there at this hour, UTC) or **seen**, the pilots in 30 days, and how long since it was last seen. The ones likely now come first, then by score.
+- **Recent kills:** the newest 10 (`GET /api/kills/systems/{id}`, asked again every minute while shown, once the discovery document lists `kills`). Each kill shows:
+  - the ship's icon, ship and pilot
+  - **by** the final blow: the pilot and their ship, or the NPC, with *+N* for the other attackers
+  - *NPC* when only NPCs were on it; the attacker count when the final blow is unknown
+  - how long ago, and the value in ISK (12.5k, 3.2M, 1.05B)
+
+  Each kill links to zKillboard. Names come from ESI `POST /universe/names` through the session's name cache, and ship icons from the image server.
+- **How it's built:** the formatting and ordering are pure functions in `map/systemInfo.ts`, unit tested.
 
 Security is kept in 64 bits in the map model: in 32 bits a true 0.45 reads 0.4499… and would show as 0.4 instead of high-sec 0.5.
 

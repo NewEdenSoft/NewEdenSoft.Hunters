@@ -1,13 +1,16 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
 import { describeWhereabouts, namesToResolve, type Whereabouts } from '../characters/whereabouts'
 import type { EveNames } from './names'
+import type { TokenProvider } from './tokens'
 import type { CharacterTracker } from './tracker'
 import type { TrackedCharacter } from './types'
 
-/** The signed-in session's tracker and name cache; null outside the signed-in pages. */
+/** The signed-in session's tracker, name cache and character tokens; null outside the signed-in pages. */
 export interface Tracking {
   tracker: CharacterTracker
   names: EveNames
+  /** The same tokens the tracker uses, for the app's other ESI calls (setting a destination). */
+  tokens: TokenProvider
 }
 
 export const TrackingContext = createContext<Tracking | null>(null)
