@@ -19,6 +19,7 @@ export interface MapSystem {
   constellationId: number
   security: number
   topDown: MapPoint
+  /** CCP's flattened 2D map (SDE `position2D`): for display only, not to scale. Never measure distances on it. */
   flat: MapPoint
   /** The third axis of the 3D position, in light years (format 2; 0 in older packs). */
   height?: number

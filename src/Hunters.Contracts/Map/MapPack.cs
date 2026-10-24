@@ -25,7 +25,10 @@ public sealed record MapRegion(int Id, string Name);
 
 /// <param name="Security">True security status, -1.0 to 1.0, unrounded.</param>
 /// <param name="TopDown">The 3D position seen from above (SDE <c>x</c> and <c>z</c>), like the in-game star map.</param>
-/// <param name="Flat">CCP's own flattened layout (SDE <c>position2D</c>), like the in-game 2D map.</param>
+/// <param name="Flat">
+/// CCP's own flattened layout (SDE <c>position2D</c>), like the in-game 2D map. For display only: it is not
+/// to scale, so never measure distances on it (use <paramref name="TopDown"/> and <paramref name="Height"/>).
+/// </param>
 /// <param name="Height">
 /// The third axis of the 3D position (SDE <c>y</c>), in light years: with <paramref name="TopDown"/>, the
 /// straight-line distance between two systems, as jump drives measure it.
