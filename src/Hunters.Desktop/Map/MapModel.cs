@@ -42,6 +42,7 @@ public sealed class MapModel
         Security = new double[Count];
         _flat = new float[Count * 2];
         _topDown = new float[Count * 2];
+        Heights = new float[Count];
         var indexOf = new Dictionary<int, int>(Count);
 
         for (var i = 0; i < Count; i++)
@@ -56,6 +57,7 @@ public sealed class MapModel
             _flat[i * 2 + 1] = (float)s.Flat.Y;
             _topDown[i * 2] = (float)s.TopDown.X;
             _topDown[i * 2 + 1] = (float)s.TopDown.Y;
+            Heights[i] = (float)s.Height;
             indexOf[s.Id] = i;
         }
 
@@ -78,6 +80,18 @@ public sealed class MapModel
     }
 
     public long SdeBuild { get; }
+
+    /// <summary>The third axis of each system's 3D position, in light years: with the top-down x, y, for <see cref="LyBetween"/>.</summary>
+    public float[] Heights { get; }
+
+    /// <summary>The straight-line distance between two systems (by index) in light years, as jump drives measure it.</summary>
+    public double LyBetween(int a, int b)
+    {
+        double dx = _topDown[a * 2] - _topDown[b * 2];
+        double dy = _topDown[a * 2 + 1] - _topDown[b * 2 + 1];
+        double dz = Heights[a] - Heights[b];
+        return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
 
     public int Count { get; }
 

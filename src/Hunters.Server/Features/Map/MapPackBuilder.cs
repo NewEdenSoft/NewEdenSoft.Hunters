@@ -59,7 +59,8 @@ public static class MapPackBuilder
         // Screen orientation: SDE z (and position2D y) grow to the north, screens grow downwards.
         var topDown = Point(s.X, -s.Z);
         var flat = s is { FlatX: { } fx, FlatY: { } fy } ? Point(fx, -fy) : topDown;
-        return new MapSystem(s.Id, s.Name, s.RegionId, s.ConstellationId, Math.Round(s.Security, 4), topDown, flat);
+        return new MapSystem(s.Id, s.Name, s.RegionId, s.ConstellationId, Math.Round(s.Security, 4), topDown, flat,
+            Math.Round(s.Y / MetresPerLightYear, 3));
     }
 
     private static MapPoint Point(double xMetres, double yMetres) =>

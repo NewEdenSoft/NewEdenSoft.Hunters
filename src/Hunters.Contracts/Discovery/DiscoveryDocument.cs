@@ -18,8 +18,8 @@ public sealed record DiscoveryDocument(
 /// <summary>What a client must provide to log in. Never reveals the server's allow lists.</summary>
 public sealed record AdmissionInfo(bool RequiresAccessKey);
 
-/// <summary>The map pack currently served, identified by the SDE build it was generated from.</summary>
-public sealed record MapPackInfo(long SdeBuild);
+/// <summary>The map pack currently served: the SDE build it was generated from, and its <see cref="Map.MapPack.Format"/>.</summary>
+public sealed record MapPackInfo(long SdeBuild, int Format = Map.MapPack.Format);
 
 /// <summary>Values of <see cref="DiscoveryDocument.Features"/>.</summary>
 public static class HuntersFeatures

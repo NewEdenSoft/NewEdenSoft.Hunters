@@ -20,6 +20,8 @@ export interface MapSystem {
   security: number
   topDown: MapPoint
   flat: MapPoint
+  /** The third axis of the 3D position, in light years (format 2; 0 in older packs). */
+  height?: number
 }
 
 export interface MapGate {
@@ -34,11 +36,14 @@ export interface MapPack {
   gates: MapGate[]
 }
 
-/** The map pack of one SDE build. Immutable, so it never goes stale. */
-export const mapPackQuery = (sdeBuild: number) =>
+/**
+ * The map pack of one SDE build, in a format (both from the discovery document). Immutable, so it never
+ * goes stale; a new format is a new URL, so a cached pack of an older one is not used.
+ */
+export const mapPackQuery = (sdeBuild: number, format = 1) =>
   queryOptions({
-    queryKey: ['map-pack', sdeBuild],
-    queryFn: ({ signal }) => api<MapPack>(`/api/map/packs/${sdeBuild}`, { signal }),
+    queryKey: ['map-pack', sdeBuild, format],
+    queryFn: ({ signal }) => api<MapPack>(`/api/map/packs/${sdeBuild}?format=${format}`, { signal }),
     staleTime: Infinity,
     gcTime: Infinity,
   })

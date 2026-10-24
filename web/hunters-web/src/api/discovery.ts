@@ -8,7 +8,8 @@ export interface DiscoveryDocument {
   apiVersion: string
   minClientVersion: string
   admission: { requiresAccessKey: boolean }
-  mapPack: { sdeBuild: number } | null
+  /** The current map pack: its SDE build and format, both in its URL. */
+  mapPack: { sdeBuild: number; format?: number } | null
   features: string[]
 }
 

@@ -12,8 +12,9 @@ public static class MapEndpoints
 
     public static IEndpointRouteBuilder MapMap(this IEndpointRouteBuilder endpoints)
     {
-        // Behind login like everything else (docs/decisions.md, D19). Immutable per build, so clients
-        // download it once; the discovery document says which build is current.
+        // Behind login like everything else (docs/decisions.md, D19). Immutable per build and format
+        // (?format=, which only makes the URL new: the current format is served), so clients download it
+        // once; the discovery document says which build and format are current.
         endpoints.MapGet(PackRoute, (long sdeBuild, HttpContext http, MapPackStore store) =>
             {
                 if (store.Current is not { } pack)

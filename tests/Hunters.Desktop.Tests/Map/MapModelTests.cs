@@ -15,6 +15,18 @@ public sealed class MapModelTests
     }
 
     [Fact]
+    public void Light_years_are_measured_in_3d_with_the_height()
+    {
+        var pack = MapTestData.Pack();
+        // Perimeter 1 ly east of Jita on the top-down map, and raised 2 ly.
+        var raised = pack with { Systems = [.. pack.Systems.Select(s => s.Id == 11 ? s with { Height = 2 } : s)] };
+        var model = MapModel.Build(raised);
+
+        Assert.Equal(Math.Sqrt(5), model.LyBetween(model.IndexOf[10], model.IndexOf[11]), 5);
+        Assert.Equal(0, model.LyBetween(model.IndexOf[10], model.IndexOf[10]));
+    }
+
+    [Fact]
     public void Positions_and_bounds_follow_the_layout()
     {
         var jita = _model.IndexOf[11];

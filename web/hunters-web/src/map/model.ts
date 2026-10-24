@@ -24,6 +24,8 @@ export interface MapModel {
   security: Float32Array
   /** Interleaved x, y in light years, per layout. */
   positions: Record<MapLayout, Float32Array>
+  /** The third axis of each system's 3D position, in light years: with the top-down x, y, for {@link lyBetween}. */
+  heights: Float32Array
   bounds: Record<MapLayout, Bounds>
   /** Gate endpoints as pairs of system indexes. */
   gates: Uint32Array
@@ -54,6 +56,7 @@ export function buildMapModel(pack: MapPack): MapModel {
   const security = new Float32Array(count)
   const topDown = new Float32Array(count * 2)
   const flat = new Float32Array(count * 2)
+  const heights = new Float32Array(count)
   const names: string[] = new Array(count)
   const indexOf = new Map<number, number>()
 
@@ -67,6 +70,7 @@ export function buildMapModel(pack: MapPack): MapModel {
     topDown[i * 2 + 1] = s.topDown.y
     flat[i * 2] = s.flat.x
     flat[i * 2 + 1] = s.flat.y
+    heights[i] = s.height ?? 0
     indexOf.set(s.id, i)
   })
 
@@ -89,12 +93,22 @@ export function buildMapModel(pack: MapPack): MapModel {
     constellationIds,
     security,
     positions: { topDown, flat },
+    heights,
     bounds: { topDown: boundsOf(topDown), flat: boundsOf(flat) },
     gates: gates.subarray(0, g),
     regionNames: new Map(pack.regions.map((r) => [r.id, r.name])),
     regions: regionLabels(pack, regionIds, { topDown, flat }),
     indexOf,
   }
+}
+
+/** The straight-line distance between two systems (by index) in light years, as jump drives measure it. */
+export function lyBetween(model: MapModel, a: number, b: number): number {
+  const p = model.positions.topDown
+  const dx = p[a * 2] - p[b * 2]
+  const dy = p[a * 2 + 1] - p[b * 2 + 1]
+  const dz = model.heights[a] - model.heights[b]
+  return Math.sqrt(dx * dx + dy * dy + dz * dz)
 }
 
 function regionLabels(pack: MapPack, regionIds: Int32Array, positions: Record<MapLayout, Float32Array>): MapRegionLabel[] {

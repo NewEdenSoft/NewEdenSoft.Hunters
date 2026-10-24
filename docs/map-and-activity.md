@@ -5,19 +5,20 @@
 The server loads the SDE with NewEdenKit.Sde and builds a compact **map pack**, versioned by SDE build number. Clients download it once and cache it by build number (not by server), so switching servers does not re-download it.
 
 - **When:** in the background at startup (`MapPackService`), then every `Hunters:Sde:RefreshInterval` it checks CCP for a new build. The archive (about 100 MB) is downloaded only for a new build and cached in `Hunters:Sde:CachePath`. Until the first load finishes, the discovery document has no `mapPack` and the endpoint answers 503.
-- **Where:** `GET /api/map/packs/{sdeBuild}` (session required). The discovery document's `mapPack.sdeBuild` names the current build; other builds are 404. The response is immutable and served precompressed (Brotli or gzip).
+- **Where:** `GET /api/map/packs/{sdeBuild}?format={format}` (session required). The discovery document's `mapPack` names the current `sdeBuild` and `format`; other builds are 404. The response is immutable and served precompressed (Brotli or gzip). The format only makes the URL new, so a client never uses a cached pack of an older format (`MapPack.Format`; 2 added `height`).
 - **What:** known space, meaning every k-space system (id below 31,000,000) with at least one stargate. That leaves out wormhole space, Abyssal deadspace and the unreachable Jove systems, and keeps Pochven and Zarzakh.
 
 | Contents | Fields |
 |---|---|
 | Regions | id, name |
-| Systems | id, name, region, constellation, true security, `topDown` and `flat` positions |
+| Systems | id, name, region, constellation, true security, `topDown` and `flat` positions, `height` |
 | Gates | `from`, `to` (each connection once, `from` < `to`) |
 
 Positions are in light years, oriented for screens (x east, y south). Each system has two layouts:
 
 - `topDown`: the 3D position seen from above (SDE `x`, `z`), like the in-game star map. See [2D projection](#2d-projection).
 - `flat`: CCP's own flattened layout (SDE `position2D`), like the in-game 2D map.
+- `height`: the third axis of the 3D position (SDE `y`), in light years. With `topDown` it gives the straight-line distance between two systems, as jump drives measure it (`lyBetween` on the web, `MapModel.LyBetween` on the desktop), for jump ranges on the map.
 
 SDE build 3632936: 5,268 systems, 6,989 gates, 68 regions; 112 KB with Brotli (1 MB uncompressed).
 

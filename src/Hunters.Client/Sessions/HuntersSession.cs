@@ -86,9 +86,9 @@ public sealed class HuntersSession : ICharacterTokenProvider
     public Task<DiscoveryDocument> GetDiscoveryAsync(CancellationToken cancellationToken = default) =>
         SendAsync<DiscoveryDocument>(HttpMethod.Get, DiscoveryDocument.Path, cancellationToken: cancellationToken);
 
-    /// <summary>The map pack of one SDE build, as named by <see cref="DiscoveryDocument.MapPack"/>.</summary>
-    public Task<MapPack> GetMapPackAsync(long sdeBuild, CancellationToken cancellationToken = default) =>
-        SendAsync<MapPack>(HttpMethod.Get, MapPaths.Pack(sdeBuild), cancellationToken: cancellationToken);
+    /// <summary>The map pack of one SDE build in a format, as named by <see cref="DiscoveryDocument.MapPack"/>.</summary>
+    public Task<MapPack> GetMapPackAsync(long sdeBuild, int format = MapPack.Format, CancellationToken cancellationToken = default) =>
+        SendAsync<MapPack>(HttpMethod.Get, MapPaths.Pack(sdeBuild, format), cancellationToken: cancellationToken);
 
     /// <summary>
     /// Activity now for the whole map. It changes once an hour, so pass the last answer: the server then
