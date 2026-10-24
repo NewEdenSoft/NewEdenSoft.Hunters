@@ -7,18 +7,19 @@ import { Icon } from '../ui/Icon'
 import { cn } from '../ui/styles'
 
 /**
- * Finds a system by name and focuses it. Showing the focused system (with a button to clear it) when
- * not in use; "/" anywhere on the page starts a search. Up and Down choose, Enter focuses, Escape closes.
+ * Finds a system by name and selects it (the map goes there). Shows the focused system (with a button to
+ * clear it) when not in use; "/" anywhere on the page starts a search. Up and Down choose, Enter selects,
+ * Escape closes.
  */
 export function SystemSearch({
   model,
-  selected,
+  focused,
   onSelect,
   onClear,
 }: {
   model: MapModel
   /** The focused system's index, or -1. */
-  selected: number
+  focused: number
   onSelect: (index: number) => void
   onClear: () => void
 }) {
@@ -64,7 +65,7 @@ export function SystemSearch({
     }
   }
 
-  const showChip = selected >= 0 && !open && query === ''
+  const showChip = focused >= 0 && !open && query === ''
   const expanded = open && results.length > 0
 
   return (
@@ -97,11 +98,11 @@ export function SystemSearch({
         {showChip && (
           <>
             <span className="min-w-0 flex-1 truncate">
-              <span className="font-display text-sm font-semibold text-fg">{model.names[selected]}</span>
-              <span className="ml-2 font-mono text-[0.75rem] font-semibold" style={{ color: securityColor(model.security[selected]) }}>
-                {formatSecurity(model.security[selected])}
+              <span className="font-display text-sm font-semibold text-fg">{model.names[focused]}</span>
+              <span className="ml-2 font-mono text-[0.75rem] font-semibold" style={{ color: securityColor(model.security[focused]) }}>
+                {formatSecurity(model.security[focused])}
               </span>
-              <span className="ml-2 text-[0.75rem] text-fg-muted">{model.regionNames.get(model.regionIds[selected])}</span>
+              <span className="ml-2 text-[0.75rem] text-fg-muted">{model.regionNames.get(model.regionIds[focused])}</span>
             </span>
             <button
               type="button"

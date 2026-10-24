@@ -24,8 +24,14 @@ interface MapViewProps {
   focus?: MapFocusTarget | null
   onMarkerClick?: (characterId: number) => void
   onUserPan?: () => void
-  /** The focused system's index, or -1: ringed and always labelled. */
-  selected?: number
+  /** The focused system's index (the staging point), or -1: double-ringed and always labelled. */
+  focused?: number
+  /** The selected system's index (the one clicked), or -1: ringed and always labelled. */
+  selection?: number
+  /** A click on a system selects it; on empty space (-1) clears the selection. */
+  onSelectSystem?: (index: number) => void
+  /** A double click on a system (it focuses it, when that is enabled). */
+  onDoubleClickSystem?: (index: number) => void
   /** Focus a system from its menu (right click, or a long press on touch). */
   onFocusSystem?: (index: number) => void
   onClearSystem?: () => void
@@ -50,7 +56,10 @@ export function MapView({
   focus = null,
   onMarkerClick,
   onUserPan,
-  selected = -1,
+  focused = -1,
+  selection = -1,
+  onSelectSystem,
+  onDoubleClickSystem,
   onFocusSystem,
   onClearSystem,
   npcKills = null,
@@ -64,20 +73,23 @@ export function MapView({
   const closeMenu = useCallback(() => setMenu(null), [])
 
   // The renderer lives as long as the model; everything else is applied to it without recreating it.
-  const latest = useRef({ layout, filter, markers, focus, selected, hunting, onMarkerClick, onUserPan })
+  const latest = useRef({ layout, filter, markers, focus, focused, selection, hunting, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem })
   useEffect(() => {
-    latest.current = { layout, filter, markers, focus, selected, hunting, onMarkerClick, onUserPan }
+    latest.current = { layout, filter, markers, focus, focused, selection, hunting, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem }
   })
 
   useEffect(() => {
-    const { layout, filter, markers, focus, selected, hunting } = latest.current
+    const { layout, filter, markers, focus, focused, selection, hunting } = latest.current
     const renderer = new MapRenderer(canvasRef.current!, model, layout, filter)
     renderer.onHover = setHover
     renderer.onMarkerClick = (id) => latest.current.onMarkerClick?.(id)
     renderer.onUserPan = () => latest.current.onUserPan?.()
+    renderer.onSystemClick = (index) => latest.current.onSelectSystem?.(index)
+    renderer.onSystemDoubleClick = (index) => latest.current.onDoubleClickSystem?.(index)
     renderer.onContextMenu = setMenu
     renderer.onUserMove = () => setMenu(null)
-    renderer.setSelected(selected)
+    renderer.setFocused(focused)
+    renderer.setSelection(selection)
     renderer.setHunting(hunting)
     renderer.setMarkers(markers)
     if (focus) renderer.focusOn(focus.systemIndex, focus.zoomIn)
@@ -101,8 +113,12 @@ export function MapView({
   }, [markers])
 
   useEffect(() => {
-    rendererRef.current?.setSelected(selected)
-  }, [selected])
+    rendererRef.current?.setFocused(focused)
+  }, [focused])
+
+  useEffect(() => {
+    rendererRef.current?.setSelection(selection)
+  }, [selection])
 
   useEffect(() => {
     rendererRef.current?.setHunting(hunting)
@@ -135,7 +151,7 @@ export function MapView({
           y={menu.y}
           onClose={closeMenu}
           items={
-            menu.index === selected
+            menu.index === focused
               ? [{ label: 'Clear focus', icon: 'close', onSelect: () => onClearSystem?.() }]
               : [{ label: 'Focus system', icon: 'target', onSelect: () => onFocusSystem?.(menu.index) }]
           }

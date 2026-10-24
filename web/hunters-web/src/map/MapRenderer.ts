@@ -84,6 +84,8 @@ const OFFLINE_ALPHA = 0.45
 /** Focusing zooms in at least this far (pixels per light year), so system names show. */
 export const FOCUS_SCALE = 60
 const FOCUS_MS = 350
+/** A second click on the same system within this is a double click (mouse and touch alike). */
+const DOUBLE_CLICK_MS = 350
 /** A press that moves less than this is a click, not a drag. */
 const CLICK_SLOP_PX = 4
 
@@ -158,7 +160,9 @@ interface Palette {
   /** The hover ring and the character markers. */
   hover: string
   /** The focused system's rings and label. */
-  selected: string
+  focused: string
+  /** The selected system's ring and label. */
+  selection: string
   /** The glow behind systems where a shown hunting profile is likely now. */
   huntGlow: string
   /** Resolved colours of the filter's groups. */
@@ -181,6 +185,10 @@ export class MapRenderer {
   onHover: ((hover: MapHover | null) => void) | null = null
   /** A character's marker was clicked. */
   onMarkerClick: ((characterId: number) => void) | null = null
+  /** A click (or tap) on a system, or on empty space (-1): selects it, or clears the selection. */
+  onSystemClick: ((index: number) => void) | null = null
+  /** A second click on the same system within {@link DOUBLE_CLICK_MS}: focuses it, when enabled. */
+  onSystemDoubleClick: ((index: number) => void) | null = null
   /** The user dragged the map (for example, to stop following a character). */
   onUserPan: (() => void) | null = null
   /** The user asked for a system's menu: right click, or a long press on touch. */
@@ -222,8 +230,12 @@ export class MapRenderer {
   private offsetY = 0
   private fitted = false
   private hovered = -1
-  /** The focused system: always drawn, ringed and labelled. */
-  private selected = -1
+  /** The focused system (the staging point): always drawn, double-ringed and labelled. */
+  private focused = -1
+  /** The selected system (the one clicked): always drawn, ringed and labelled. */
+  private selection = -1
+  /** The last click on a system, to tell a double click (also on touch, which has no dblclick). */
+  private lastClick: { index: number; at: number } | null = null
   private longPressTimer = 0
   /** When a long press last opened a menu, so the browser's own long-press menu event is ignored. */
   private longPressedAt = 0
@@ -296,9 +308,16 @@ export class MapRenderer {
   }
 
   /** The focused system (-1 for none): drawn even if the filter hides it, with a double ring and its name. */
-  setSelected(index: number): void {
-    if (index === this.selected) return
-    this.selected = index
+  setFocused(index: number): void {
+    if (index === this.focused) return
+    this.focused = index
+    this.requestDraw()
+  }
+
+  /** The selected system (-1 for none): drawn even if the filter hides it, with a ring and its name. */
+  setSelection(index: number): void {
+    if (index === this.selection) return
+    this.selection = index
     this.requestDraw()
   }
 
@@ -379,6 +398,8 @@ export class MapRenderer {
     this.onMarkerClick = null
     this.onUserPan = null
     this.onContextMenu = null
+    this.onSystemClick = null
+    this.onSystemDoubleClick = null
     this.onUserMove = null
   }
 
@@ -484,7 +505,8 @@ export class MapRenderer {
       ctx.stroke()
     }
 
-    if (this.selected >= 0) this.drawSelected(this.radiusOf(this.selected, radius))
+    if (this.focused >= 0) this.drawFocused(this.radiusOf(this.focused, radius))
+    if (this.selection >= 0 && this.selection !== this.focused) this.drawSelection(this.radiusOf(this.selection, radius))
 
     if (scale >= LABEL_ZOOM) {
       // Badge rows first, so names can keep clear of them.
@@ -493,8 +515,9 @@ export class MapRenderer {
       if (huntRows.length > 0) this.drawHuntBadges(radius, huntRows)
     } else {
       this.drawRegionLabels()
-      // The focused system keeps its name when zoomed out, where no other system has one.
-      if (this.selected >= 0) this.drawSelectedLabel(radius)
+      // The focused and selected systems keep their names when zoomed out, where no other system has one.
+      if (this.focused >= 0) this.drawFocusedLabel(radius)
+      if (this.selection >= 0 && this.selection !== this.focused) this.drawSelectionLabel(radius)
     }
 
     if (this.markerGroups.length > 0) this.drawMarkers()
@@ -677,7 +700,7 @@ export class MapRenderer {
     // Space other things are drawn in (hunting badges): no name goes there. The names of the systems
     // those belong to are placed before it is taken, after the hovered and focused systems'.
     const placeFirst = () => {
-      for (const i of first) if (i !== this.hovered && i !== this.selected) place(i, this.palette.label, false)
+      for (const i of first) if (i !== this.hovered && i !== this.focused && i !== this.selection) place(i, this.palette.label, false)
     }
     const reserve = () => {
       for (const box of reserved) {
@@ -704,14 +727,16 @@ export class MapRenderer {
       ctx.fillText(this.model.names[i], x, y)
     }
 
-    // The hovered and the focused system always get their labels first.
+    // The hovered, focused and selected systems always get their labels first.
     if (this.hovered >= 0) place(this.hovered, this.palette.labelHover, true)
-    if (this.selected >= 0 && this.selected !== this.hovered) place(this.selected, this.palette.selected, true)
+    if (this.focused >= 0 && this.focused !== this.hovered) place(this.focused, this.palette.focused, true)
+    if (this.selection >= 0 && this.selection !== this.hovered && this.selection !== this.focused) place(this.selection, this.palette.selection, true)
     placeFirst()
     reserve()
     const done = new Set(first)
     for (let i = 0; i < this.model.count; i++) {
-      if (i !== this.hovered && i !== this.selected && !done.has(i) && this.filter.groups[i] !== HIDDEN) place(i, this.palette.label, false)
+      if (i !== this.hovered && i !== this.focused && i !== this.selection && !done.has(i) && this.filter.groups[i] !== HIDDEN)
+        place(i, this.palette.label, false)
     }
   }
 
@@ -826,17 +851,17 @@ export class MapRenderer {
   }
 
   /** Two rings around the focused system; its dot too if the filter hides it. */
-  private drawSelected(radius: number): void {
+  private drawFocused(radius: number): void {
     const { ctx, xy, scale, offsetX, offsetY, palette } = this
-    const sx = xy[this.selected * 2] * scale + offsetX
-    const sy = xy[this.selected * 2 + 1] * scale + offsetY
-    if (this.filter.groups[this.selected] === HIDDEN) {
+    const sx = xy[this.focused * 2] * scale + offsetX
+    const sy = xy[this.focused * 2 + 1] * scale + offsetY
+    if (this.filter.groups[this.focused] === HIDDEN) {
       ctx.beginPath()
       ctx.arc(sx, sy, radius, 0, Math.PI * 2)
-      ctx.fillStyle = palette.selected
+      ctx.fillStyle = palette.focused
       ctx.fill()
     }
-    ctx.strokeStyle = palette.selected
+    ctx.strokeStyle = palette.focused
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.arc(sx, sy, radius + 5, 0, Math.PI * 2)
@@ -848,15 +873,53 @@ export class MapRenderer {
   }
 
   /** The focused system's name when zoomed out, to the bottom right of its rings. */
-  private drawSelectedLabel(radius: number): void {
+  private drawFocusedLabel(radius: number): void {
     const { ctx, xy, scale, offsetX, offsetY } = this
     ctx.font = this.labelFont
     ctx.textBaseline = 'top'
-    ctx.fillStyle = this.palette.selected
+    ctx.fillStyle = this.palette.focused
     ctx.fillText(
-      this.model.names[this.selected],
-      xy[this.selected * 2] * scale + offsetX + radius + 10,
-      xy[this.selected * 2 + 1] * scale + offsetY + radius + 4,
+      this.model.names[this.focused],
+      xy[this.focused * 2] * scale + offsetX + radius + 10,
+      xy[this.focused * 2 + 1] * scale + offsetY + radius + 4,
+    )
+  }
+
+  /**
+   * The selected system: one ring with four ticks around it, like a crosshair, in the text colour, so it
+   * reads apart from the focus's double ring. Its dot too if the filter hides it.
+   */
+  private drawSelection(radius: number): void {
+    const { ctx, xy, scale, offsetX, offsetY, palette } = this
+    const sx = xy[this.selection * 2] * scale + offsetX
+    const sy = xy[this.selection * 2 + 1] * scale + offsetY
+    if (this.filter.groups[this.selection] === HIDDEN) {
+      ctx.beginPath()
+      ctx.arc(sx, sy, radius, 0, Math.PI * 2)
+      ctx.fillStyle = palette.selection
+      ctx.fill()
+    }
+    ctx.strokeStyle = palette.selection
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.arc(sx, sy, radius + 5, 0, Math.PI * 2)
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      ctx.moveTo(sx + dx * (radius + 8), sy + dy * (radius + 8))
+      ctx.lineTo(sx + dx * (radius + 13), sy + dy * (radius + 13))
+    }
+    ctx.stroke()
+  }
+
+  /** The selected system's name when zoomed out, to the bottom right of its ring. */
+  private drawSelectionLabel(radius: number): void {
+    const { ctx, xy, scale, offsetX, offsetY } = this
+    ctx.font = this.labelFont
+    ctx.textBaseline = 'top'
+    ctx.fillStyle = this.palette.selection
+    ctx.fillText(
+      this.model.names[this.selection],
+      xy[this.selection * 2] * scale + offsetX + radius + 10,
+      xy[this.selection * 2 + 1] * scale + offsetY + radius + 4,
     )
   }
 
@@ -1029,10 +1092,22 @@ export class MapRenderer {
     if (click && e.type === 'pointerup') {
       const characterId = this.markerAt(e.offsetX, e.offsetY)
       if (characterId !== null) this.onMarkerClick?.(characterId)
-      // Touch has no hover: a tap shows the system under the finger, or hides the panel.
-      else if (e.pointerType !== 'mouse') this.updateHover(e.offsetX, e.offsetY)
+      else {
+        // Touch has no hover: a tap shows the system under the finger, or hides the panel.
+        if (e.pointerType !== 'mouse') this.updateHover(e.offsetX, e.offsetY)
+        this.click(this.systemAt(e.offsetX, e.offsetY))
+      }
     }
     if (e.pointerType === 'mouse') this.updateHover(e.offsetX, e.offsetY)
+  }
+
+  /** A click on a system (or -1, empty space): a selection, and a double click if it is the second in a row. */
+  private click(index: number): void {
+    const now = performance.now()
+    const double = index >= 0 && this.lastClick?.index === index && now - this.lastClick.at < DOUBLE_CLICK_MS
+    this.lastClick = double ? null : { index, at: now }
+    this.onSystemClick?.(index)
+    if (double) this.onSystemDoubleClick?.(index)
   }
 
   private readonly onPointerLeave = (e: PointerEvent) => {
@@ -1049,12 +1124,12 @@ export class MapRenderer {
     this.setHovered(this.systemAt(x, y))
   }
 
-  /** The visible system under a point on screen (CSS pixels), or -1. The focused system is always visible. */
+  /** The visible system under a point on screen (CSS pixels), or -1. The focused and selected systems are always visible. */
   private systemAt(x: number, y: number): number {
     const worldX = (x - this.offsetX) / this.scale
     const worldY = (y - this.offsetY) / this.scale
     const nearest = this.grid.nearest(worldX, worldY, HOVER_RADIUS_PX / this.scale)
-    return nearest >= 0 && (this.filter.groups[nearest] !== HIDDEN || nearest === this.selected) ? nearest : -1
+    return nearest >= 0 && (this.filter.groups[nearest] !== HIDDEN || nearest === this.focused || nearest === this.selection) ? nearest : -1
   }
 
   /** A right click on a system opens its menu; elsewhere the browser's own menu stays. */
@@ -1139,7 +1214,8 @@ function resolvePalette(filter: MapFilter): Palette {
     label: resolveColor('var(--fg-muted)'),
     labelHover: resolveColor('var(--fg)'),
     hover: resolveColor('var(--primary)'),
-    selected: resolveColor('var(--primary)'),
+    focused: resolveColor('var(--primary)'),
+    selection: resolveColor('var(--fg)'),
     huntGlow: resolveColor('var(--hunt-glow)'),
     groups: filter.colours.map(resolveColor),
   }

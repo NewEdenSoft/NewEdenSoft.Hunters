@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import type { MapLayout } from '../map/model'
+import { defaultMapBehaviour, minJumpChoices, type MapBehaviour } from '../map/autoFocus'
 
 // Map settings, kept in this browser like the theme (theme/themes.ts).
 const LAYOUT_KEY = 'hunters.map.layout'
@@ -102,4 +103,62 @@ export function useShownHuntingProfiles(): [string[], (profile: string) => void]
     setHunting(hunting.includes(profile) ? hunting.filter((p) => p !== profile) : [...hunting, profile])
   }, [])
   return [current, toggle]
+}
+
+// How the focused system may change by itself, and the map's clicks (map/autoFocus.ts).
+const BEHAVIOUR_KEY = 'hunters.map.behaviour'
+const behaviourListeners = new Set<() => void>()
+
+function readBehaviour(): MapBehaviour {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(BEHAVIOUR_KEY) ?? '{}')
+    const saved = typeof value === 'object' && value !== null ? (value as Partial<Record<keyof MapBehaviour, unknown>>) : {}
+    const flag = (key: 'enterKnownSpace' | 'longMove' | 'doubleClickFocus') =>
+      typeof saved[key] === 'boolean' ? (saved[key] as boolean) : defaultMapBehaviour[key]
+    return {
+      enterKnownSpace: flag('enterKnownSpace'),
+      longMove: flag('longMove'),
+      doubleClickFocus: flag('doubleClickFocus'),
+      minJumps: minJumpChoices.includes(saved.minJumps as number) ? (saved.minJumps as number) : defaultMapBehaviour.minJumps,
+    }
+  } catch {
+    return defaultMapBehaviour
+  }
+}
+
+let behaviour = readBehaviour()
+
+function subscribeBehaviour(listener: () => void): () => void {
+  behaviourListeners.add(listener)
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === BEHAVIOUR_KEY) {
+      behaviour = readBehaviour()
+      listener()
+    }
+  }
+  window.addEventListener('storage', onStorage)
+  return () => {
+    behaviourListeners.delete(listener)
+    window.removeEventListener('storage', onStorage)
+  }
+}
+
+/** The map's behaviour (auto-focus and double click), kept in this browser, and a setter for part of it. */
+export function useMapBehaviour(): [MapBehaviour, (change: Partial<MapBehaviour>) => void] {
+  const current = useSyncExternalStore(subscribeBehaviour, () => behaviour)
+  const update = useCallback((change: Partial<MapBehaviour>) => {
+    behaviour = { ...behaviour, ...change }
+    try {
+      localStorage.setItem(BEHAVIOUR_KEY, JSON.stringify(behaviour))
+    } catch {
+      // Storage unavailable; the choice still applies for this session.
+    }
+    behaviourListeners.forEach((listener) => listener())
+  }, [])
+  return [current, update]
+}
+
+/** The current behaviour, for code outside React (the auto-focus subscription). */
+export function getMapBehaviour(): MapBehaviour {
+  return behaviour
 }
