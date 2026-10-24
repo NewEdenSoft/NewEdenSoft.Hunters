@@ -86,6 +86,61 @@
 
     <c:HudPanel>
       <StackPanel Spacing="14">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="label" Text="MAP BEHAVIOUR" />
+          <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                     Text="A click selects a system. The focus is your staging point, the origin for nearby intel and jump range. Set it by double clicking a system (when on below), from a system's menu (right click) or the selection's Focus button, or let it follow you as you move. Moves count for the character you follow, or your main while you follow nobody." />
+        </StackPanel>
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Double click to focus" />
+            <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                       Text="Double clicking a system makes it the focus." />
+          </StackPanel>
+          <ToggleSwitch Grid.Column="1" OnContent="" OffContent="" IsChecked="{Binding DoubleClickFocus}" />
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Focus on entering known space" />
+            <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                       Text="Coming out of wormhole space (or anywhere not on the map) focuses the system you arrive in." />
+          </StackPanel>
+          <ToggleSwitch Grid.Column="1" OnContent="" OffContent="" IsChecked="{Binding EnterKnownSpaceFocus}" />
+        </Grid>
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Text="Focus after a long move" />
+              <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                         Text="A move of at least this many gate jumps at once (a filament, a jump bridge, a cyno) focuses where you land." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" OnContent="" OffContent="" IsChecked="{Binding LongMoveFocus}" />
+          </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding LongMoveFocus}">
+            <TextBlock Classes="muted" Text="At least" VerticalAlignment="Center" />
+            <ItemsControl ItemsSource="{Binding MinJumpChoices}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="m:ChoiceViewModel">
+                  <Button Classes="hud toggle"
+                          Classes.primary="{Binding IsSelected}"
+                          Classes.ghost="{Binding !IsSelected}"
+                          Command="{Binding SelectCommand}"
+                          Content="{Binding Label, Converter={x:Static w:UpperCaseConverter.Instance}}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+    </c:HudPanel>
+
+    <c:HudPanel>
+      <StackPanel Spacing="14">
         <TextBlock Classes="label" Text="STARTUP" />
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Spacing="2">

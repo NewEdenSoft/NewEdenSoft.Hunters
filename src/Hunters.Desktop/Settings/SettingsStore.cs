@@ -38,6 +38,9 @@ public sealed record MapSettings
 
     /// <summary>The hunting profiles shown on the map (glow and badges), by id, in the order they were turned on.</summary>
     public IReadOnlyList<string> HuntingProfiles { get; init; } = [];
+
+    /// <summary>When the focused system changes by itself, and whether a double click focuses.</summary>
+    public MapBehaviour Behaviour { get; init; } = new();
 }
 
 /// <summary>Where and how one widget is shown.</summary>

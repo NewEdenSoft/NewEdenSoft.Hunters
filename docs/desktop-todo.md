@@ -11,7 +11,7 @@ See [Selection and focus](web-client.md#map).
 - [x] **Search selects** (Enter and a click on a result): the map goes there, and the focus stays as it was. With no search typed, the field still shows the focused system with its clear button.
 - [x] **Selected card** under the search and the character chip: **Selected**, name, security, region, a **Focus** button and ✕.
 - [x] **Double click focuses** (when the setting is on): two clicks on the same system within 350 ms.
-- [ ] **Map behaviour settings** on the Settings page, saved with the other desktop settings. Defaults:
+- [x] **Map behaviour settings** on the Settings page, saved with the other desktop settings. Defaults:
   - Double click to focus: on
   - Focus on entering known space: on
   - Focus after a long move: on, 5 jumps (choices 2, 3, 5, 10, 20)
