@@ -15,7 +15,7 @@ See [Selection and focus](web-client.md#map).
   - Double click to focus: on
   - Focus on entering known space: on
   - Focus after a long move: on, 5 jumps (choices 2, 3, 5, 10, 20)
-- [ ] **Auto-focus:** follow the **followed character**, else the **main**. Port `autoFocusReason` and `jumpsWithin` (a breadth-first search over gates that stops at the minimum) from `map/autoFocus.ts`, with its tests. The first known location never focuses. The map goes to the new focus, and following carries on.
+- [x] **Auto-focus:** follow the **followed character**, else the **main**. Port `autoFocusReason` and `jumpsWithin` (a breadth-first search over gates that stops at the minimum) from `map/autoFocus.ts`, with its tests. The first known location never focuses. The map goes to the new focus, and following carries on.
 - [ ] Focusing by hand moves the map there and stops following, as now; the character chip stays.
 
 ## Hunting and Jump range panels
