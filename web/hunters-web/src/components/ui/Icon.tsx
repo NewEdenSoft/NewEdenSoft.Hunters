@@ -16,6 +16,10 @@ const paths = {
   expand: 'M6 9 L12 15 L18 9',
   reset: 'M4 12 A8 8 0 1 0 6.5 6.2 M4 3.5 L4 8 L8.5 8',
   search: 'M10.5 17 A6.5 6.5 0 1 0 10.5 4 A6.5 6.5 0 1 0 10.5 17 Z M15.2 15.2 L20 20',
+  // A radar: rings and a sweep (hunting profiles).
+  radar: 'M12 21 A9 9 0 1 0 12 3 A9 9 0 1 0 12 21 Z M12 16 A4 4 0 1 0 12 8 M12 12 L18.4 5.6 M12 12 L12 12.01',
+  // A range: a circle around a point, with its radius (jump range).
+  range: 'M12 21 A9 9 0 1 0 12 3 A9 9 0 1 0 12 21 Z M12 12 L20.5 9 M10.5 12 A1.5 1.5 0 1 0 13.5 12 A1.5 1.5 0 1 0 10.5 12 Z',
   target: 'M12 19 A7 7 0 1 0 12 5 A7 7 0 1 0 12 19 Z M12 14.5 A2.5 2.5 0 1 0 12 9.5 A2.5 2.5 0 1 0 12 14.5 Z M12 2 L12 5 M12 19 L12 22 M2 12 L5 12 M19 12 L22 12',
 } as const
 

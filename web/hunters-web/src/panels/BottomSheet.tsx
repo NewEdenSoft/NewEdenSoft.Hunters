@@ -44,14 +44,17 @@ export function BottomSheet({ items }: { items: PanelItem[] }) {
               aria-expanded={selected && open}
               aria-controls="sheet-panel"
               onClick={() => select(d.id)}
+              title={d.title}
               className={cn(
-                'flex flex-1 cursor-pointer items-center justify-center gap-2 py-2.5 font-display text-[0.6875rem] font-semibold tracking-[0.16em] uppercase',
+                'flex cursor-pointer items-center justify-center gap-2 px-3 py-2.5 font-display text-[0.6875rem] font-semibold tracking-[0.16em] whitespace-nowrap uppercase',
                 'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fg',
+                selected ? 'flex-1' : 'flex-none',
                 selected && open ? 'bg-primary-soft text-primary' : 'text-fg-muted',
               )}
             >
               <Icon name={d.icon} className="size-4" />
-              {d.title}
+              {/* Only the selected tab has room for its name; the others show their icon. */}
+              <span className={selected ? undefined : 'sr-only'}>{d.title}</span>
               {selected && <Icon name={open ? 'expand' : 'collapse'} className="size-3.5" />}
             </button>
           )
