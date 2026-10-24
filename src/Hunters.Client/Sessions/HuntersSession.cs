@@ -7,6 +7,7 @@ using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Contracts.Activity;
 using NewEdenSoft.Hunters.Contracts.Auth;
 using NewEdenSoft.Hunters.Contracts.Discovery;
+using NewEdenSoft.Hunters.Contracts.Hunting;
 using NewEdenSoft.Hunters.Contracts.Map;
 
 namespace NewEdenSoft.Hunters.Client.Sessions;
@@ -95,6 +96,14 @@ public sealed class HuntersSession : ICharacterTokenProvider
     /// </summary>
     public Task<Revalidated<ActivityCurrent>> GetActivityAsync(Revalidated<ActivityCurrent>? previous, CancellationToken cancellationToken = default) =>
         GetRevalidatedAsync(ActivityPaths.Current, previous, cancellationToken);
+
+    /// <summary>The server's hunting profiles: the kinds of target it finds.</summary>
+    public Task<IReadOnlyList<HuntingProfileInfo>> GetHuntingProfilesAsync(CancellationToken cancellationToken = default) =>
+        SendAsync<IReadOnlyList<HuntingProfileInfo>>(HttpMethod.Get, HuntingPaths.Profiles, cancellationToken: cancellationToken);
+
+    /// <summary>Where every hunting profile is seen. Revalidated like <see cref="GetActivityAsync"/>.</summary>
+    public Task<Revalidated<HuntingOverview>> GetHuntingOverviewAsync(Revalidated<HuntingOverview>? previous, CancellationToken cancellationToken = default) =>
+        GetRevalidatedAsync(HuntingPaths.Overview, previous, cancellationToken);
 
     public async Task SetMainCharacterAsync(long characterId, CancellationToken cancellationToken = default)
     {

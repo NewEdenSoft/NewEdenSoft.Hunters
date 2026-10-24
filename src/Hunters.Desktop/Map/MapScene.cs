@@ -7,9 +7,10 @@ namespace NewEdenSoft.Hunters.Desktop.Map;
 /// <summary>
 /// Theme colours the map is drawn with. <paramref name="Halo"/> outlines region names so they read
 /// over gates and fills marker badges; <paramref name="Accent"/> draws the hover ring, the focused
-/// system's rings and name, and the markers.
+/// system's rings and name, and the markers; <paramref name="HuntGlow"/> is the glow behind systems
+/// where a shown hunting profile is likely now.
 /// </summary>
-public sealed record MapPalette(SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent);
+public sealed record MapPalette(SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent, SKColor HuntGlow = default);
 
 /// <summary>One character's marker; offline characters are drawn dimmed at their last known system.</summary>
 public readonly record struct MapMarker(long CharacterId, CharacterMarker Marker, bool IsOnline);
@@ -44,7 +45,8 @@ public readonly record struct MapCamera(float Scale, float OffsetX, float Offset
 /// around each system when zoomed in; systems in view, batched by colour group; then system names
 /// to the bottom right of each system when zoomed in, or region names when zoomed out; last, the
 /// characters' markers, joined by a line to the upper right of their systems. The focused system
-/// gets two rings and always its name, in the accent colour.
+/// gets two rings and always its name, in the accent colour. Shown hunting profiles add a glow under
+/// the systems and, zoomed in, a row of badges below each system's name.
 /// </remarks>
 public sealed class MapScene
 {
@@ -77,6 +79,12 @@ public sealed class MapScene
     /// <summary>Marker badges: size, space between them, and how far the leader line reaches up and right from the system.</summary>
     private const float MarkerSize = 18, MarkerGap = 3, MarkerLead = 12, MarkerCut = 4, MarkerFontSize = 11;
 
+    /// <summary>Hunting badges show from this zoom (pixels per light year); further out, the glow alone does.</summary>
+    public const float HuntBadgeZoom = 50;
+
+    /// <summary>Hunting badges: smaller than the character markers, in a row below the system's name.</summary>
+    private const float HuntBadge = 17, HuntGap = 3, HuntCut = 4, HuntFontSize = 10, HuntFaintAlpha = 0.4f;
+
     /// <summary>Offline characters' markers are drawn at this opacity.</summary>
     private const float OfflineAlpha = 0.45f;
 
@@ -99,6 +107,7 @@ public sealed class MapScene
     private readonly SKFont _labelFont;
     private readonly SKFont _regionFont;
     private readonly SKFont _markerFont;
+    private readonly SKFont _huntFont;
     private readonly float[] _labelWidths;
     private readonly float _labelAscent;
     private readonly RegionText?[] _regionTexts;
@@ -121,6 +130,7 @@ public sealed class MapScene
 
         _regionFont = new SKFont(fonts.Region, RegionFontSize) { Subpixel = true };
         _markerFont = new SKFont(fonts.Region, MarkerFontSize) { Subpixel = true };
+        _huntFont = new SKFont(fonts.Region, HuntFontSize) { Subpixel = true, Embolden = true };
         _regionTexts = model.Regions.Select(r => r.Centre(layout) is null ? null : RegionText.Create(r.Name.ToUpperInvariant(), _regionFont)).ToArray();
     }
 
@@ -148,7 +158,9 @@ public sealed class MapScene
     }
 
     /// <param name="selected">The focused system's index, or -1.</param>
-    public void Draw(SKCanvas canvas, in MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup>? markers = null, int selected = -1)
+    /// <param name="hunting">The shown hunting profiles' glow and badges, or null.</param>
+    public void Draw(
+        SKCanvas canvas, in MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup>? markers = null, int selected = -1, HuntingLayer? hunting = null)
     {
         // Gates go on a layer of their own, so the margins can be cut out of them without cutting
         // through what is behind the map.
@@ -157,13 +169,19 @@ public sealed class MapScene
         DrawMargins(canvas, camera);
         canvas.Restore();
 
+        if (hunting is not null)
+            DrawHuntGlow(canvas, camera, hunting.Glow);
         DrawSystems(canvas, camera, hovered);
         if (selected >= 0)
             DrawSelected(canvas, camera, selected);
 
         if (camera.Scale >= LabelZoom)
         {
-            DrawLabels(canvas, camera, hovered, selected);
+            // Badge rows first, so names can keep clear of them.
+            var huntRows = hunting is { Badges.Count: > 0 } && camera.Scale >= HuntBadgeZoom ? LayoutHuntRows(camera, hunting.Badges) : [];
+            DrawLabels(canvas, camera, hovered, selected, huntRows);
+            if (huntRows.Count > 0)
+                DrawHuntBadges(canvas, camera, huntRows);
         }
         else
         {
@@ -461,7 +479,120 @@ public sealed class MapScene
     }
 
     /// <summary>System names to the bottom right of each system in view, skipping any that would overlap one already drawn.</summary>
-    private void DrawLabels(SKCanvas canvas, in MapCamera camera, int hovered, int selected)
+    /// <summary>
+    /// A soft glow behind each system where a shown hunting profile is likely now: brighter and wider the
+    /// stronger it is. Under the system dots, over the gates.
+    /// </summary>
+    private void DrawHuntGlow(SKCanvas canvas, in MapCamera camera, float[] glow)
+    {
+        var radius = SystemRadius(camera.Scale);
+        var colour = _palette.HuntGlow;
+        using var paint = new SKPaint { IsAntialias = true };
+        for (var i = 0; i < glow.Length && i < _model.Count; i++)
+        {
+            var g = glow[i];
+            if (g <= 0)
+                continue;
+
+            var sx = camera.ToScreenX(X(i));
+            var sy = camera.ToScreenY(Y(i));
+            var reach = Math.Max(radius * 3.2f, 9) * (0.7f + 0.5f * g);
+            if (sx < -reach || sy < -reach || sx > camera.Width + reach || sy > camera.Height + reach)
+                continue;
+
+            using var shader = SKShader.CreateRadialGradient(
+                new SKPoint(sx, sy), reach, [colour.WithAlpha((byte)(255 * (0.25f + 0.6f * g))), colour.WithAlpha(0)], SKShaderTileMode.Clamp);
+            paint.Shader = shader;
+            canvas.DrawCircle(sx, sy, reach, paint);
+        }
+    }
+
+    /// <summary>
+    /// The shown hunting profiles seen at each system, as small badges in each profile's colour, in a row
+    /// below the system's name with a short line from the system. Faint where the profile is not usually
+    /// there at this hour. Drawn only when names are.
+    /// </summary>
+    private void DrawHuntBadges(SKCanvas canvas, in MapCamera camera, List<HuntRow> rows)
+    {
+        var edge = SystemRadius(camera.Scale) * MathF.Sqrt(0.5f);
+        using var line = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1 };
+        using var fill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = _palette.Halo };
+        using var border = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1 };
+        using var text = new SKPaint { IsAntialias = true };
+        using var icon = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeCap = SKStrokeCap.Round, StrokeJoin = SKStrokeJoin.Round };
+
+        foreach (var row in rows)
+        {
+            var (left, top) = (row.Bounds.Left, row.Bounds.Top);
+            var anyNow = row.Group.Badges.Any(b => !b.Faint);
+            line.Color = Hunt(row.Group.Badges[0].Colour, !anyNow);
+            canvas.DrawLine(row.X + edge, row.Y + edge, left, top + HuntBadge / 2, line);
+
+            for (var k = 0; k < row.Group.Badges.Count; k++)
+            {
+                var badge = row.Group.Badges[k];
+                var x = left + k * (HuntBadge + HuntGap);
+                using var shape = ChamferPath(x, top, HuntBadge, HuntCut);
+                canvas.DrawPath(shape, fill);
+                var colour = Hunt(badge.Colour, badge.Faint);
+                border.Color = colour;
+                canvas.DrawPath(shape, border);
+
+                if (badge.Icon is { } data)
+                {
+                    // Icons are strokes in a 24 x 24 box, drawn at 85% of the badge.
+                    var path = IconPaths.GetOrAdd(data, d => SKPath.ParseSvgPathData(d) ?? new SKPath());
+                    var size = HuntBadge * 0.85f;
+                    canvas.Save();
+                    canvas.Translate(x + (HuntBadge - size) / 2, top + (HuntBadge - size) / 2);
+                    canvas.Scale(size / 24);
+                    icon.Color = colour;
+                    icon.StrokeWidth = 1.9f;
+                    canvas.DrawPath(path, icon);
+                    canvas.Restore();
+                }
+                else
+                {
+                    text.Color = colour;
+                    var width = _huntFont.MeasureText(badge.Code);
+                    canvas.DrawText(badge.Code, x + (HuntBadge - width) / 2, top + HuntBadge / 2 + _huntFont.Metrics.CapHeight / 2, _huntFont, text);
+                }
+            }
+        }
+
+        static SKColor Hunt(Theming.Rgba c, bool faint) =>
+            new(c.R8, c.G8, c.B8, (byte)(c.A8 * (faint ? HuntFaintAlpha : 1)));
+    }
+
+    /// <summary>
+    /// Where each system's badge row goes, below its name: rows out of view are left out, and a row that
+    /// would overlap one already placed (neighbouring systems) is left out too.
+    /// </summary>
+    private List<HuntRow> LayoutHuntRows(in MapCamera camera, IReadOnlyList<HuntingBadgeGroup> groups)
+    {
+        var radius = SystemRadius(camera.Scale);
+        var rows = new List<HuntRow>();
+        foreach (var group in groups)
+        {
+            var sx = camera.ToScreenX(X(group.SystemIndex));
+            var sy = camera.ToScreenY(Y(group.SystemIndex));
+            var left = sx + radius + 4;
+            var top = sy + radius + LabelFontSize + 5;
+            var bounds = new SKRect(left, top, left + group.Badges.Count * (HuntBadge + HuntGap) - HuntGap, top + HuntBadge);
+            if (bounds.Left > camera.Width || bounds.Right < 0 || bounds.Top > camera.Height || bounds.Bottom < 0)
+                continue;
+            if (rows.Any(r => r.Bounds.IntersectsWith(bounds)))
+                continue;
+            rows.Add(new HuntRow(group, sx, sy, bounds));
+        }
+
+        return rows;
+    }
+
+    /// <summary>One system's hunting badge row: the system on screen and the row's bounds.</summary>
+    private readonly record struct HuntRow(HuntingBadgeGroup Group, float X, float Y, SKRect Bounds);
+
+    private void DrawLabels(SKCanvas canvas, in MapCamera camera, int hovered, int selected, List<HuntRow> huntRows)
     {
         var radius = SystemRadius(camera.Scale);
         var lineHeight = LabelFontSize + 2;
@@ -473,9 +604,22 @@ public sealed class MapScene
             Place(canvas, camera, hovered, _palette.LabelHover, force: true);
         if (selected >= 0 && selected != hovered)
             Place(canvas, camera, selected, _palette.Accent, force: true);
+
+        // Hunting badges: their systems' names next, then no name goes where the badges are drawn.
+        var first = new HashSet<int>();
+        foreach (var row in huntRows)
+        {
+            first.Add(row.Group.SystemIndex);
+            if (row.Group.SystemIndex != hovered && row.Group.SystemIndex != selected)
+                Place(canvas, camera, row.Group.SystemIndex, _palette.Label, force: false);
+        }
+
+        foreach (var row in huntRows)
+            Claim(taken, row.Bounds.Left, row.Bounds.Top, row.Bounds.Right, row.Bounds.Bottom, force: true);
+
         for (var i = 0; i < _model.Count; i++)
         {
-            if (i != hovered && i != selected && Filter.Groups[i] != MapFilter.Hidden)
+            if (i != hovered && i != selected && !first.Contains(i) && Filter.Groups[i] != MapFilter.Hidden)
                 Place(canvas, camera, i, _palette.Label, force: false);
         }
 

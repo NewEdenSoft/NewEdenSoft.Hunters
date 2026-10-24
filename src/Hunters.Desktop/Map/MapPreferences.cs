@@ -15,12 +15,31 @@ public sealed class MapPreferences : ObservableObject
 
     private readonly ISettingsStore _settings;
     private MapLayout _layout;
+    private IReadOnlyList<string> _huntingProfiles;
 
     public MapPreferences(ISettingsStore settings)
     {
         _settings = settings;
-        _layout = settings.Load().Map.Layout;
+        var map = settings.Load().Map;
+        _layout = map.Layout;
+        _huntingProfiles = map.HuntingProfiles;
     }
+
+    /// <summary>The hunting profiles shown on the map, in the order they were turned on.</summary>
+    public IReadOnlyList<string> HuntingProfiles
+    {
+        get => _huntingProfiles;
+        private set
+        {
+            _huntingProfiles = value;
+            OnPropertyChanged();
+            _settings.Update(s => s with { Map = s.Map with { HuntingProfiles = value } });
+        }
+    }
+
+    /// <summary>Shows a hunting profile on the map, or hides it.</summary>
+    public void ToggleHuntingProfile(string id) =>
+        HuntingProfiles = HuntingProfiles.Contains(id) ? [.. HuntingProfiles.Where(p => p != id)] : [.. HuntingProfiles, id];
 
     public MapLayout Layout
     {

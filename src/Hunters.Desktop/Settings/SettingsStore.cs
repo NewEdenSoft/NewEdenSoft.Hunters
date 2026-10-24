@@ -35,6 +35,9 @@ public sealed record MapSettings
 {
     /// <summary>The map layout; CCP's 2D map unless the user picks another.</summary>
     public MapLayout Layout { get; init; } = MapLayout.Flat;
+
+    /// <summary>The hunting profiles shown on the map (glow and badges), by id, in the order they were turned on.</summary>
+    public IReadOnlyList<string> HuntingProfiles { get; init; } = [];
 }
 
 /// <summary>Where and how one widget is shown.</summary>

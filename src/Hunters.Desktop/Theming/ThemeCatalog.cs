@@ -8,6 +8,12 @@ public sealed record ThemeDefinition(string Id, string Name, string Group, Rgba 
 /// <summary>A derived colour: <c>Percent</c>% of operand <c>A</c> mixed with operand <c>B</c>.</summary>
 public sealed record MixRule(string A, double Percent, string B);
 
+/// <summary>
+/// How a hunting profile is marked on the map: a two-letter code and a colour, or an icon from
+/// <see cref="ProfileIcons"/> drawn instead of the code.
+/// </summary>
+public sealed record ProfileStyle(string Code, Rgba Colour, string? Icon = null);
+
 /// <summary>The contents of <c>design/themes.json</c>, shared with the web app.</summary>
 public sealed class ThemeCatalog
 {
@@ -27,6 +33,22 @@ public sealed class ThemeCatalog
     /// <c>jumps</c>, <c>npcChange</c>), drawn in <c>heat-1</c> to <c>heat-5</c>.
     /// </summary>
     public required IReadOnlyDictionary<string, IReadOnlyList<int>> Heat { get; init; }
+
+    /// <summary>Per hunting profile id: its code, colour and icon.</summary>
+    public required IReadOnlyDictionary<string, ProfileStyle> Profiles { get; init; }
+
+    /// <summary>
+    /// A profile's style; a profile without an entry gets the first letters of its name in the glow colour,
+    /// as on the web (<c>profileStyle</c> in <c>web/hunters-web/src/theme/themes.ts</c>).
+    /// </summary>
+    public ProfileStyle ProfileStyle(string id, string name)
+    {
+        if (Profiles.TryGetValue(id, out var style))
+            return style;
+
+        var letters = new string(name.Where(char.IsAsciiLetter).Take(2).ToArray()).ToUpperInvariant();
+        return new ProfileStyle(letters.Length == 0 ? "?" : letters, Fixed["hunt-glow"]);
+    }
 
     public ThemeDefinition Get(string? id) =>
         Themes.FirstOrDefault(t => t.Id == id) ?? Themes.First(t => t.Id == DefaultThemeId);
@@ -80,6 +102,13 @@ public sealed class ThemeCatalog
             Fixed = fixedColors,
             SecuritySteps = security.GetProperty("steps").EnumerateArray().Select(s => Rgba.Parse(s.GetString()!)).ToList(),
             SecurityNull = Rgba.Parse(security.GetProperty("null").GetString()!),
+            Profiles = root.GetProperty("profiles").EnumerateObject()
+                .ToDictionary(
+                    p => p.Name,
+                    p => new ProfileStyle(
+                        p.Value.GetProperty("code").GetString()!,
+                        Rgba.Parse(p.Value.GetProperty("colour").GetString()!),
+                        p.Value.TryGetProperty("icon", out var icon) ? icon.GetString() : null)),
             Heat = root.GetProperty("heat").EnumerateObject()
                 .ToDictionary(p => p.Name, IReadOnlyList<int> (p) => p.Value.EnumerateArray().Select(b => b.GetInt32()).ToList()),
         };
