@@ -126,7 +126,8 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
 - **Which systems:** within the range in 3D (`lyBetween`, from the map pack's world positions and heights) and a cyno target: not high-sec (shown 0.5 or more), Pochven or Zarzakh. The same rule as the server's `CynoTargets`. High-sec systems inside the range stay unmarked.
 - **Hover:** with the range on, the hover panel shows how far the system is from the focus and whether it is **in range**, **out of range**, or has **no cyno**.
 - **Without a focus** nothing is drawn, and the panel says to focus a system.
-- **How it's built:** `map/jumpRange.ts` (`jumpRangeOf` returns 1 per system in range), and `MapRenderer.setJumpRange` draws it under the hunting glow and the systems.
+- **Drawing:** a soft blue glow under each system in range, reaching past the system's drawn size, and a thin blue ring just outside it, drawn over the systems. With an activity colour on, busy systems are drawn larger and brighter; the ring keeps them readable as in range.
+- **How it's built:** `map/jumpRange.ts` (`jumpRangeOf` returns 1 per system in range), and `MapRenderer.setJumpRange` draws the glow under the hunting glow and the systems and the rings over them.
 
 Security is kept in 64 bits in the map model: in 32 bits a true 0.45 reads 0.4499… and would show as 0.4 instead of high-sec 0.5.
 

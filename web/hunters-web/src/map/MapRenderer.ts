@@ -506,6 +506,9 @@ export class MapRenderer {
       ctx.fill()
     }
 
+    // Over the systems, so the range shows on busy (large, bright) systems too.
+    if (this.jumpRange) this.drawJumpRangeRings(radius, pad)
+
     if (this.hovered >= 0) {
       const sx = xy[this.hovered * 2] * scale + offsetX
       const sy = xy[this.hovered * 2 + 1] * scale + offsetY
@@ -754,15 +757,17 @@ export class MapRenderer {
   /**
    * A cool blue behind each system a jump drive can reach from the focused system: a soft disc, so a
    * range reads as one blue area zoomed out and as marked systems zoomed in. Under the hunting glow.
+   * It reaches past the system's drawn size, so the activity colours' larger systems keep their blue.
    */
   private drawJumpRange(radius: number, pad: number): void {
     const { ctx, xy, scale, offsetX, offsetY, palette } = this
     const inRange = this.jumpRange!
-    const reach = Math.max(radius * 3, 9)
     const inner = withAlpha(palette.jumpRange, 0.8)
     const outer = withAlpha(palette.jumpRange, 0)
     for (let i = 0; i < inRange.length; i++) {
       if (!inRange[i]) continue
+      const drawn = this.radiusOf(i, radius)
+      const reach = Math.max(drawn * 3, drawn + 8, 9)
       const sx = xy[i * 2] * scale + offsetX
       const sy = xy[i * 2 + 1] * scale + offsetY
       if (sx < -reach - pad || sy < -reach - pad || sx > this.width + reach + pad || sy > this.height + reach + pad) continue
@@ -775,6 +780,28 @@ export class MapRenderer {
       ctx.arc(sx, sy, reach, 0, Math.PI * 2)
       ctx.fill()
     }
+  }
+
+  /**
+   * A thin blue ring just outside each system in jump range, over the systems: whatever colour and size
+   * the filter draws a system in, the ring shows it is in range. One path for all of them.
+   */
+  private drawJumpRangeRings(radius: number, pad: number): void {
+    const { ctx, xy, scale, offsetX, offsetY, palette } = this
+    const inRange = this.jumpRange!
+    ctx.beginPath()
+    for (let i = 0; i < inRange.length; i++) {
+      if (!inRange[i]) continue
+      const sx = xy[i * 2] * scale + offsetX
+      const sy = xy[i * 2 + 1] * scale + offsetY
+      if (sx < -pad || sy < -pad || sx > this.width + pad || sy > this.height + pad) continue
+      const r = this.radiusOf(i, radius) + 2
+      ctx.moveTo(sx + r, sy)
+      ctx.arc(sx, sy, r, 0, Math.PI * 2)
+    }
+    ctx.lineWidth = 1.5
+    ctx.strokeStyle = palette.jumpRange
+    ctx.stroke()
   }
 
   /**
