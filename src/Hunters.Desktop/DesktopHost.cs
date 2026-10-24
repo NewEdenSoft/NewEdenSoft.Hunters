@@ -99,7 +99,9 @@ public static class DesktopHost
 
         // Widgets, in navigation order
         services.AddWidget<MapWidgetViewModel, MapWidgetView>(
-            MainWindowViewModel.MapWidgetId, "Map", "Known space, coloured by security. Drag to pan, scroll to zoom.", 520, 400, fillsPage: true);
+            MainWindowViewModel.MapWidgetId, "Map", "Known space. Drag to pan, scroll to zoom, right-click a system for its menu; / searches.", 520, 400, fillsPage: true);
+        services.AddWidget<MapControlsWidgetViewModel, MapControlsWidgetView>(
+            "map-controls", "Map controls", "How the map is drawn: its layout, colours and legend.", 300, 240);
         services.AddWidget<CharactersWidgetViewModel, CharactersWidgetView>(
             "characters", "Characters", "Your characters: online or not, where they are and what they fly.", 300, 280);
         services.AddWidget<NearbyActivityWidgetViewModel, PlaceholderWidgetView>(

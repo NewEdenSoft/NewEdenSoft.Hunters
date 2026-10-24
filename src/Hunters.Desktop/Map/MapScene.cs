@@ -6,7 +6,8 @@ namespace NewEdenSoft.Hunters.Desktop.Map;
 
 /// <summary>
 /// Theme colours the map is drawn with. <paramref name="Halo"/> outlines region names so they read
-/// over gates and fills marker badges; <paramref name="Accent"/> draws the hover ring and the markers.
+/// over gates and fills marker badges; <paramref name="Accent"/> draws the hover ring, the focused
+/// system's rings and name, and the markers.
 /// </summary>
 public sealed record MapPalette(SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent);
 
@@ -42,7 +43,8 @@ public readonly record struct MapCamera(float Scale, float OffsetX, float Offset
 /// regions, coloured from one system's colour to the other's) under the view transform; a margin
 /// around each system when zoomed in; systems in view, batched by colour group; then system names
 /// to the bottom right of each system when zoomed in, or region names when zoomed out; last, the
-/// characters' markers, joined by a line to the upper right of their systems.
+/// characters' markers, joined by a line to the upper right of their systems. The focused system
+/// gets two rings and always its name, in the accent colour.
 /// </remarks>
 public sealed class MapScene
 {
@@ -134,15 +136,19 @@ public sealed class MapScene
 
     public float Y(int index) => _xy[index * 2 + 1];
 
-    /// <summary>The visible system nearest to a point on screen, within <see cref="HoverRadius"/> pixels, or -1.</summary>
-    public int HitTest(in MapCamera camera, float screenX, float screenY)
+    /// <summary>
+    /// The visible system nearest to a point on screen, within <see cref="HoverRadius"/> pixels, or -1.
+    /// The focused system (<paramref name="selected"/>) counts as visible, as it is drawn even when hidden.
+    /// </summary>
+    public int HitTest(in MapCamera camera, float screenX, float screenY, int selected = -1)
     {
         var worldX = (screenX - camera.OffsetX) / camera.Scale;
         var worldY = (screenY - camera.OffsetY) / camera.Scale;
-        return _grid.Nearest(worldX, worldY, HoverRadius / camera.Scale, i => Filter.Groups[i] != MapFilter.Hidden);
+        return _grid.Nearest(worldX, worldY, HoverRadius / camera.Scale, i => Filter.Groups[i] != MapFilter.Hidden || i == selected);
     }
 
-    public void Draw(SKCanvas canvas, in MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup>? markers = null)
+    /// <param name="selected">The focused system's index, or -1.</param>
+    public void Draw(SKCanvas canvas, in MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup>? markers = null, int selected = -1)
     {
         // Gates go on a layer of their own, so the margins can be cut out of them without cutting
         // through what is behind the map.
@@ -152,10 +158,20 @@ public sealed class MapScene
         canvas.Restore();
 
         DrawSystems(canvas, camera, hovered);
+        if (selected >= 0)
+            DrawSelected(canvas, camera, selected);
+
         if (camera.Scale >= LabelZoom)
-            DrawLabels(canvas, camera, hovered);
+        {
+            DrawLabels(canvas, camera, hovered, selected);
+        }
         else
+        {
             DrawRegionLabels(canvas, camera);
+            // The focused system keeps its name when zoomed out, where no other system has one.
+            if (selected >= 0)
+                DrawSelectedLabel(canvas, camera, selected);
+        }
 
         if (markers is { Count: > 0 })
             DrawMarkers(canvas, camera, markers);
@@ -398,6 +414,35 @@ public sealed class MapScene
         }
     }
 
+    /// <summary>Two rings around the focused system; its dot too if the filter hides it.</summary>
+    private void DrawSelected(SKCanvas canvas, in MapCamera camera, int selected)
+    {
+        var radius = SystemRadius(camera.Scale);
+        var (sx, sy) = (camera.ToScreenX(X(selected)), camera.ToScreenY(Y(selected)));
+        using var paint = new SKPaint { IsAntialias = true, Color = _palette.Accent };
+        if (Filter.Groups[selected] == MapFilter.Hidden)
+            canvas.DrawCircle(sx, sy, radius, paint);
+
+        paint.Style = SKPaintStyle.Stroke;
+        paint.StrokeWidth = 2;
+        canvas.DrawCircle(sx, sy, radius + 5, paint);
+        paint.StrokeWidth = 1;
+        canvas.DrawCircle(sx, sy, radius + 9, paint);
+    }
+
+    /// <summary>The focused system's name when zoomed out, to the bottom right of its rings.</summary>
+    private void DrawSelectedLabel(SKCanvas canvas, in MapCamera camera, int selected)
+    {
+        var radius = SystemRadius(camera.Scale);
+        using var paint = new SKPaint { IsAntialias = true, Color = _palette.Accent };
+        canvas.DrawText(
+            _model.Names[selected],
+            camera.ToScreenX(X(selected)) + radius + 10,
+            camera.ToScreenY(Y(selected)) + radius + 4 + _labelAscent,
+            _labelFont,
+            paint);
+    }
+
     private void AddCircles(SKPath path, int[] systems, in MapCamera camera, float radius, float pad)
     {
         foreach (var i in systems)
@@ -411,19 +456,21 @@ public sealed class MapScene
     }
 
     /// <summary>System names to the bottom right of each system in view, skipping any that would overlap one already drawn.</summary>
-    private void DrawLabels(SKCanvas canvas, in MapCamera camera, int hovered)
+    private void DrawLabels(SKCanvas canvas, in MapCamera camera, int hovered, int selected)
     {
         var radius = SystemRadius(camera.Scale);
         var lineHeight = LabelFontSize + 2;
         var taken = new HashSet<long>();
         using var paint = new SKPaint { IsAntialias = true };
 
-        // The hovered system always gets its label first.
+        // The hovered and the focused system always get their labels first.
         if (hovered >= 0)
             Place(canvas, camera, hovered, _palette.LabelHover, force: true);
+        if (selected >= 0 && selected != hovered)
+            Place(canvas, camera, selected, _palette.Accent, force: true);
         for (var i = 0; i < _model.Count; i++)
         {
-            if (i != hovered && Filter.Groups[i] != MapFilter.Hidden)
+            if (i != hovered && i != selected && Filter.Groups[i] != MapFilter.Hidden)
                 Place(canvas, camera, i, _palette.Label, force: false);
         }
 

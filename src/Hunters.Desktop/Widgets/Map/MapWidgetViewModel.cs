@@ -16,7 +16,9 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// The map of known space, as a widget: docked in the main window or floating as an overlay. The
 /// map pack named by the server's discovery document is downloaded the first time the widget is on
 /// screen in a session and kept in memory for the session. Tracked characters are marked on it at
-/// their systems, with the markers chosen on the Account page.
+/// their systems, with the markers chosen on the Account page. A system can be focused, from the
+/// search box or a system's menu: the map goes there and rings it. The layout and colour are chosen
+/// in the Map controls widget.
 /// </summary>
 public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 {
@@ -50,10 +52,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         _characters = characters;
         _focus = focus;
 
-        LayoutChoices = preferences.CreateLayoutChoices();
-        FilterChoices = MapFilters.All
-            .Select(f => new ChoiceViewModel(f.Label, new RelayCommand(() => FilterId = f.Id)) { IsSelected = f.Id == FilterId })
-            .ToList();
+        Search = new SystemSearchViewModel(Describe, FocusSystem);
 
         account.PropertyChanged += (_, e) =>
         {
@@ -62,6 +61,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                 EnsureLoaded();
                 UpdateMarkers();
                 focus.Clear();
+                SelectedSystemId = null;
             }
         };
 
@@ -99,13 +99,35 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
     public MapLayout Layout => _preferences.Layout;
 
-    public IReadOnlyList<ChoiceViewModel> LayoutChoices { get; }
-
-    public IReadOnlyList<ChoiceViewModel> FilterChoices { get; }
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLoaded), nameof(IsNotLoaded))]
     public partial MapModel? Model { get; private set; }
+
+    public SystemSearchViewModel Search { get; }
+
+    /// <summary>The focused system: ringed on the map, and the origin for nearby intel. Kept for the session.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedSystem))]
+    public partial int? SelectedSystemId { get; private set; }
+
+    /// <summary>The focused system's name, security and region, for its chip; null when none is focused.</summary>
+    public MapSystemInfo? SelectedSystem =>
+        SelectedSystemId is { } id && Model is { } model && model.IndexOf.TryGetValue(id, out var index) ? Describe(index) : null;
+
+    /// <summary>Focuses a system: the map goes there, taking over from a followed character as dragging does.</summary>
+    public void FocusSystem(int index)
+    {
+        if (Model is not { } model || index < 0 || index >= model.Count)
+            return;
+
+        _focus.StopFollowing();
+        _awaitingLocation = null;
+        SelectedSystemId = model.Ids[index];
+        FocusTarget = new MapFocusTarget(model.Ids[index], ZoomIn: true);
+    }
+
+    [RelayCommand]
+    public void ClearSystem() => SelectedSystemId = null;
 
     /// <summary>The account's tracked characters with a known location, main first.</summary>
     [ObservableProperty]
@@ -178,14 +200,11 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     public bool IsNotLoaded => Model is null;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Legend))]
     public partial MapFilter? Filter { get; private set; }
 
+    /// <summary>The colour filter, chosen in the Map controls widget.</summary>
     [ObservableProperty]
-    public partial MapFilterId FilterId { get; private set; }
-
-    public IReadOnlyList<MapLegendItemViewModel> Legend =>
-        Filter?.Legend.Select(item => new MapLegendItemViewModel(item.Label, new SolidColorBrush(item.Colour))).ToList() ?? [];
+    public partial MapFilterId FilterId { get; set; }
 
     /// <summary>Why the map is not shown: logged out, loading, being prepared, or an error.</summary>
     [ObservableProperty]
@@ -208,14 +227,22 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             return;
         }
 
-        var security = model.Security[i];
         var here = Markers.Where(m => m.SolarSystemId == model.Ids[i]).Select(m => m.IsOnline ? m.Name : $"{m.Name} (offline)").ToList();
-        HoveredSystem = new MapSystemInfo(
-            model.Names[i],
+        HoveredSystem = Describe(i) with { Characters = here.Count == 0 ? null : string.Join(", ", here) };
+    }
+
+    /// <summary>A system's name, security and region.</summary>
+    private MapSystemInfo Describe(int index)
+    {
+        var model = Model!;
+        var security = model.Security[index];
+        return new MapSystemInfo(
+            index,
+            model.Names[index],
             SecurityStatus.Format(security),
             new SolidColorBrush(ThemeService.ToColor(_catalog.SecurityColor(security))),
-            model.RegionName(i),
-            here.Count == 0 ? null : string.Join(", ", here));
+            model.RegionName(index),
+            null);
     }
 
     private void UpdateMarkers()
@@ -255,11 +282,13 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             EnsureLoaded();
     }
 
-    partial void OnFilterIdChanged(MapFilterId value)
-    {
+    partial void OnFilterIdChanged(MapFilterId value) =>
         Filter = Model is { } model ? MapFilters.Create(value, model, _catalog) : null;
-        for (var i = 0; i < MapFilters.All.Count; i++)
-            FilterChoices[i].IsSelected = MapFilters.All[i].Id == value;
+
+    partial void OnModelChanged(MapModel? value)
+    {
+        Search.SetModel(value);
+        OnPropertyChanged(nameof(SelectedSystem));
     }
 
     /// <summary>Loads the map for the current session, the first time the widget is on screen in it.</summary>
@@ -332,10 +361,9 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     }
 }
 
+/// <param name="Index">The system's index on the map.</param>
 /// <param name="Characters">The account's tracked characters in the system, or null.</param>
-public sealed record MapSystemInfo(string Name, string Security, IBrush SecurityBrush, string Region, string? Characters);
-
-public sealed record MapLegendItemViewModel(string Label, IBrush Brush);
+public sealed record MapSystemInfo(int Index, string Name, string Security, IBrush SecurityBrush, string Region, string? Characters);
 
 /// <summary>A system to move the map to; <paramref name="ZoomIn"/> zooms in far enough to read system names.</summary>
 public sealed record MapFocusTarget(int SolarSystemId, bool ZoomIn);

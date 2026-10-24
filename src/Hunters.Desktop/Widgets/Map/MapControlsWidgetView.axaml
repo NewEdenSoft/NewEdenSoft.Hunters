@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
+             xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
+             xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
+             x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.MapControlsWidgetView"
+             x:DataType="mw:MapControlsWidgetViewModel">
+
+  <UserControl.Resources>
+    <DataTemplate x:Key="Choice" x:DataType="m:ChoiceViewModel">
+      <Button Classes="hud toggle"
+              Classes.primary="{Binding IsSelected}"
+              Classes.ghost="{Binding !IsSelected}"
+              Command="{Binding SelectCommand}"
+              Content="{Binding Label, Converter={x:Static w:UpperCaseConverter.Instance}}" />
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <StackPanel Spacing="12" Margin="12">
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="LAYOUT" />
+      <ItemsControl ItemsSource="{Binding LayoutChoices}" ItemTemplate="{StaticResource Choice}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="4" LineSpacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </StackPanel>
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="COLOUR" />
+      <ItemsControl ItemsSource="{Binding FilterChoices}" ItemTemplate="{StaticResource Choice}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="4" LineSpacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </StackPanel>
+    <ItemsControl ItemsSource="{Binding Legend}" IsVisible="{Binding IsLoaded}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel ItemSpacing="1" LineSpacing="4" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="mw:MapLegendItemViewModel">
+          <StackPanel MinWidth="28" Spacing="4">
+            <Border Height="6" Background="{Binding Brush}" />
+            <TextBlock Classes="mono muted" FontSize="10" HorizontalAlignment="Center" Text="{Binding Label}" />
+          </StackPanel>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>
