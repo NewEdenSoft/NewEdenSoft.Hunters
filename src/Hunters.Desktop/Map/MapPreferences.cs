@@ -16,6 +16,7 @@ public sealed class MapPreferences : ObservableObject
     private readonly ISettingsStore _settings;
     private MapLayout _layout;
     private IReadOnlyList<string> _huntingProfiles;
+    private MapBehaviour _behaviour;
 
     public MapPreferences(ISettingsStore settings)
     {
@@ -23,6 +24,20 @@ public sealed class MapPreferences : ObservableObject
         var map = settings.Load().Map;
         _layout = map.Layout;
         _huntingProfiles = map.HuntingProfiles;
+        // A file edited by hand (or from an older version) may lack it or have a choice not offered.
+        var behaviour = map.Behaviour ?? new MapBehaviour();
+        _behaviour = MapBehaviour.MinJumpChoices.Contains(behaviour.MinJumps) ? behaviour : behaviour with { MinJumps = new MapBehaviour().MinJumps };
+    }
+
+    /// <summary>When the focused system changes by itself, and whether a double click focuses (Settings, "Map behaviour").</summary>
+    public MapBehaviour Behaviour
+    {
+        get => _behaviour;
+        set
+        {
+            if (SetProperty(ref _behaviour, value))
+                _settings.Update(s => s with { Map = s.Map with { Behaviour = value } });
+        }
     }
 
     /// <summary>The hunting profiles shown on the map, in the order they were turned on.</summary>

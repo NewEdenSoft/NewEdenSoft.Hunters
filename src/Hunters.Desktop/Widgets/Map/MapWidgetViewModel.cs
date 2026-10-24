@@ -175,6 +175,13 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     [RelayCommand]
     public void ClearSelection() => SelectedSystemId = null;
 
+    /// <summary>A double click on a system focuses it, when the setting is on.</summary>
+    public void DoubleClickSystem(int index)
+    {
+        if (_preferences.Behaviour.DoubleClickFocus)
+            FocusSystem(index);
+    }
+
     /// <summary>Selects a system from the search: the map goes there too, and the focus stays as it was.</summary>
     public void FindSystem(int index)
     {
