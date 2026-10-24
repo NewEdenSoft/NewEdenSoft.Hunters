@@ -136,12 +136,15 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
 - **Gate jumps:** Off, 3, 5 (the default), 10 or 15: every system within that many jumps.
 - **Jump range:** adds every cyno target within the Jump range panel's light years, however many gate jumps away. Together they give the union; with neither, the panel asks for one.
 - **Sort by:** *NPC kills rising* (the rise since the hour before, the default), or a hunting profile's *likely now*, from a list (one toggle per profile would fill the panel). The server sorts, then nearest first.
-- **Rows** (up to 50; the panel says how many are in reach), each showing:
-  - name and security
-  - the distance: gate jumps, light years, or both, as asked; *no gates* where none lead there. It is in the jump-range blue when the system is a cyno target in range, with a tooltip for *out of range* or *no cyno*.
-  - NPC kills in the last hour with ▲ / ▼ since the hour before
+- **Quiet systems are hidden:** only systems where something happens get a card, meaning NPC, ship or pod kills in the last hour or 24 hours, or a hunting profile seen there (`isActive`). Jumps alone don't count, since traffic passing through isn't a target. Without activity data a system can't be judged and is shown. A link under the count shows or hides the quiet ones ("3 quiet hidden"). 200 rows are asked for, so 50 active ones are left.
+- **Cards** (up to 50; the panel says how many are active), each showing:
+  - name and security, and the distance: gate jumps, light years, or both, as asked; *no gates* where none lead there. It is in the jump-range blue when the system is a cyno target in range, with a tooltip for *out of range* or *no cyno*.
+  - NPC kills in the last hour with ▲ / ▼ since the hour before, and the last 24 hours. *PvP* (ship and pod kills) in the last hour and 24 hours when there were any, the hour in amber when it isn't 0.
   - the badges of the hunting profiles seen there: bright when likely now, faint otherwise, the sorting profile outlined
-- **Clicking a row** selects the system and takes the map there, like the search, so the System panel shows it.
+  - **quick controls:**
+    - **Dest** sets the autopilot destination there for every tracked character, as the System panel's Destination does (`useDestination`); the outcome shows on the card, and a success clears after a few seconds
+    - **◎** focuses the system, so the panel looks around it instead
+- **Clicking a card** selects the system and takes the map there, like the search, so the System panel shows it. The quick controls don't select.
 - **Without a focus**, the panel says to focus a system.
 - **Data:** asked again every two minutes; the server's ETag moves with the hour and the data, so most answers are 304. The previous rows stay, dimmed, while a new answer loads.
 - **Settings:** kept in local storage under `hunters.nearby`; the pure rules are in `map/nearby.ts`, with tests.

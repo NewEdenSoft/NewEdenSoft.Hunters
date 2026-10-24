@@ -350,7 +350,7 @@ function LoadedMap({
           },
           {
             definition: panel('nearby'),
-            content: <NearbyPanel model={model} focused={focused} selection={selection} profiles={huntingProfiles} onSelect={findSystem} />,
+            content: <NearbyPanel model={model} focused={focused} selection={selection} profiles={huntingProfiles} onSelect={findSystem} onFocus={focusSystem} />,
           },
           {
             definition: panel('hunting'),

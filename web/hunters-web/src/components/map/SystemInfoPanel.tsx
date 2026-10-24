@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
-import { accountQuery } from '../../api/account'
 import type { ActivityMetrics } from '../../api/activity'
 import { typeIconUrl } from '../../api/eveImages'
 import { systemHuntingQuery } from '../../api/hunting'
@@ -22,12 +21,12 @@ import {
 } from '../../map/systemInfo'
 import { useUtcHour } from '../../map/useUtcHour'
 import { profileStyle, securityColor } from '../../theme/themes'
-import { setDestination } from '../../tracking/esi'
 import { useTracking } from '../../tracking/trackingContext'
 import { Icon, type IconName } from '../ui/Icon'
 import { Label } from '../ui/Label'
 import { cn } from '../ui/styles'
 import { ProfileMark } from './ProfileMark'
+import { useDestination, type Destination } from './useDestination'
 
 /**
  * The System panel: the selected system, or the focused one while nothing is selected. Its name,
@@ -211,75 +210,6 @@ function CommandBar({
       )}
     </div>
   )
-}
-
-interface DestinationCharacter {
-  id: number
-  name: string
-  isMain: boolean
-  online: boolean
-}
-
-interface Destination {
-  /** The tracked characters that can be used (no new login needed). */
-  tracked: DestinationCharacter[]
-  /** Every usable character of the account, online first, then the main. */
-  usable: DestinationCharacter[]
-  busy: boolean
-  /** One line per outcome: who it was set for, then each failure. */
-  status: { tone: 'ok' | 'danger' | 'muted'; lines: string[] } | null
-  setFor: (characters: DestinationCharacter[]) => Promise<void>
-}
-
-/** Sets characters' autopilot destination to the system through ESI, with the tracker's tokens. */
-function useDestination(systemId: number, name: string): Destination {
-  const tracking = useTracking()
-  const account = useQuery(accountQuery)
-  const [busy, setBusy] = useState(false)
-  const [status, setStatus] = useState<Destination['status']>(null)
-
-  const usable = (account.data?.characters ?? [])
-    .filter((c) => c.status === 'Active')
-    .map((c) => ({ id: c.id, name: c.name, isMain: c.isMain, online: tracking?.tracker.get(c.id)?.isOnline === true }))
-    .sort((a, b) => Number(b.online) - Number(a.online) || Number(b.isMain) - Number(a.isMain) || a.name.localeCompare(b.name))
-  const trackedIds = new Set(tracking?.tracker.characters.filter((c) => c.status !== 'needsLogin').map((c) => c.characterId))
-  const tracked = usable.filter((c) => trackedIds.has(c.id))
-
-  /** One character: renews a rejected token once. Returns null when set, else why not. */
-  const setOne = async (characterId: number): Promise<string | null> => {
-    if (!tracking) return 'Not signed in.'
-    try {
-      let result = await setDestination(systemId, await tracking.tokens.getAccessToken(characterId))
-      if (result.status === 'unauthorized') {
-        tracking.tokens.invalidate(characterId)
-        result = await setDestination(systemId, await tracking.tokens.getAccessToken(characterId))
-      }
-      if (result.status === 'ok') return null
-      return result.status === 'forbidden' ? 'not allowed to set waypoints; log in with it again' : result.error
-    } catch (error) {
-      return (error as Error).message
-    }
-  }
-
-  const setFor = async (characters: DestinationCharacter[]) => {
-    if (characters.length === 0) return
-    setBusy(true)
-    setStatus({ tone: 'muted', lines: [`Setting the destination for ${characters.map((c) => c.name).join(', ')}…`] })
-    const results = await Promise.all(characters.map(async (c) => ({ c, error: await setOne(c.id) })))
-    const done = results.filter((r) => r.error === null).map((r) => r.c.name)
-    const failed = results.filter((r) => r.error !== null)
-    setBusy(false)
-    if (failed.length === 0) {
-      setStatus({ tone: 'ok', lines: [`Destination ${name} set for ${done.join(', ')}.`] })
-    } else {
-      setStatus({
-        tone: 'danger',
-        lines: [...(done.length > 0 ? [`Set for ${done.join(', ')}.`] : []), ...failed.map((r) => `${r.c.name}: ${r.error}`)],
-      })
-    }
-  }
-
-  return { tracked, usable, busy, status, setFor }
 }
 
 /** The account's usable characters, online ones first: choosing one sets only its destination. */

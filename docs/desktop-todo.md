@@ -25,13 +25,14 @@ See [Selection and focus](web-client.md#map).
 ## Nearby panel
 See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reach`.
 - [ ] A **Nearby** widget from the focused system. Without a focus it says to focus one.
-- [ ] **Settings:** gate jumps (Off, 3, 5, 10, 15; 5 by default); jump range on or off (the Jump range widget's light years); sort by NPC kills rising or a profile's likely now (a dropdown). Saved with the desktop settings. Port `parseNearby`, `nearbyRequest`, `distanceText` and `inJumpRange` from `map/nearby.ts`, with their tests.
-- [ ] **Rows** (up to 50, with the count in reach), each with:
-  - name and security
-  - distance (jumps, ly, or both; *no gates*), in jump-range blue when in range
-  - NPC kills last hour with ▲ / ▼
+- [ ] **Settings:** gate jumps (Off, 3, 5, 10, 15; 5 by default); jump range on or off (the Jump range widget's light years); sort by NPC kills rising or a profile's likely now (a dropdown); show quiet systems (off). Saved with the desktop settings. Port `parseNearby`, `nearbyRequest`, `isActive`, `distanceText` and `inJumpRange` from `map/nearby.ts`, with their tests.
+- [ ] **Quiet systems hidden:** no kills in the last hour or day and no profile seen. Show a "N quiet hidden" toggle. Ask for 200 rows.
+- [ ] **Cards** (up to 50, with the active count), each with:
+  - name, security and distance (jumps, ly, or both; *no gates*), in jump-range blue when in range
+  - NPC kills last hour with ▲ / ▼ and 24 h; PvP (ship and pod kills) last hour and 24 h when any
   - profile badges, bright when likely now, the sorting one outlined
-- [ ] **Clicking a row** selects the system and moves the map there.
+  - quick controls: Dest (every tracked character, outcome on the card) and Focus
+- [ ] **Clicking a card** selects the system and moves the map there; the quick controls don't.
 - [ ] Refreshed every two minutes; keep the old rows, dimmed, while loading.
 
 ## System panel

@@ -8,15 +8,20 @@ export interface NearbySetting {
   byJumpRange: boolean
   /** "activity" (the rise in NPC kills), or a hunting profile's id (its "likely now"). */
   sort: string
+  /** Show the systems without any activity too (hidden by default). */
+  showQuiet: boolean
 }
 
-export const defaultNearby: NearbySetting = { jumps: 5, byJumpRange: false, sort: 'activity' }
+export const defaultNearby: NearbySetting = { jumps: 5, byJumpRange: false, sort: 'activity', showQuiet: false }
 
 /** The gate jumps offered. */
 export const nearbyJumpChoices = [3, 5, 10, 15]
 
-/** Rows asked for: more is a long list to read in a panel. */
+/** Cards shown: more is a long list to read in a panel. */
 export const NEARBY_LIMIT = 50
+
+/** Rows asked for: enough that 50 active systems are left once the quiet ones are hidden. */
+export const NEARBY_FETCH = 200
 
 /** A saved setting, or the defaults for anything missing or out of range. */
 export function parseNearby(value: unknown): NearbySetting {
@@ -26,6 +31,7 @@ export function parseNearby(value: unknown): NearbySetting {
     jumps,
     byJumpRange: saved.byJumpRange === true,
     sort: typeof saved.sort === 'string' && saved.sort !== '' ? saved.sort : defaultNearby.sort,
+    showQuiet: saved.showQuiet === true,
   }
 }
 
@@ -40,8 +46,19 @@ export function nearbyRequest(setting: NearbySetting, from: number | null, range
     jumps: setting.jumps,
     ly: setting.byJumpRange ? rangeLy : null,
     profile: setting.sort !== 'activity' && profiles.includes(setting.sort) ? setting.sort : null,
-    limit: NEARBY_LIMIT + 1, // The origin comes back too, and is left out.
+    limit: NEARBY_FETCH,
   }
+}
+
+/**
+ * Something happens here: NPC, ship or pod kills in the last hour or the last 24 hours, or a hunting
+ * profile seen. Jumps alone don't count: traffic passing through isn't a target. Without activity data
+ * (the server has none yet) a system can't be judged, so it counts as active.
+ */
+export function isActive(row: Pick<ReachSystem, 'activity' | 'profiles'>): boolean {
+  if (row.profiles.length > 0 || row.activity === null) return true
+  const { npcKills, shipKills, podKills } = row.activity
+  return [npcKills, shipKills, podKills].some((m) => m.lastHour > 0 || m.day > 0)
 }
 
 /** How far a row is: "3 j", "4.2 ly", or both when both were asked for. Null jumps: no gate route. */

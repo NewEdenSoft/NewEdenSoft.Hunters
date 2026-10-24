@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { defaultNearby, distanceText, inJumpRange, NEARBY_LIMIT, nearbyRequest, parseNearby } from './nearby'
+import type { ReachMetric } from '../api/reach'
+import { defaultNearby, distanceText, inJumpRange, isActive, NEARBY_FETCH, nearbyRequest, parseNearby } from './nearby'
 
 describe('parseNearby', () => {
   it('keeps a valid setting', () => {
-    expect(parseNearby({ jumps: 10, byJumpRange: true, sort: 'carriers' })).toEqual({ jumps: 10, byJumpRange: true, sort: 'carriers' })
-    expect(parseNearby({ jumps: null, byJumpRange: true, sort: 'activity' })).toEqual({ jumps: null, byJumpRange: true, sort: 'activity' })
+    expect(parseNearby({ jumps: 10, byJumpRange: true, sort: 'carriers', showQuiet: true })).toEqual({ jumps: 10, byJumpRange: true, sort: 'carriers', showQuiet: true })
+    expect(parseNearby({ jumps: null, byJumpRange: true, sort: 'activity' })).toEqual({ jumps: null, byJumpRange: true, sort: 'activity', showQuiet: false })
   })
 
   it('falls back to the defaults for anything else', () => {
@@ -15,22 +16,40 @@ describe('parseNearby', () => {
 
 describe('nearbyRequest', () => {
   it('asks from the focused system with the chosen limits', () => {
-    expect(nearbyRequest({ jumps: 5, byJumpRange: true, sort: 'carriers' }, 30000142, 8, ['carriers'])).toEqual({
+    expect(nearbyRequest({ ...defaultNearby, jumps: 5, byJumpRange: true, sort: 'carriers' }, 30000142, 8, ['carriers'])).toEqual({
       from: 30000142,
       jumps: 5,
       ly: 8,
       profile: 'carriers',
-      limit: NEARBY_LIMIT + 1,
+      limit: NEARBY_FETCH,
     })
   })
 
   it('sorts by activity for a profile the server does not list', () => {
-    expect(nearbyRequest({ jumps: 5, byJumpRange: false, sort: 'gone' }, 1, 8, ['carriers'])?.profile).toBeNull()
+    expect(nearbyRequest({ ...defaultNearby, sort: 'gone' }, 1, 8, ['carriers'])?.profile).toBeNull()
   })
 
   it('asks nothing without a focus, or with neither gates nor jump range', () => {
     expect(nearbyRequest(defaultNearby, null, 8, [])).toBeNull()
-    expect(nearbyRequest({ jumps: null, byJumpRange: false, sort: 'activity' }, 1, 8, [])).toBeNull()
+    expect(nearbyRequest({ ...defaultNearby, jumps: null, byJumpRange: false }, 1, 8, [])).toBeNull()
+  })
+})
+
+describe('isActive', () => {
+  const metric = (lastHour: number, day: number): ReachMetric => ({ lastHour, previousHour: 0, day, typical: null, peakRatio: null, hoursToPeak: null })
+  const quiet = { npcKills: metric(0, 0), shipKills: metric(0, 0), podKills: metric(0, 0), shipJumps: metric(400, 9000) }
+  const profile = { profile: 'carriers', score: 1, lastSeen: '2026-10-20T00:00:00Z', likelyNow: 0, peakNow: null }
+
+  it('is any kill in the last hour or day, or a profile seen', () => {
+    expect(isActive({ activity: { ...quiet, npcKills: metric(3, 3) }, profiles: [] })).toBe(true)
+    expect(isActive({ activity: { ...quiet, shipKills: metric(0, 1) }, profiles: [] })).toBe(true)
+    expect(isActive({ activity: { ...quiet, podKills: metric(0, 2) }, profiles: [] })).toBe(true)
+    expect(isActive({ activity: quiet, profiles: [profile] })).toBe(true)
+  })
+
+  it('leaves out systems with only traffic, and keeps the ones that cannot be judged', () => {
+    expect(isActive({ activity: quiet, profiles: [] })).toBe(false)
+    expect(isActive({ activity: null, profiles: [] })).toBe(true)
   })
 })
 
