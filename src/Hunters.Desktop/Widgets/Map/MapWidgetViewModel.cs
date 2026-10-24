@@ -20,8 +20,8 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// map pack named by the server's discovery document is downloaded the first time the widget is on
 /// screen in a session and kept in memory for the session. Tracked characters are marked on it at
 /// their systems, with the markers chosen on the Account page. A click selects a system; the search
-/// box selects one too and goes there. A system can be focused from its menu, the selected card or a double click:
-/// the map goes there and rings it. The layout and colour are chosen
+/// box selects one too and goes there. A system can be focused from its menu, the selected card or a double click,
+/// or by itself as the followed character (or the main) moves far: the map goes there and rings it. The layout and colour are chosen
 /// in the Map controls widget. Once the map is loaded, the server's activity is asked for every minute
 /// while the widget is on screen (revalidated with its ETag, so mostly a 304), for the activity colours
 /// and the hover panel; with hunting profiles shown, where they are seen too, for their glow and badges.
@@ -263,6 +263,9 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         if (e.Current?.Location is not { } location)
             return;
 
+        if (AutoFocusSystem(e, location.SolarSystemId))
+            return;
+
         if (e.CharacterId == _awaitingLocation)
         {
             _awaitingLocation = null;
@@ -273,6 +276,25 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             // Following keeps the user's zoom.
             FocusTarget = new MapFocusTarget(location.SolarSystemId, ZoomIn: false);
         }
+    }
+
+    /// <summary>
+    /// The followed character, or the main while nobody is followed, came into known space from unknown
+    /// space or moved far (Settings, "Map behaviour"): its system becomes the focus and the map goes
+    /// there. Following carries on. True when it did.
+    /// </summary>
+    private bool AutoFocusSystem(TrackedCharacterChangedEventArgs e, int to)
+    {
+        var source = _focus.FollowedCharacterId ?? _account.Session?.Account.Characters.FirstOrDefault(c => c.IsMain)?.Id;
+        if (Model is not { } model || e.CharacterId != source || !e.SystemChanged ||
+            AutoFocus.Reason(model, e.Previous?.Location?.SolarSystemId, to, _preferences.Behaviour) is null)
+        {
+            return false;
+        }
+
+        FocusedSystemId = to;
+        FocusTarget = new MapFocusTarget(to, ZoomIn: true);
+        return true;
     }
 
     public bool IsLoaded => Model is not null;
