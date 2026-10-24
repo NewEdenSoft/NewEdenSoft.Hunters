@@ -7,6 +7,7 @@ using NewEdenSoft.Hunters.Client.Sessions;
 using NewEdenSoft.Hunters.Client.Tracking;
 using NewEdenSoft.Hunters.Contracts.Activity;
 using NewEdenSoft.Hunters.Contracts.Discovery;
+using NewEdenSoft.Hunters.Contracts.Hunting;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Theming;
@@ -22,7 +23,7 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// search box or a system's menu: the map goes there and rings it. The layout and colour are chosen
 /// in the Map controls widget. Once the map is loaded, the server's activity is asked for every minute
 /// while the widget is on screen (revalidated with its ETag, so mostly a 304), for the activity colours
-/// and the hover panel.
+/// and the hover panel; with hunting profiles shown, where they are seen too, for their glow and badges.
 /// </summary>
 public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 {
@@ -30,9 +31,12 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     private static readonly TimeSpan PreparingRetry = TimeSpan.FromSeconds(10);
 
     /// <summary>How often to ask for new activity; the server answers 304 until there is a new hour.</summary>
-    private static readonly TimeSpan ActivityPoll = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan IntelPoll = TimeSpan.FromMinutes(1);
 
-    /// <summary>How often to ask the server again whether it has activity, while it has none.</summary>
+    /// <summary>How often to ask where the shown hunting profiles are seen; the aggregates move every few minutes.</summary>
+    private static readonly TimeSpan OverviewPoll = TimeSpan.FromMinutes(5);
+
+    /// <summary>How often to ask the server again whether it has activity or hunting, while it has not.</summary>
     private static readonly TimeSpan FeaturesPoll = TimeSpan.FromMinutes(5);
 
     private readonly AccountPageViewModel _account;
@@ -48,6 +52,11 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     private CancellationTokenSource? _loading;
     private CancellationTokenSource? _polling;
     private Revalidated<ActivityCurrent>? _activity;
+    private Revalidated<HuntingOverview>? _overview;
+    private Dictionary<int, List<PlaceProfile>>? _profilesAt;
+
+    /// <summary>Completed to start the next polling round now.</summary>
+    private TaskCompletionSource _wake = new();
     private HuntersSession? _loadedFor;
 
     public MapWidgetViewModel(
@@ -109,6 +118,13 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         };
         preferences.PropertyChanged += (_, e) =>
         {
+            if (e.PropertyName == nameof(MapPreferences.HuntingProfiles))
+            {
+                OnPropertyChanged(nameof(ShownProfiles));
+                RebuildHunting();
+                _wake.TrySetResult();
+            }
+
             if (e.PropertyName == nameof(MapPreferences.Layout))
                 OnPropertyChanged(nameof(Layout));
         };
@@ -249,6 +265,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         {
             Characters = here.Count == 0 ? null : string.Join(", ", here),
             NpcKills = MapFilters.ActivityFor(model, Activity) is { } activity ? MapNpcKillsInfo.Create(activity.NpcKills, i) : null,
+            Profiles = _profilesAt?.GetValueOrDefault(i),
         };
     }
 
@@ -300,7 +317,10 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     {
         base.OnPropertyChanged(e);
         if (e.PropertyName == nameof(IsActive) && IsActive)
+        {
             EnsureLoaded();
+            _wake.TrySetResult();
+        }
     }
 
     /// <summary>The server has activity data: the activity colours are offered.</summary>
@@ -321,6 +341,58 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
     partial void OnActivityChanged(ActivityCurrent? value) => RebuildFilter();
 
+    /// <summary>The server has hunting profiles: they are offered in Map controls.</summary>
+    [ObservableProperty]
+    public partial bool HasHunting { get; private set; }
+
+    /// <summary>The server's hunting profiles; empty until it has sent them.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShownProfiles))]
+    public partial IReadOnlyList<HuntingProfileInfo> HuntingProfiles { get; private set; } = [];
+
+    /// <summary>The profiles shown on the map, in the order they were turned on: those chosen that the server has.</summary>
+    public IReadOnlyList<string> ShownProfiles =>
+        [.. _preferences.HuntingProfiles.Where(id => HuntingProfiles.Any(p => p.Id == id))];
+
+    /// <summary>Where every profile is seen; null until fetched (only once one is shown).</summary>
+    [ObservableProperty]
+    public partial HuntingOverview? Overview { get; private set; }
+
+    /// <summary>The hour of the day (UTC) the hunting profiles' "likely now" is for.</summary>
+    [ObservableProperty]
+    public partial int Hour { get; private set; } = DateTimeOffset.UtcNow.Hour;
+
+    /// <summary>The glow and badges of the shown profiles; null when none are shown or there is no overview yet.</summary>
+    [ObservableProperty]
+    public partial HuntingLayer? Hunting { get; private set; }
+
+    partial void OnHuntingProfilesChanged(IReadOnlyList<HuntingProfileInfo> value) => RebuildHunting();
+
+    partial void OnOverviewChanged(HuntingOverview? value) => RebuildHunting();
+
+    partial void OnHourChanged(int value) => RebuildHunting();
+
+    /// <summary>Shows a hunting profile on the map, or hides it (Map controls).</summary>
+    public void ToggleHuntingProfile(string id) => _preferences.ToggleHuntingProfile(id);
+
+    public ProfileStyle StyleOf(string id) => _catalog.ProfileStyle(id, NameOf(id));
+
+    private string NameOf(string id) => HuntingProfiles.FirstOrDefault(p => p.Id == id)?.Name ?? id;
+
+    private void RebuildHunting()
+    {
+        var shown = ShownProfiles;
+        if (Model is not { } model || Overview is not { } overview || shown.Count == 0)
+        {
+            Hunting = null;
+            _profilesAt = null;
+            return;
+        }
+
+        Hunting = HuntingLayer.Build(model, overview, shown, Hour, StyleOf);
+        _profilesAt = HuntingLayer.ProfilesBySystem(model, overview, shown, Hour, StyleOf, NameOf);
+    }
+
     private void RebuildFilter()
     {
         var quiet = ThemeService.ToColor(ThemePalette.Resolve(_catalog, _theme.Current)["line"]);
@@ -331,6 +403,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     {
         Search.SetModel(value);
         OnPropertyChanged(nameof(SelectedSystem));
+        RebuildHunting();
     }
 
     /// <summary>Loads the map for the current session, the first time the widget is on screen in it.</summary>
@@ -347,6 +420,10 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             _activity = null;
             Activity = null;
             HasActivity = false;
+            _overview = null;
+            Overview = null;
+            HasHunting = false;
+            HuntingProfiles = [];
             Model = null;
             Filter = null;
             HoveredSystem = null;
@@ -364,25 +441,32 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     }
 
     /// <summary>
-    /// Keeps the activity current while the map is loaded: every minute while on screen, or, while the
-    /// server has none, asks it every five minutes whether it has some now. Failures are left for the
-    /// next round; the map stays as it is.
+    /// Keeps the intel current while the map is loaded, each minute while on screen: the activity, the
+    /// hunting profiles once, and where they are seen every five minutes while some are shown. While the
+    /// server has no activity or hunting, it is asked every five minutes whether it has now. Turning a
+    /// profile on or bringing the map on screen asks at once. Failures are left for the next round; the
+    /// map stays as it is. The hour of the day (UTC) is checked each round too, for "likely now".
     /// </summary>
-    private async Task PollActivityAsync(HuntersSession session, CancellationToken cancellationToken)
+    private async Task PollIntelAsync(HuntersSession session, CancellationToken cancellationToken)
     {
         var featuresAskedAt = DateTimeOffset.UtcNow;
+        DateTimeOffset? overviewAskedAt = null;
         try
         {
             while (!cancellationToken.IsCancellationRequested)
             {
+                _wake = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                Hour = DateTimeOffset.UtcNow.Hour;
                 if (IsActive)
                 {
                     try
                     {
-                        if (!HasActivity && DateTimeOffset.UtcNow - featuresAskedAt >= FeaturesPoll)
+                        if ((!HasActivity || !HasHunting) && DateTimeOffset.UtcNow - featuresAskedAt >= FeaturesPoll)
                         {
                             featuresAskedAt = DateTimeOffset.UtcNow;
-                            HasActivity = (await session.GetDiscoveryAsync(cancellationToken)).Features.Contains(HuntersFeatures.Activity);
+                            var features = (await session.GetDiscoveryAsync(cancellationToken)).Features;
+                            HasActivity = features.Contains(HuntersFeatures.Activity);
+                            HasHunting = features.Contains(HuntersFeatures.Hunting);
                         }
 
                         if (HasActivity)
@@ -390,14 +474,25 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                             _activity = await session.GetActivityAsync(_activity, cancellationToken);
                             Activity = _activity.Value;
                         }
+
+                        if (HasHunting && HuntingProfiles.Count == 0)
+                            HuntingProfiles = await session.GetHuntingProfilesAsync(cancellationToken);
+
+                        if (HasHunting && ShownProfiles.Count > 0 &&
+                            (Overview is null || DateTimeOffset.UtcNow - overviewAskedAt >= OverviewPoll))
+                        {
+                            overviewAskedAt = DateTimeOffset.UtcNow;
+                            _overview = await session.GetHuntingOverviewAsync(_overview, cancellationToken);
+                            Overview = _overview.Value;
+                        }
                     }
                     catch (HuntersApiException)
                     {
-                        // Unreachable for a moment, or no activity yet: try again next round.
+                        // Unreachable for a moment, or no data yet: try again next round.
                     }
                 }
 
-                await Task.Delay(ActivityPoll, cancellationToken);
+                await Task.WhenAny(Task.Delay(IntelPoll, cancellationToken), _wake.Task);
             }
         }
         catch (OperationCanceledException)
@@ -426,8 +521,9 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                     RebuildFilter();
                     StatusText = null;
                     HasActivity = discovery.Features.Contains(HuntersFeatures.Activity);
+                    HasHunting = discovery.Features.Contains(HuntersFeatures.Hunting);
                     _polling = new CancellationTokenSource();
-                    _ = PollActivityAsync(session, _polling.Token);
+                    _ = PollIntelAsync(session, _polling.Token);
                     return;
                 }
 
@@ -457,8 +553,16 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 /// <param name="Index">The system's index on the map.</param>
 /// <param name="Characters">The account's tracked characters in the system, or null.</param>
 /// <param name="NpcKills">NPC kills in the last hour and how they compare; null without activity data.</param>
+/// <param name="Profiles">The shown hunting profiles seen in the system, likely now first; null when none.</param>
 public sealed record MapSystemInfo(
-    int Index, string Name, string Security, IBrush SecurityBrush, string Region, string? Characters, MapNpcKillsInfo? NpcKills = null);
+    int Index,
+    string Name,
+    string Security,
+    IBrush SecurityBrush,
+    string Region,
+    string? Characters,
+    MapNpcKillsInfo? NpcKills = null,
+    IReadOnlyList<PlaceProfile>? Profiles = null);
 
 /// <summary>
 /// The hover panel's NPC line: kills in the last hour, the change from the hour before, the usual for

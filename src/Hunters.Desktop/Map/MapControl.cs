@@ -45,6 +45,14 @@ public sealed class MapControl : Control
     public static readonly StyledProperty<int?> SelectedSystemIdProperty =
         AvaloniaProperty.Register<MapControl, int?>(nameof(SelectedSystemId));
 
+    /// <summary>The shown hunting profiles: a glow and badges per system. Null for none.</summary>
+    public static readonly StyledProperty<HuntingLayer?> HuntingProperty =
+        AvaloniaProperty.Register<MapControl, HuntingLayer?>(nameof(Hunting));
+
+    /// <summary>The glow behind systems where a shown hunting profile is likely now.</summary>
+    public static readonly StyledProperty<Color> HuntGlowColorProperty =
+        AvaloniaProperty.Register<MapControl, Color>(nameof(HuntGlowColor), Colors.Orange);
+
     /// <summary>Outline around region names, usually the page background.</summary>
     public static readonly StyledProperty<Color> HaloColorProperty =
         AvaloniaProperty.Register<MapControl, Color>(nameof(HaloColor), Colors.Black);
@@ -130,6 +138,18 @@ public sealed class MapControl : Control
     {
         get => GetValue(SelectedSystemIdProperty);
         set => SetValue(SelectedSystemIdProperty, value);
+    }
+
+    public HuntingLayer? Hunting
+    {
+        get => GetValue(HuntingProperty);
+        set => SetValue(HuntingProperty, value);
+    }
+
+    public Color HuntGlowColor
+    {
+        get => GetValue(HuntGlowColorProperty);
+        set => SetValue(HuntGlowColorProperty, value);
     }
 
     public Color HaloColor
@@ -249,7 +269,7 @@ public sealed class MapControl : Control
             CentreOn(_scene.X(index), _scene.Y(index), focus.ZoomIn ? ClampScale(Math.Max(_scale, FocusScale)) : _scale);
         }
 
-        context.Custom(new DrawOperation(new Rect(Bounds.Size), _scene, Camera(), _hovered, _markerGroups, SelectedIndex));
+        context.Custom(new DrawOperation(new Rect(Bounds.Size), _scene, Camera(), _hovered, _markerGroups, SelectedIndex, Hunting));
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -267,12 +287,13 @@ public sealed class MapControl : Control
         {
             GroupMarkers();
         }
-        else if (change.Property == SelectedSystemIdProperty)
+        else if (change.Property == SelectedSystemIdProperty || change.Property == HuntingProperty)
         {
             InvalidateVisual();
         }
         else if (change.Property == FilterProperty || change.Property == HaloColorProperty || change.Property == GateColorProperty ||
-                 change.Property == TextColorProperty || change.Property == MutedTextColorProperty || change.Property == HoverColorProperty)
+                 change.Property == TextColorProperty || change.Property == MutedTextColorProperty || change.Property == HoverColorProperty ||
+                 change.Property == HuntGlowColorProperty)
         {
             RebuildScene();
         }
@@ -464,7 +485,7 @@ public sealed class MapControl : Control
     }
 
     private MapPalette Palette() => new(
-        ToSkia(HaloColor), ToSkia(GateColor), ToSkia(TextColor), ToSkia(MutedTextColor), ToSkia(TextColor), ToSkia(HoverColor));
+        ToSkia(HaloColor), ToSkia(GateColor), ToSkia(TextColor), ToSkia(MutedTextColor), ToSkia(TextColor), ToSkia(HoverColor), ToSkia(HuntGlowColor));
 
     private void UpdateHover(Point at) =>
         SetHovered(_scene?.HitTest(Camera(), (float)at.X, (float)at.Y, SelectedIndex) ?? -1);
@@ -498,8 +519,8 @@ public sealed class MapControl : Control
     }
 
     /// <summary>Draws one frame on Avalonia's render thread, from a scene and camera captured on the UI thread.</summary>
-    private sealed class DrawOperation(Rect bounds, MapScene scene, MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup> markers, int selected)
-        : ICustomDrawOperation
+    private sealed class DrawOperation(Rect bounds, MapScene scene, MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup> markers, int selected,
+        HuntingLayer? hunting) : ICustomDrawOperation
     {
         public Rect Bounds => bounds;
 
@@ -520,7 +541,7 @@ public sealed class MapControl : Control
             var canvas = lease.SkCanvas;
             canvas.Save();
             canvas.ClipRect(new SKRect(0, 0, (float)bounds.Width, (float)bounds.Height));
-            scene.Draw(canvas, camera, hovered, markers, selected);
+            scene.Draw(canvas, camera, hovered, markers, selected, hunting);
             canvas.Restore();
         }
     }

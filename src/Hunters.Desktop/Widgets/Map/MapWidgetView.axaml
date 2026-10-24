@@ -4,6 +4,7 @@
              xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
              xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
              xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
+             xmlns:hm="using:NewEdenSoft.Hunters.Desktop.Map"
              x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.MapWidgetView"
              x:DataType="mw:MapWidgetViewModel">
 
@@ -60,6 +61,8 @@
                   Filter="{Binding Filter}"
                   Markers="{Binding Markers}"
                   SelectedSystemId="{Binding SelectedSystemId}"
+                  Hunting="{Binding Hunting}"
+                  HuntGlowColor="{DynamicResource Hud.HuntGlowColor}"
                   HaloColor="{DynamicResource Hud.BgColor}"
                   GateColor="{DynamicResource Hud.LineStrongColor}"
                   TextColor="{DynamicResource Hud.FgColor}"
@@ -89,6 +92,24 @@
                        IsVisible="{Binding Peak, Converter={x:Static ObjectConverters.IsNotNull}}" />
           </StackPanel>
           </Panel>
+          <!-- The shown hunting profiles seen here, likely now first -->
+          <Border BorderBrush="{DynamicResource Hud.LineBrush}" BorderThickness="0,1,0,0" Margin="0,2,0,0" Padding="0,3,0,0"
+                  IsVisible="{Binding Profiles, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <ItemsControl ItemsSource="{Binding Profiles}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="hm:PlaceProfile">
+                  <Grid ColumnDefinitions="22,*,Auto" Margin="0,1">
+                    <c:ProfileMark Profile="{Binding Style}" FontSize="11" HorizontalAlignment="Left" />
+                    <TextBlock Grid.Column="1" FontSize="13" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                               Classes.muted="{Binding !IsLikely}" />
+                    <TextBlock Grid.Column="2" FontSize="13" Margin="12,0,0,0" Text="{Binding When}"
+                               Classes.peak="{Binding IsLikely}" Classes.same="{Binding !IsLikely}"
+                               ToolTip.Tip="Usually seen here at this hour (UTC), or seen here but not usually now" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Border>
           <TextBlock FontSize="13" Foreground="{DynamicResource Hud.PrimaryBrush}" MaxWidth="280" TextWrapping="Wrap"
                      Text="{Binding Characters}"
                      IsVisible="{Binding Characters, Converter={x:Static ObjectConverters.IsNotNull}}" />

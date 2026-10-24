@@ -173,6 +173,9 @@ The **Map** widget draws known space from the server's map pack, like the [web m
 | `Map/SecurityStatus.cs` | Security as EVE shows it, shared with `ThemeCatalog.SecurityColor`. |
 | `Map/MapFilter.cs` | Colour filters: a colour group per system, or `Hidden`, with an optional size per group and a notice when there is nothing to show. Security, NPC kills, NPC rising and falling, ship kills and jumps, like the web's. |
 | `Map/GridIndex.cs` | Uniform grid for the nearest system to the cursor. |
+| `Map/HuntingLayer.cs` | The shown hunting profiles' glow and badges, and the profiles per system for the hover panel ("likely now"), like the web's `hunting.ts`. |
+| `Map/ProfileIcons.cs` | Icons a profile's badge shows instead of its code (`skull` for smartbomb camps). |
+| `Controls/ProfileMark.cs` | A profile's icon or code in its colour, for Map controls and the hover panel. |
 | `Map/MapScene.cs` | Everything for one layout, filter and theme, built once: gates by style and colour, gradients, label widths, region names. Draws a frame on any `SKCanvas`; gates go on a layer of their own, so the margins around systems are cut out of the gates only. |
 | `Map/MapControl.cs` | The Avalonia control: camera, pan, zoom, hover, and right clicks on systems. It draws the scene with a custom draw operation on Avalonia's own Skia canvas, so no bitmap is copied. |
 | `Map/SystemSearch.cs` | Finds systems by name, ranked like the web's search. |
@@ -191,13 +194,20 @@ The **Map** widget draws known space from the server's map pack, like the [web m
 
 **Activity.** Once the map is loaded, and if the server's discovery document lists the `activity` feature, the widget asks for `/api/activity/current` every minute while it is on screen. It sends the last answer's ETag (`HuntersSession.GetActivityAsync`), so the server answers 304 until there is a new hour. A server without activity is asked again every five minutes. The activity colours use the same heat bands as the web (`heat` in `design/themes.json`, `heat-1` to `heat-5`); systems below the first band are drawn small in the theme's line colour, and busier bands larger, up to twice the size. NPC rising and falling compare with the hour before, from a minimum of NPC kills in the last hour (any, 25, 100 or 250).
 
+**Hunting profiles.** As on the [web map](web-client.md#map), hunting profiles turned on in [Map controls](#map-controls) are drawn over the colours rather than as a colour of their own:
+- **Glow:** a glow in `hunt-glow` behind each system where a shown profile is *likely now*. That is the profile's score there times this hour's share (UTC) of its sightings there, relative to the profile's strongest system, so a rare target still lights up where it is most likely.
+- **Badges:** zoomed in to 50 px/ly, a row of badges below each system's name, one per shown profile seen there. Each has the profile's code or icon in its colour (`profiles` in `design/themes.json`), faint when the profile is not usually there at this hour. Names keep clear of the badges.
+- **Hover:** the shown profiles seen in the system, likely now first, each marked *peak now*, *now* or *seen*.
+
+The profiles are fetched once the server lists the `hunting` feature. Where they are seen (`/api/hunting/overview`, revalidated with its ETag) is fetched only while some are shown: at once when one is turned on, then every five minutes while the map is on screen. The shown profiles are saved in the desktop settings (`Map.HuntingProfiles`).
+
 The map pack is downloaded the first time the widget is on screen in a session and kept in memory for the session. While the server is still preparing it, the page asks again every 10 seconds. A disk cache by SDE build comes later.
 
-Next for the map: hunting profiles, the Nearby panel, route highlight on hover, fleet member markers.
+Next for the map: the Nearby panel, route highlight on hover, fleet member markers.
 
 ## Map controls
 
-How the [map](#map) is drawn: its **layout** (CCP's 2D map or top-down), its **colour** filter (the activity ones only when the server has activity), the **minimum NPC kills** for NPC rising and falling, and the filter's legend, or why it shows nothing yet. It is a widget of its own, so the map stays clear: dock it as a page, or pop it out as an overlay next to the map. Its state is the map's (`MapWidgetViewModel.FilterId` and `MinNpc`, `MapPreferences.Layout`), so both stay in step wherever they are shown.
+How the [map](#map) is drawn: its **layout** (CCP's 2D map or top-down), its **colour** filter (the activity ones only when the server has activity), the **minimum NPC kills** for NPC rising and falling, the filter's legend (or why it shows nothing yet), and which **hunting** profiles are shown. It is a widget of its own, so the map stays clear: dock it as a page, or pop it out as an overlay next to the map. Its state is the map's (`MapWidgetViewModel.FilterId` and `MinNpc`, `MapPreferences.Layout` and `HuntingProfiles`), so both stay in step wherever they are shown.
 
 ## Platform support
 
