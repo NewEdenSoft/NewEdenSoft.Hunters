@@ -32,6 +32,7 @@ import { parseSystemParam } from '../../map/systemSearch'
 import { useCharacterMarkers, useMapFocusTarget } from '../../map/useCharacterMarkers'
 import { panelDefinitions } from '../../panels/definitions'
 import { Panels } from '../../panels/Panels'
+import { bringToFront, SEARCH_LAYER, useSearchLayer } from '../../panels/panelStore'
 import { getMapBehaviour, mapLayouts, useJumpRange, useMapLayout, useShownHuntingProfiles } from '../../settings/mapSettings'
 import { jumpRangeOf } from '../../map/jumpRange'
 import { buildHuntingLayer, profilesBySystem, type HuntingLayer, type PlaceProfile } from '../../map/hunting'
@@ -207,6 +208,7 @@ function LoadedMap({
   setSystem: (id: number | undefined) => void
 }) {
   const markers = useCharacterMarkers(model)
+  const searchLayer = useSearchLayer()
   // The focused system is the staging point (in the URL); the selection is the system last clicked.
   const focused = system === undefined ? -1 : (model.indexOf.get(system) ?? -1)
   const [selection, setSelection] = useState(-1)
@@ -280,7 +282,13 @@ function LoadedMap({
         jumpRange={jumpRange}
         onClearSystem={() => setSystem(undefined)}
       />
-      <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] grid w-[calc(100%-1.5rem)] max-w-80 -translate-x-1/2 justify-items-center gap-2">
+      {/* A layer like the panels: whichever was clicked or focused last is on top. */}
+      <div
+        onPointerDownCapture={() => bringToFront(SEARCH_LAYER)}
+        onFocusCapture={() => bringToFront(SEARCH_LAYER)}
+        style={{ zIndex: searchLayer }}
+        className="pointer-events-none absolute top-3 left-1/2 grid w-[calc(100%-1.5rem)] max-w-80 -translate-x-1/2 justify-items-center gap-2"
+      >
         <SystemSearch model={model} focused={focused} onSelect={findSystem} onClear={() => setSystem(undefined)} />
         <FocusChip />
         {selection >= 0 && (

@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import { panelDefinitions, type PanelId } from './definitions'
+import { isOnTop, restack } from './stacking'
 
 /** One panel's layout. Position and size are in CSS pixels from the top left of the map. */
 export interface PanelState {
@@ -52,6 +53,9 @@ function read(): Layout {
   } catch {
     // Unreadable or unavailable storage: defaults.
   }
+  // Older layouts counted up with every click; from 1 again, keeping the order.
+  const zs = restack(Object.fromEntries(Object.entries(result).map(([id, s]) => [id, s.z])))
+  for (const id of Object.keys(result) as PanelId[]) result[id].z = zs[id]
   return result
 }
 
@@ -81,10 +85,30 @@ export function updatePanel(id: PanelId, change: Partial<PanelState>, { persist 
   notify()
 }
 
-/** Puts a panel on top of the others. */
-export function bringToFront(id: PanelId): void {
-  const top = Math.max(...Object.values(layout).map((s) => s.z))
-  if (layout[id].z !== top || Object.values(layout).filter((s) => s.z === top).length > 1) updatePanel(id, { z: top + 1 })
+/** The search at the top of the map (with the character chip and the selection): a layer like the panels, not saved. */
+export const SEARCH_LAYER = 'search'
+
+// The search starts on top, as it was before any panel is clicked.
+let searchZ = Object.keys(layout).length + 1
+
+function stackOf(): Record<string, number> {
+  return { ...Object.fromEntries(Object.entries(layout).map(([id, s]) => [id, s.z])), [SEARCH_LAYER]: searchZ }
+}
+
+/** Puts a panel, or the search, on top of everything else over the map: the one clicked or focused last. */
+export function bringToFront(id: PanelId | typeof SEARCH_LAYER): void {
+  const zs = stackOf()
+  if (isOnTop(zs, id)) return
+  const next = restack(zs, id)
+  searchZ = next[SEARCH_LAYER]
+  layout = Object.fromEntries(Object.entries(layout).map(([key, s]) => [key, s.z === next[key] ? s : { ...s, z: next[key] }])) as Layout
+  save()
+  notify()
+}
+
+/** The search's z-index, kept in step with the store. */
+export function useSearchLayer(): number {
+  return useSyncExternalStore(subscribe, () => searchZ)
 }
 
 /** Opens a closed panel (on top, expanded) or closes an open one. */
@@ -104,6 +128,7 @@ export function getPanel(id: PanelId): PanelState {
 /** Puts every panel back where it started. */
 export function resetPanels(): void {
   layout = defaults()
+  searchZ = Object.keys(layout).length + 1
   save()
   notify()
 }
