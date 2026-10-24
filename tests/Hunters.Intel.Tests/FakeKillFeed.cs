@@ -28,7 +28,7 @@ public sealed class FakeKillFeed : IKillFeedSource
     public KillFeedFile Publish(long sequence, long killmailId, DateTimeOffset time, int systemId = FakeSde.Jita, bool announce = true, int victimShip = 670)
     {
         var file = new KillFeedFile(killmailId, $"hash{killmailId}", sequence,
-            new FeedKillmail(time, systemId, new FeedVictim(90000001, 98000001, null, victimShip, []), [new FeedAttacker(90000002, 587, 2873)]),
+            new FeedKillmail(time, systemId, new FeedVictim(90000001, 98000001, null, victimShip, []), [new FeedAttacker(90000002, 98000002, null, 587, 2873)]),
             new FeedZkb(10_000, false, true));
         Files[sequence] = file;
         if (announce)

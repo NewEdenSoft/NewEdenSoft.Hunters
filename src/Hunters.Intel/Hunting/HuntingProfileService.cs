@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NewEdenSoft.Hunters.Intel.Activity;
 using NewEdenSoft.Hunters.Intel.Data;
+using NewEdenSoft.Hunters.Intel.Kills;
 using NewEdenSoft.Hunters.Intel.Sde;
 
 namespace NewEdenSoft.Hunters.Intel.Hunting;
@@ -27,12 +28,14 @@ public sealed class HuntingProfileStore
 /// Resolves <see cref="HuntingProfiles.All"/> against the SDE catalogue at startup and on every new
 /// catalogue, and keeps the stored sightings in step with the definitions: a profile whose resolved
 /// definition changed (or that is new) has its sightings rebuilt from the stored kills, and a profile
-/// that was removed loses them.
+/// that was removed loses them. Before a profile that looks at the attackers' side is rebuilt, stored
+/// kills without the attackers' corporations get them (<see cref="KillAffiliations"/>).
 /// </summary>
 public sealed partial class HuntingProfileService(
     SdeCatalogStore catalogs,
     HuntingProfileStore store,
     HuntingAggregatorService aggregates,
+    IAffiliationSource affiliations,
     IServiceScopeFactory scopes,
     IOptions<IntelOptions> options,
     TimeProvider time,
@@ -98,6 +101,13 @@ public sealed partial class HuntingProfileService(
         store.Publish(profiles);
 
         var started = time.GetTimestamp();
+        if (changed.Any(p => p.Rules.Any(r => r.Side != VictimSide.Any)))
+        {
+            var filled = await KillAffiliations.FillAsync(db, affiliations, cancellationToken);
+            if (filled > 0)
+                LogAffiliationsFilled(filled, time.GetElapsedTime(started));
+        }
+
         var (kills, sightings) = changed.Count > 0 ? await BackfillAsync(db, changed, cancellationToken) : (0, 0);
 
         // Every profile's name (readers list the profiles from here), and the definition of the rebuilt ones.
@@ -157,6 +167,9 @@ public sealed partial class HuntingProfileService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Backfilled hunting profiles {Profiles} from {Kills} kills: {Sightings} sightings found in {Elapsed}")]
     private partial void LogBackfilled(string profiles, int kills, int sightings, TimeSpan elapsed);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Filled in the attackers' corporations of {Kills} stored kills from ESI in {Elapsed}")]
+    private partial void LogAffiliationsFilled(int kills, TimeSpan elapsed);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Could not sync the hunting profiles (attempt {Attempt}); retrying in {Delay}")]
     private partial void LogFailed(Exception exception, int attempt, TimeSpan delay);

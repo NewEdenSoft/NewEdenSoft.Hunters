@@ -28,7 +28,9 @@ public sealed class IntelDatabase : IAsyncLifetime
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
 
     /// <summary>The intel services against this database, with ESI, R2Z2 and the SDE (and optionally the clock) replaced by fakes.</summary>
-    public ServiceProvider Services(FakeSystemActivity activity, Action<IntelOptions>? configure = null, FakeSde? sde = null, TimeProvider? time = null, FakeKillFeed? kills = null)
+    public ServiceProvider Services(
+        FakeSystemActivity activity, Action<IntelOptions>? configure = null, FakeSde? sde = null, TimeProvider? time = null, FakeKillFeed? kills = null,
+        FakeAffiliations? affiliations = null)
     {
         sde ??= new FakeSde();
         var services = new ServiceCollection();
@@ -47,6 +49,8 @@ public sealed class IntelDatabase : IAsyncLifetime
         services.AddSingleton<ISdeTypeSource>(sde);
         services.RemoveAll<IKillFeedSource>();
         services.AddSingleton<IKillFeedSource>(kills ?? new FakeKillFeed());
+        services.RemoveAll<IAffiliationSource>();
+        services.AddSingleton<IAffiliationSource>(affiliations ?? new FakeAffiliations());
         if (time is not null)
         {
             services.RemoveAll<TimeProvider>();
