@@ -29,4 +29,10 @@ public static class HuntersFeatures
 
     /// <summary>The server has hunting profiles to serve (<c>/api/hunting/*</c>).</summary>
     public const string Hunting = "hunting";
+
+    /// <summary>
+    /// The server has kills from zKillboard's feed to serve (<c>/api/kills/*</c>). Listed with
+    /// <see cref="Hunting"/>: the hunting profiles are computed from the same kills.
+    /// </summary>
+    public const string Kills = "kills";
 }

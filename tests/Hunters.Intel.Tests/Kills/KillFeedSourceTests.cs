@@ -125,6 +125,7 @@ public sealed class KillFeedSourceTests
         Assert.Equal([2114733361L, 2114613098L], kill.AttackerCharacterIds);
         Assert.Equal([23917, 22852], kill.AttackerShipTypeIds);
         Assert.Equal([40562, 40566], kill.AttackerWeaponTypeIds);
+        Assert.Equal(1, kill.FinalBlow); // The Hel.
     }
 
     [Fact]
@@ -139,6 +140,7 @@ public sealed class KillFeedSourceTests
         Assert.Equal([0L, 3019609L, 0L], kill.AttackerCharacterIds);
         Assert.Equal([48092, 47953, 30428], kill.AttackerShipTypeIds);
         Assert.Equal([0, 34580, 0], kill.AttackerWeaponTypeIds);
+        Assert.Equal(2, kill.FinalBlow); // An NPC: no pilot.
     }
 
     [Fact]
@@ -151,5 +153,6 @@ public sealed class KillFeedSourceTests
         Assert.Equal(46363, kill.VictimShipTypeId);
         Assert.Equal(9, kill.AttackerCharacterIds.Length);
         Assert.All(kill.AttackerShipTypeIds, s => Assert.Equal(29988, s));
+        Assert.Equal(6, kill.FinalBlow);
     }
 }

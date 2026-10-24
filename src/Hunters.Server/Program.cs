@@ -8,6 +8,7 @@ using NewEdenSoft.Hunters.Server.Features.Auth;
 using NewEdenSoft.Hunters.Server.Features.Discovery;
 using NewEdenSoft.Hunters.Server.Features.Hunting;
 using NewEdenSoft.Hunters.Server.Features.Intel;
+using NewEdenSoft.Hunters.Server.Features.Kills;
 using NewEdenSoft.Hunters.Server.Features.Map;
 using NewEdenSoft.Hunters.Server.Infrastructure;
 using NewEdenSoft.Hunters.Server.Infrastructure.Eve;
@@ -70,6 +71,7 @@ app.MapMap();
 app.MapActivity();
 app.MapHunting();
 app.MapIntel();
+app.MapKills();
 
 if (hunters.Web.Enabled)
     app.MapWebAppFallback();

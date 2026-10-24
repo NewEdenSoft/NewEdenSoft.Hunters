@@ -106,6 +106,7 @@ public sealed record KillFeedFile(
         AttackerAllianceIds = [.. Esi.Attackers.Select(a => a.AllianceId ?? 0)],
         AttackerShipTypeIds = [.. Esi.Attackers.Select(a => a.ShipTypeId ?? 0)],
         AttackerWeaponTypeIds = [.. Esi.Attackers.Select(a => a.WeaponTypeId ?? 0)],
+        FinalBlow = Esi.Attackers.Select((a, i) => a.FinalBlow ? i : -1).FirstOrDefault(i => i >= 0, -1),
     };
 }
 
@@ -131,7 +132,8 @@ public sealed record FeedAttacker(
     [property: JsonPropertyName("corporation_id")] long? CorporationId,
     [property: JsonPropertyName("alliance_id")] long? AllianceId,
     [property: JsonPropertyName("ship_type_id")] int? ShipTypeId,
-    [property: JsonPropertyName("weapon_type_id")] int? WeaponTypeId);
+    [property: JsonPropertyName("weapon_type_id")] int? WeaponTypeId,
+    [property: JsonPropertyName("final_blow")] bool FinalBlow = false);
 
 public sealed record FeedZkb(
     [property: JsonPropertyName("totalValue")] double TotalValue,

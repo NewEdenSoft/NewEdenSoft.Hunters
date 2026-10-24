@@ -43,6 +43,27 @@ export const fetchLocationEsi: LocationEsi = {
     })),
 }
 
+/**
+ * Sets the character's autopilot destination in the game (`esi-ui.write_waypoint.v1`), replacing its
+ * route. The access token names the character. The character must be logged in to the game for it to show.
+ */
+export async function setDestination(destinationId: number, accessToken: string): Promise<EsiCall<void>> {
+  let response: Response
+  try {
+    response = await fetch(`${ESI_BASE}/ui/autopilot/waypoint?add_to_beginning=false&clear_other_waypoints=true&destination_id=${destinationId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'X-Compatibility-Date': ESI_COMPATIBILITY_DATE },
+    })
+  } catch (error) {
+    return { status: 'failed', error: `ESI could not be reached: ${(error as Error).message}` }
+  }
+  if (response.ok) return { status: 'ok', value: undefined }
+  const message = await errorMessage(response)
+  if (response.status === 401) return { status: 'unauthorized', error: message }
+  if (response.status === 403) return { status: 'forbidden', error: message }
+  return { status: 'failed', error: message }
+}
+
 async function call<TBody, T>(path: string, accessToken: string, signal: AbortSignal, select: (body: TBody) => T): Promise<EsiCall<T>> {
   let response: Response
   try {

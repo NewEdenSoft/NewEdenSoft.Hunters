@@ -63,6 +63,12 @@ public sealed class Kill
 
     /// <summary>Per attacker, the weapon of its last hit; 0 when unknown.</summary>
     public int[] AttackerWeaponTypeIds { get; set; } = [];
+
+    /// <summary>
+    /// The attacker (an index into the arrays above) that dealt the final blow; -1 when unknown, as for
+    /// kills stored before it was kept.
+    /// </summary>
+    public int FinalBlow { get; set; } = -1;
 }
 
 /// <summary>How far a feed has been read, so the service resumes where it stopped.</summary>

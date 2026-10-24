@@ -26,7 +26,7 @@ public static class DiscoveryEndpoints
                     MapPack: maps.Current is { } pack ? new MapPackInfo(pack.Build) : null,
                     Features: [
                         .. activity.Current is null ? Array.Empty<string>() : [HuntersFeatures.Activity],
-                        .. hunting.Current is null ? Array.Empty<string>() : [HuntersFeatures.Hunting],
+                        .. hunting.Current is null ? Array.Empty<string>() : [HuntersFeatures.Hunting, HuntersFeatures.Kills],
                     ]);
             })
             .WithName("GetDiscoveryDocument")

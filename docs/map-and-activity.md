@@ -95,7 +95,7 @@ The intel service's `KillFeedService` (`src/Hunters.Intel/Kills`) reads zKillboa
 - **Reading:** one file at a time, with a `User-Agent` naming the operator contact. A 404 is ambiguous, so it is compared with `sequence.json` (which lags a little behind the files): above it, the file isn't written yet and the reader waits 6 seconds, as zKillboard asks; at or below it, the file is gone and is skipped. `sequence.json` is asked again only for a file past its last answer, so a run of gaps costs one request per file.
 - **Rate limit:** zKillboard blocks an address for an hour above 15 requests a second. Every request to R2Z2 (files and `sequence.json`) waits its turn at one gate for the process (`KillFeedGate`), at most `Hunters:Kills:MaxRequestsPerSecond` (5, so a second reader on the same address still stays under the limit; a day of kills catches up in about two hours). A block (429 or 403) pauses the feed for its `Retry-After`, or `Hunters:Kills:BlockedPause` (an hour) without one, instead of retrying into a longer block.
 - **Position:** saved in `intel.FeedPositions` in the same save as each kill, so a restart resumes at the next file. A position older than `Hunters:Kills:ResumeWithin` (20 hours, before zKillboard drops the files) starts again at the newest file. The first start also begins at the newest.
-- **Slim kills** (`intel.Kills`, about 35,000 a day, kept for `Hunters:Kills:Retention`, 90 days): id and hash, sequence, time, system, zKillboard's `npc` and `solo`, total value; the victim's character, corporation, alliance, ship (or structure, or deployable such as a CRAB beacon) and **fitted** module types (slots, rigs and subsystems, not cargo); and **per attacker** the character (0 for NPCs), corporation, alliance, ship and weapon, as parallel arrays. The smartbomber and camp rules compare an attacker's corporation and alliance with the victim's, so the attackers are kept whole. Kills stored before the corporations were kept get them from ESI's `POST /characters/affiliation/` (up to 1,000 pilots a call; the corporation a pilot is in then, not at the kill) before a profile that needs them is rebuilt (`KillAffiliations`). A kill announced twice is stored once.
+- **Slim kills** (`intel.Kills`, about 35,000 a day, kept for `Hunters:Kills:Retention`, 90 days): id and hash, sequence, time, system, zKillboard's `npc` and `solo`, total value; the victim's character, corporation, alliance, ship (or structure, or deployable such as a CRAB beacon) and **fitted** module types (slots, rigs and subsystems, not cargo); and **per attacker** the character (0 for NPCs), corporation, alliance, ship and weapon, as parallel arrays, and which attacker dealt the **final blow** (an index into them, from ESI's `final_blow`; -1 for kills stored before it was kept). The smartbomber and camp rules compare an attacker's corporation and alliance with the victim's, so the attackers are kept whole. Kills stored before the corporations were kept get them from ESI's `POST /characters/affiliation/` (up to 1,000 pilots a call; the corporation a pilot is in then, not at the kill) before a profile that needs them is rebuilt (`KillAffiliations`). A kill announced twice is stored once.
 - Failures back off like the ESI collector (1, 2, 4, 8, then every 15 minutes) and keep the position.
 
 ### Hunting profiles
@@ -161,6 +161,15 @@ The API server's `HuntingService` (`src/Hunters.Server/Features/Hunting`) follow
 | `GET /api/hunting/regions/{id}` | the same for a region |
 
 Responses carry an ETag from the version (304 when it still matches) and `max-age` of a minute. "Likely now" and "peak now" for a profile are worked out by the client from `hours` and the current hour: the share of the current hour, or the current hour's weight ÷ the busiest hour's.
+
+### Recent kills
+
+`GET /api/kills/systems/{id}?limit=20` (`src/Hunters.Server/Features/Kills`) returns a system's newest kills from `intel.Kills`, newest first: up to `limit` (1–50, 20 by default), over the whole retention. Each has the killmail id and hash, time, `npc`, `solo`, total value, the attacker count, the **victim** and the **final blow**, each as character, corporation, alliance and ship type ids (null where there are none: an NPC has no pilot). The final blow is null for kills stored before it was kept. Ids only: clients look up the names (ESI `POST /universe/names`) and draw the portraits and ship renders from the image server.
+
+- The query uses the `(SystemId, Time)` index.
+- **Availability:** the kills come from the same feed as the hunting profiles, so the endpoint answers 503 (`kills_unavailable`) until the hunting aggregates are in, and the discovery document lists `kills` with `hunting`.
+- **Errors:** 404 (`kills_not_found`) for a system not on the map, 400 for a limit out of range.
+- **Caching:** the ETag is the newest kill and the count; `max-age` is 30 seconds. A session is needed (D19).
 
 ## Reach
 

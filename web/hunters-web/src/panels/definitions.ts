@@ -1,6 +1,6 @@
 import type { IconName } from '../components/ui/Icon'
 
-export type PanelId = 'map' | 'hunting' | 'jump-range' | 'characters'
+export type PanelId = 'map' | 'hunting' | 'jump-range' | 'characters' | 'system'
 
 /** A panel over the map: its title, launcher icon, where it starts, and how it can be sized. */
 export interface PanelDefinition {
@@ -29,6 +29,8 @@ export const panelDefinitions: PanelDefinition[] = [
   // The range is off until chosen, so its panel waits on the rail.
   { id: 'jump-range', title: 'Jump range', icon: 'range', initial: { x: -12, y: 330, width: 290 }, minWidth: 220, openByDefault: false },
   { id: 'characters', title: 'Characters', icon: 'users', initial: { x: -12, y: 12, width: 290 }, minWidth: 220 },
+  // The selected (or focused) system, under Characters.
+  { id: 'system', title: 'System', icon: 'info', initial: { x: -12, y: 220, width: 360 }, minWidth: 280 },
 ]
 
 export const DEFAULT_MIN_WIDTH = 180
