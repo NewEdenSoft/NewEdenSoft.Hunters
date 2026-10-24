@@ -1,0 +1,12 @@
+# Builds the images from this checkout instead of pulling them from GitHub Container Registry:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  hunters:
+    image: ghcr.io/newedensoft/hunters-server:local
+    build: .
+
+  intel:
+    image: ghcr.io/newedensoft/hunters-intel:local
+    build:
+      context: .
+      target: intel

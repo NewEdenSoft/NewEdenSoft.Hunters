@@ -101,21 +101,21 @@ Restart the AppHost after changing parameters. The web dev server always runs on
 
 ### 2b. Self-hosting (Docker Compose)
 
-Copy [`.env.example`](.env.example) to `.env` and fill in:
+[`docker-compose.yml`](docker-compose.yml) runs the released images from GitHub Container Registry behind Traefik, which gets a Let's Encrypt certificate for your domain. Copy it and [`.env.example`](.env.example) to the host, rename the example to `.env` and fill in:
 
 | Variable | Required | Purpose |
 |---|---|---|
 | `DB_PASSWORD` | Yes | PostgreSQL password |
+| `HUNTERS_DOMAIN` | Yes | Public host name, e.g. `hunters.example.com`; its DNS must point at the host, with ports 80 and 443 open. The EVE callback is `https://<domain>/auth/eve/callback` |
+| `ACME_EMAIL` | Yes | Let's Encrypt account e-mail |
 | `EVE_CLIENT_ID` | Yes | Client ID of your EVE application |
 | `EVE_CLIENT_SECRET` | Yes | Secret key of your EVE application |
-| `HUNTERS_PUBLIC_URL` | Yes | Public base URL, e.g. `https://hunters.example.com`; the callback is this plus `/auth/eve/callback` |
 | `HUNTERS_NAME` | No | Name shown to clients |
 | `HUNTERS_ADMIN_CHARACTER_ID` | No | EVE character ID of the server admin |
 | `HUNTERS_ACCESS_KEY_ENABLED` | No | `true` to require an access key for new accounts |
-| `HUNTERS_BEHIND_PROXY` | No | `true` behind a reverse proxy that terminates TLS |
-| `HUNTERS_WEB_ENABLED`, `HUNTERS_PORT`, `HUNTERS_TAG` | No | Web app hosting, published port, image tag |
+| `HUNTERS_WEB_ENABLED`, `HUNTERS_TAG` | No | Web app hosting, image version (`latest` or a release such as `0.1.0`) |
 
-Then `docker compose up -d`. The full server configuration reference, including admission rules, is in [Deployment](docs/deployment.md#configuration-reference).
+Then `docker compose up -d`. Step-by-step deployment, upgrades, backups and the full configuration reference are in [Deployment](docs/deployment.md).
 
 ## Self-hosting
 
