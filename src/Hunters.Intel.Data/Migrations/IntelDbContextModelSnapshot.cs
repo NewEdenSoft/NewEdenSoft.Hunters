@@ -199,6 +199,9 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                         .IsRequired()
                         .HasColumnType("integer[]");
 
+                    b.Property<int>("FinalBlow")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Hash")
                         .IsRequired()
                         .HasMaxLength(64)
