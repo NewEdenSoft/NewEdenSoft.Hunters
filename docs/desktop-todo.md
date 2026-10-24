@@ -18,9 +18,13 @@ See [Selection and focus](web-client.md#map).
 - [ ] **Auto-focus:** follow the **followed character**, else the **main**. Port `autoFocusReason` and `jumpsWithin` (a breadth-first search over gates that stops at the minimum) from `map/autoFocus.ts`, with its tests. The first known location never focuses. The map goes to the new focus, and following carries on.
 - [ ] Focusing by hand moves the map there and stops following, as now; the character chip stays.
 
+## Hunting and Jump range panels
+- [ ] **Hunting** gets its own widget: the profile toggles and the glow hint move out of Map controls (`HuntingPanel.tsx` on the web).
+- [ ] **Jump range** gets its own widget, closed by default (`JumpRangePanel.tsx`). The items below go there instead of Map controls.
+
 ## Jump range (web #49)
 See [Jump range](web-client.md#map).
-- [ ] **Map controls:** a **Jump range** toggle showing the range ("On · 8 ly"). When on, the presets and a custom value:
+- [ ] **Jump range widget:** a toggle showing the range ("On · 8 ly"). When on, the presets and a custom value:
   - Presets with Jump Drive Calibration V: Black Ops 8 ly; Carrier, Dread and FAX 7; Super and Titan 6; Jump freighter and Rorqual 10. Each preset has a tooltip with its range.
   - Custom: 0.5 to 20 ly.
   - Saved with the desktop settings; off by default, 8 ly.

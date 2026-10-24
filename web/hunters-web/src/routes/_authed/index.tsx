@@ -33,11 +33,13 @@ import { useCharacterMarkers, useMapFocusTarget } from '../../map/useCharacterMa
 import { panelDefinitions } from '../../panels/definitions'
 import { Panels } from '../../panels/Panels'
 import { getMapBehaviour, mapLayouts, useJumpRange, useMapLayout, useShownHuntingProfiles } from '../../settings/mapSettings'
-import { formatLy, jumpRangeOf, jumpRangePresets, MAX_JUMP_RANGE, MIN_JUMP_RANGE } from '../../map/jumpRange'
+import { jumpRangeOf } from '../../map/jumpRange'
 import { buildHuntingLayer, profilesBySystem, type HuntingLayer, type PlaceProfile } from '../../map/hunting'
 import { useUtcHour } from '../../map/useUtcHour'
 import { profileStyle } from '../../theme/themes'
-import { ProfileMark } from '../../components/map/ProfileMark'
+import { HuntingPanel } from '../../components/map/HuntingPanel'
+import { JumpRangePanel } from '../../components/map/JumpRangePanel'
+import { ControlGroup } from '../../components/ui/ControlGroup'
 
 export interface MapSearch {
   colour?: MapFilterId
@@ -217,7 +219,7 @@ function LoadedMap({
   }, [system, focused, setSystem])
 
   // The jump range: drawn around the focused system while it is on.
-  const [rangeSetting, setRangeSetting] = useJumpRange()
+  const [rangeSetting] = useJumpRange()
   const jumpRange = useMemo(
     () => (rangeSetting.enabled && focused >= 0 ? { origin: focused, ly: rangeSetting.ly, inRange: jumpRangeOf(model, focused, rangeSetting.ly) } : null),
     [model, focused, rangeSetting.enabled, rangeSetting.ly],
@@ -324,67 +326,14 @@ function LoadedMap({
               </ControlGroup>
             )}
             {filter.notice ? <p className="text-[0.8125rem] text-fg-muted">{filter.notice}</p> : <MapLegend filter={filter} />}
-            <ControlGroup label="Jump range">
-              <Toggle active={rangeSetting.enabled} onClick={() => setRangeSetting({ enabled: !rangeSetting.enabled })}>
-                {rangeSetting.enabled ? 'On' : 'Off'} · {formatLy(rangeSetting.ly)}
-              </Toggle>
-            </ControlGroup>
-            {rangeSetting.enabled && (
-              <div className="-mt-1.5 grid gap-1.5">
-                <div className="flex flex-wrap gap-1">
-                  {jumpRangePresets.map((p) => (
-                    <Toggle key={p.id} active={p.ly === rangeSetting.ly} onClick={() => setRangeSetting({ ly: p.ly })} title={`${formatLy(p.ly)} with Jump Drive Calibration V`}>
-                      {p.label}
-                    </Toggle>
-                  ))}
-                </div>
-                <label className="flex items-center gap-2 text-[0.8125rem] text-fg-muted">
-                  Custom
-                  <input
-                    type="number"
-                    min={MIN_JUMP_RANGE}
-                    max={MAX_JUMP_RANGE}
-                    step={0.1}
-                    value={rangeSetting.ly}
-                    onChange={(e) => {
-                      const ly = e.target.valueAsNumber
-                      if (Number.isFinite(ly)) setRangeSetting({ ly })
-                    }}
-                    className="w-20 border border-line-strong bg-bg px-2 py-1 font-mono text-fg focus:border-primary focus:outline-none"
-                  />
-                  ly
-                </label>
-                <p className="text-[0.75rem] text-fg-muted">
-                  {focused >= 0 ? (
-                    <>
-                      <span className="text-jump-range">Blue</span>: systems a jump drive can land in from {model.names[focused]} (not high-sec, Pochven or
-                      Zarzakh).
-                    </>
-                  ) : (
-                    'Focus a system (double click it) to see what is in range of it.'
-                  )}
-                </p>
-              </div>
-            )}
-            {huntingProfiles.length > 0 && (
-              <ControlGroup label="Hunting">
-                {huntingProfiles.map((p) => {
-                  const style = profileStyle(p.id, p.name)
-                  return (
-                    <Toggle key={p.id} active={shownProfiles.includes(p.id)} onClick={() => toggleProfile(p.id)}>
-                      <ProfileMark style={style} className="mr-1.5" />
-                      {p.name}
-                    </Toggle>
-                  )
-                })}
-              </ControlGroup>
-            )}
-            {shownProfiles.length > 0 && (
-              <p className="text-[0.75rem] text-fg-muted">The glow is where a shown profile is likely now: usually seen there at this hour (UTC).</p>
-            )}
           </div>
             ),
           },
+          {
+            definition: panel('hunting'),
+            content: <HuntingPanel profiles={huntingProfiles} shown={shownProfiles} toggle={toggleProfile} />,
+          },
+          { definition: panel('jump-range'), content: <JumpRangePanel model={model} focused={focused} /> },
           { definition: panel('characters'), content: <CharactersPanel /> },
         ]}
       />
@@ -393,12 +342,3 @@ function LoadedMap({
 }
 
 const panel = (id: string) => panelDefinitions.find((d) => d.id === id)!
-
-function ControlGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-1.5">
-      <Label>{label}</Label>
-      <div className="flex flex-wrap gap-1">{children}</div>
-    </div>
-  )
-}
