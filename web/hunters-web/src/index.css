@@ -28,6 +28,7 @@
   --color-warning: var(--warning);
   --color-ok: var(--ok);
   --color-info: var(--info);
+  --color-jump-range: var(--jump-range);
 
   --shadow-glow: 0 0 18px var(--glow);
   --text-shadow-glow: 0 0 14px var(--glow);

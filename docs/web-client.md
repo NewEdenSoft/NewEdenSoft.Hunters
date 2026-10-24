@@ -121,6 +121,15 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
   - `useAutoFocus` watches the tracker
   - `useMapFocusTarget` moves the map for the latest request: a character's, or a system's
 
+**Jump range.** The Map panel's **Jump range** toggle draws a cool blue glow (`jump-range` in `design/themes.json`) behind every system a jump drive can land in from the **focused** system:
+- **Range:** presets with Jump Drive Calibration V (Black Ops 8 ly; Carrier, Dread and FAX 7; Super and Titan 6; Jump freighter and Rorqual 10), or a custom value from 0.5 to 20 ly. Kept in local storage under `hunters.map.jumpRange`; off by default.
+- **Which systems:** within the range in 3D (`lyBetween`, from the map pack's world positions and heights) and a cyno target: not high-sec (shown 0.5 or more), Pochven or Zarzakh. The same rule as the server's `CynoTargets`. High-sec systems inside the range stay unmarked.
+- **Hover:** with the range on, the hover panel shows how far the system is from the focus and whether it is **in range**, **out of range**, or has **no cyno**.
+- **Without a focus** nothing is drawn, and the panel says to focus a system.
+- **How it's built:** `map/jumpRange.ts` (`jumpRangeOf` returns 1 per system in range), and `MapRenderer.setJumpRange` draws it under the hunting glow and the systems.
+
+Security is kept in 64 bits in the map model: in 32 bits a true 0.45 reads 0.4499… and would show as 0.4 instead of high-sec 0.5.
+
 The layout is a user setting, kept in local storage like the theme (`settings/mapSettings.ts`, key `hunters.map.layout`) and chosen in the Map panel or on the Settings page. The colour filter and the focused system are in the URL (`/?colour=…&system=…`, defaults left out), so a view can be linked.
 
 The map pack is fetched by the SDE build named in the discovery document and kept in the TanStack Query cache for the session; IndexedDB persistence comes next. The page offers both layouts in the pack: CCP's 2D map, the default, and top-down.

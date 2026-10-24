@@ -165,6 +165,8 @@ interface Palette {
   selection: string
   /** The glow behind systems where a shown hunting profile is likely now. */
   huntGlow: string
+  /** The blue behind systems a jump drive can reach from the focused system. */
+  jumpRange: string
   /** Resolved colours of the filter's groups. */
   groups: string[]
 }
@@ -217,6 +219,8 @@ export class MapRenderer {
   private markerFont = ''
   private markerGroups: MapMarkerGroup[] = []
   private hunting: HuntingLayer | null = null
+  /** 1 per system a jump drive can reach from the focused system, or null when the range isn't shown. */
+  private jumpRange: Uint8Array | null = null
   private huntFont = ''
   /** Resolved badge colours, by CSS colour. */
   private readonly huntColours = new Map<string, string>()
@@ -318,6 +322,12 @@ export class MapRenderer {
   setSelection(index: number): void {
     if (index === this.selection) return
     this.selection = index
+    this.requestDraw()
+  }
+
+  /** The systems in jump range (1 each, see map/jumpRange.ts), or null to show none. Changing it only redraws. */
+  setJumpRange(inRange: Uint8Array | null): void {
+    this.jumpRange = inRange
     this.requestDraw()
   }
 
@@ -477,6 +487,7 @@ export class MapRenderer {
       ctx.globalCompositeOperation = 'source-over'
     }
 
+    if (this.jumpRange) this.drawJumpRange(radius, pad)
     if (this.hunting) this.drawHuntGlow(radius, pad)
 
     for (let group = 0; group < this.byGroup.length; group++) {
@@ -737,6 +748,32 @@ export class MapRenderer {
     for (let i = 0; i < this.model.count; i++) {
       if (i !== this.hovered && i !== this.focused && i !== this.selection && !done.has(i) && this.filter.groups[i] !== HIDDEN)
         place(i, this.palette.label, false)
+    }
+  }
+
+  /**
+   * A cool blue behind each system a jump drive can reach from the focused system: a soft disc, so a
+   * range reads as one blue area zoomed out and as marked systems zoomed in. Under the hunting glow.
+   */
+  private drawJumpRange(radius: number, pad: number): void {
+    const { ctx, xy, scale, offsetX, offsetY, palette } = this
+    const inRange = this.jumpRange!
+    const reach = Math.max(radius * 3, 9)
+    const inner = withAlpha(palette.jumpRange, 0.8)
+    const outer = withAlpha(palette.jumpRange, 0)
+    for (let i = 0; i < inRange.length; i++) {
+      if (!inRange[i]) continue
+      const sx = xy[i * 2] * scale + offsetX
+      const sy = xy[i * 2 + 1] * scale + offsetY
+      if (sx < -reach - pad || sy < -reach - pad || sx > this.width + reach + pad || sy > this.height + reach + pad) continue
+      const gradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, reach)
+      gradient.addColorStop(0, inner)
+      gradient.addColorStop(0.5, withAlpha(palette.jumpRange, 0.45))
+      gradient.addColorStop(1, outer)
+      ctx.fillStyle = gradient
+      ctx.beginPath()
+      ctx.arc(sx, sy, reach, 0, Math.PI * 2)
+      ctx.fill()
     }
   }
 
@@ -1217,6 +1254,7 @@ function resolvePalette(filter: MapFilter): Palette {
     focused: resolveColor('var(--primary)'),
     selection: resolveColor('var(--fg)'),
     huntGlow: resolveColor('var(--hunt-glow)'),
+    jumpRange: resolveColor('var(--jump-range)'),
     groups: filter.colours.map(resolveColor),
   }
 }

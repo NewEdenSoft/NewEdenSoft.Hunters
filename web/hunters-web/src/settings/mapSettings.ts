@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import type { MapLayout } from '../map/model'
 import { defaultMapBehaviour, minJumpChoices, type MapBehaviour } from '../map/autoFocus'
+import { MAX_JUMP_RANGE, MIN_JUMP_RANGE } from '../map/jumpRange'
 
 // Map settings, kept in this browser like the theme (theme/themes.ts).
 const LAYOUT_KEY = 'hunters.map.layout'
@@ -161,4 +162,61 @@ export function useMapBehaviour(): [MapBehaviour, (change: Partial<MapBehaviour>
 /** The current behaviour, for code outside React (the auto-focus subscription). */
 export function getMapBehaviour(): MapBehaviour {
   return behaviour
+}
+
+// The jump range drawn around the focused system (map/jumpRange.ts).
+const JUMP_RANGE_KEY = 'hunters.map.jumpRange'
+const jumpRangeListeners = new Set<() => void>()
+
+export interface JumpRangeSetting {
+  /** Drawn on the map. */
+  enabled: boolean
+  /** The range in light years: a preset's, or the user's own. */
+  ly: number
+}
+
+const defaultJumpRange: JumpRangeSetting = { enabled: false, ly: 8 }
+
+function readJumpRange(): JumpRangeSetting {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(JUMP_RANGE_KEY) ?? '{}')
+    const saved = typeof value === 'object' && value !== null ? (value as Partial<Record<keyof JumpRangeSetting, unknown>>) : {}
+    const ly = typeof saved.ly === 'number' && saved.ly >= MIN_JUMP_RANGE && saved.ly <= MAX_JUMP_RANGE ? saved.ly : defaultJumpRange.ly
+    return { enabled: saved.enabled === true, ly }
+  } catch {
+    return defaultJumpRange
+  }
+}
+
+let jumpRange = readJumpRange()
+
+function subscribeJumpRange(listener: () => void): () => void {
+  jumpRangeListeners.add(listener)
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === JUMP_RANGE_KEY) {
+      jumpRange = readJumpRange()
+      listener()
+    }
+  }
+  window.addEventListener('storage', onStorage)
+  return () => {
+    jumpRangeListeners.delete(listener)
+    window.removeEventListener('storage', onStorage)
+  }
+}
+
+/** Whether the jump range is drawn and how far it reaches, kept in this browser, and a setter for part of it. */
+export function useJumpRange(): [JumpRangeSetting, (change: Partial<JumpRangeSetting>) => void] {
+  const current = useSyncExternalStore(subscribeJumpRange, () => jumpRange)
+  const update = useCallback((change: Partial<JumpRangeSetting>) => {
+    const next = { ...jumpRange, ...change }
+    jumpRange = { ...next, ly: Math.min(MAX_JUMP_RANGE, Math.max(MIN_JUMP_RANGE, next.ly)) }
+    try {
+      localStorage.setItem(JUMP_RANGE_KEY, JSON.stringify(jumpRange))
+    } catch {
+      // Storage unavailable; the choice still applies for this session.
+    }
+    jumpRangeListeners.forEach((listener) => listener())
+  }, [])
+  return [current, update]
 }

@@ -45,7 +45,8 @@
     "heat-3": "#b45cf0",
     "heat-4": "#ef6fd8",
     "heat-5": "#ffe3f7",
-    "hunt-glow": "#ffa23e"
+    "hunt-glow": "#ffa23e",
+    "jump-range": "#3fa9ff"
   },
 
   "profiles": {
