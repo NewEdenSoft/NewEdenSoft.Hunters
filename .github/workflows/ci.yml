@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call: # The release workflow runs these checks before publishing images.
 
 permissions:
   contents: read

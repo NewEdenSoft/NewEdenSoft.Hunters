@@ -1,7 +1,32 @@
+# Production setup: Traefik terminates TLS (Let's Encrypt) in front of the server; the images come
+# from GitHub Container Registry. See docs/deployment.md. To build the images from source instead,
+# add docker-compose.build.yml: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 services:
+  traefik:
+    image: traefik:v3
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=hunters-proxy
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?ACME_EMAIL must be set}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Reads the routing labels of the other services
+      - letsencrypt:/letsencrypt # Certificates: keep, or Traefik requests new ones at every start
+    networks:
+      - proxy
+
   hunters:
     image: ghcr.io/newedensoft/hunters-server:${HUNTERS_TAG:-latest}
-    build: .
     restart: unless-stopped
     environment:
       Hunters__Name: ${HUNTERS_NAME:-Hunters}
@@ -10,30 +35,36 @@ services:
       Hunters__Admins__0: ${HUNTERS_ADMIN_CHARACTER_ID:-}
       Hunters__Sso__ClientId: ${EVE_CLIENT_ID:?EVE_CLIENT_ID must be set}
       Hunters__Sso__ClientSecret: ${EVE_CLIENT_SECRET:?EVE_CLIENT_SECRET must be set}
-      Hunters__Sso__CallbackUrl: ${HUNTERS_PUBLIC_URL:?HUNTERS_PUBLIC_URL must be set}/auth/eve/callback
+      Hunters__Sso__CallbackUrl: https://${HUNTERS_DOMAIN:?HUNTERS_DOMAIN must be set}/auth/eve/callback
+      Hunters__Esi__Contact: https://${HUNTERS_DOMAIN}
       ConnectionStrings__hunters: Host=db;Database=hunters;Username=hunters;Password=${DB_PASSWORD:?DB_PASSWORD must be set}
-      # Set to true when running behind a reverse proxy (Caddy, Traefik, nginx).
-      ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${HUNTERS_BEHIND_PROXY:-false}
+      # Traefik is the only way in (no published ports), so its X-Forwarded-* headers are trusted.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.hunters.rule=Host(`${HUNTERS_DOMAIN}`)
+      - traefik.http.routers.hunters.entrypoints=websecure
+      - traefik.http.routers.hunters.tls.certresolver=letsencrypt
+      - traefik.http.services.hunters.loadbalancer.server.port=8080
     volumes:
       - dpkeys:/app/keys # Data Protection keys: must persist, or stored tokens become unreadable
       - sde:/app/sde # SDE cache for the map: optional, avoids a 100 MB download on every restart
-    ports:
-      - "${HUNTERS_PORT:-8080}:8080"
+    networks:
+      - proxy
+      - default
     depends_on:
       db:
         condition: service_healthy
 
-  # Collects public activity data (ESI hourly kills and jumps) into the database's intel schema,
-  # which the server reads. No ports: it only talks to ESI and the database.
+  # Collects public activity data (ESI hourly kills and jumps, zKillboard's kill feed) into the
+  # database's intel schema, which the server reads. No ports: it only talks to ESI, zKillboard and the database.
   intel:
     image: ghcr.io/newedensoft/hunters-intel:${HUNTERS_TAG:-latest}
-    build:
-      context: .
-      target: intel
     restart: unless-stopped
     environment:
       ConnectionStrings__hunters: Host=db;Database=hunters;Username=hunters;Password=${DB_PASSWORD:?DB_PASSWORD must be set}
-      Hunters__Esi__Contact: ${HUNTERS_PUBLIC_URL:?HUNTERS_PUBLIC_URL must be set}
+      Hunters__Esi__Contact: https://${HUNTERS_DOMAIN:?HUNTERS_DOMAIN must be set}
+    mem_limit: 256m # .NET sizes its heap to the limit; see docs/deployment.md
     volumes:
       - intel-sde:/app/sde # Its own SDE cache: the server's could be mid-download at the same moment
     depends_on:
@@ -55,7 +86,14 @@ services:
       timeout: 5s
       retries: 10
 
+networks:
+  # Traefik and the server only; the database and intel service stay off it.
+  proxy:
+    name: hunters-proxy
+  default:
+
 volumes:
+  letsencrypt:
   dpkeys:
   sde:
   intel-sde:

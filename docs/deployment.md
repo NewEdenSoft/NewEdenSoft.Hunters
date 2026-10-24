@@ -2,14 +2,18 @@
 
 Servers run as containers with Docker Compose. Local development uses the .NET Aspire AppHost (see the [README](../README.md#development)).
 
-## Image
+## Images
 
-Two images, built by the root [`Dockerfile`](../Dockerfile):
+Two images, built by the root [`Dockerfile`](../Dockerfile) and published to GitHub Container Registry by the [release workflow](#releasing):
 
-1. Node stage builds the React app.
-2. .NET SDK stage publishes `Hunters.Server` and `Hunters.Intel`.
-3. `intel` target (`runtime:10.0`, non-root user): the intel service, `docker build --target intel`.
-4. Final, default stage (`aspnet:10.0`, non-root user): the server, with the web build in `wwwroot`.
+| Image | Dockerfile target | Contents |
+|---|---|---|
+| `ghcr.io/newedensoft/hunters-server` | `final` (the default) | `aspnet:10.0`, non-root: the server, with the web build in `wwwroot` |
+| `ghcr.io/newedensoft/hunters-intel` | `intel` | `aspnet:10.0` (for the shared service defaults), non-root: the intel service |
+
+Stages: a Node stage builds the React app, a .NET SDK stage publishes `Hunters.Server` and `Hunters.Intel` (stamped with the `VERSION` build argument, `0.0.0-local` by default), and the two runtime stages copy their output.
+
+Tags: every release `X.Y.Z` is published as `X.Y.Z`, `X.Y` and `latest`; a pre-release (`X.Y.Z-rc.1`) only under its own tag. Images are built for `linux/amd64`.
 
 When `Hunters:Web:Enabled` is `false`, the server does not serve static files or the SPA fallback route; it runs API, SignalR and the EVE callback only.
 
@@ -17,32 +21,47 @@ The SPA fallback never applies to `/api`, `/auth`, `/hubs`, `/openapi` or `/.wel
 
 ## Compose
 
-See [`docker-compose.yml`](../docker-compose.yml) and [`.env.example`](../.env.example).
+[`docker-compose.yml`](../docker-compose.yml) is the production setup; its settings come from a `.env` file next to it ([`.env.example`](../.env.example)).
 
-```sh
-cp .env.example .env   # set DB_PASSWORD at minimum
-docker compose up -d
+```mermaid
+flowchart LR
+    internet((Internet)) -- ":80 / :443" --> traefik
+    subgraph proxy [network hunters-proxy]
+        traefik --> hunters
+    end
+    subgraph default [network default]
+        hunters --> db[(db)]
+        intel --> db
+    end
+    intel -- "ESI, zKillboard" --> internet
 ```
 
-Services:
+| Service | Image | Ports | Volumes |
+|---|---|---|---|
+| `traefik` | `traefik:v3` | 80, 443 | `letsencrypt` → `/letsencrypt`; the Docker socket, read-only |
+| `hunters` | `ghcr.io/newedensoft/hunters-server` | none (through Traefik) | `dpkeys` → `/app/keys`, `sde` → `/app/sde` |
+| `intel` | `ghcr.io/newedensoft/hunters-intel` | none | `intel-sde` → `/app/sde` |
+| `db` | `postgres:17` | none | `pgdata` |
 
-| Service | Image | Volumes |
-|---|---|---|
-| `hunters` | `ghcr.io/newedensoft/hunters-server` (or built locally) | `dpkeys` → `/app/keys`, `sde` → `/app/sde` |
-| `intel` | `ghcr.io/newedensoft/hunters-intel` (or built locally, target `intel`) | `intel-sde` → `/app/sde`; no ports |
-| `db` | `postgres:17` | `pgdata` |
+`HUNTERS_TAG` picks the image version for both services (`latest` by default; pin a release such as `0.1.0` to upgrade on your own schedule). To build the images from a checkout instead of pulling them, add the build override: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
-The intel service ([D22](decisions.md#d22--a-separate-intel-service-with-a-derived-store)) collects public activity data (ESI's hourly kills and jumps, zKillboard's kill feed) into the database's `intel` schema and applies that schema's migrations at startup; the server only reads it. It needs the same connection string and nothing else; `HUNTERS_PUBLIC_URL` is sent to ESI and zKillboard as the operator contact. After changing the activity rules, recompute the derived tables from the raw hours with `docker compose run --rm intel rebuild-activity` (a few minutes for 90 days; safe while the service runs).
+The intel service ([D22](decisions.md#d22--a-separate-intel-service-with-a-derived-store)) collects public activity data (ESI's hourly kills and jumps, zKillboard's kill feed) into the database's `intel` schema and applies that schema's migrations at startup; the server only reads it. It needs the same connection string and nothing else; `https://${HUNTERS_DOMAIN}` is sent to ESI and zKillboard as the operator contact. After changing the activity rules, recompute the derived tables from the raw hours with `docker compose run --rm intel rebuild-activity` (a few minutes for 90 days; safe while the service runs).
 
-**Memory:** the intel service's live managed heap is about 40 MB (the SDE catalogue is most of it), and it runs within a 64 MB GC heap: about 85 MB private and 180 MB working set, about half of which is the runtime's own mapped files. Without a limit, .NET's GC collects lazily on a machine with free memory, so the same process can sit at 300+ MB without needing it. Under a container memory limit (`mem_limit`, or `deploy.resources.limits.memory`), .NET caps its heap at 75% of the limit and collects accordingly; 256 MB leaves ample room.
+**Memory:** the intel service's live managed heap is about 40 MB (the SDE catalogue is most of it), and it runs within a 64 MB GC heap: about 85 MB private and 180 MB working set, about half of which is the runtime's own mapped files. Without a limit, .NET's GC collects lazily on a machine with free memory, so the same process can sit at 300+ MB without needing it. Under a container memory limit (`mem_limit`, or `deploy.resources.limits.memory`), .NET caps its heap at 75% of the limit and collects accordingly; 256 MB leaves ample room, and the Compose file sets it.
 
 The `sde` volume caches CCP's SDE archive (about 100 MB), from which the server builds the map. Losing it only means downloading it again at the next start.
 
 **The `dpkeys` volume must persist.** Refresh tokens are encrypted with the Data Protection keys stored there; losing the keys makes every stored token unreadable and forces all users to log in again.
 
-## TLS and reverse proxies
+## TLS and Traefik
 
-TLS is terminated by a reverse proxy (Caddy, Traefik, nginx). Set `HUNTERS_BEHIND_PROXY=true` so the server honours `X-Forwarded-*` headers (`ASPNETCORE_FORWARDEDHEADERS_ENABLED`) and builds correct callback and redirect URLs. Only enable this when the server is not directly reachable from the internet.
+Traefik terminates TLS and is the only service with published ports. It gets a Let's Encrypt certificate for `HUNTERS_DOMAIN` through the HTTP challenge on port 80 (so the domain's DNS record must point at the server, and ports 80 and 443 must be open), keeps it in the `letsencrypt` volume, and redirects HTTP to HTTPS. WebSockets (SignalR) pass through without extra configuration.
+
+Traefik only routes containers labelled `traefik.enable=true` (the server). It reads those labels through the Docker socket, mounted read-only. The server sits on the `hunters-proxy` network with Traefik and on the default network with the database; the database and the intel service are never reachable from Traefik.
+
+The server trusts Traefik's `X-Forwarded-*` headers (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`) to build correct callback and redirect URLs. That is safe only because the server publishes no ports of its own: don't add a `ports:` entry to the `hunters` service.
+
+**An existing Traefik:** drop the `traefik` service, put `hunters` on that Traefik's network (replace `hunters-proxy` with its name, marked `external: true`) and change the `certresolver` label to its resolver's name. Another reverse proxy (Caddy, nginx) works the same way: route `https://<domain>` to `hunters:8080` and forward the `X-Forwarded-*` headers.
 
 ## Configuration reference
 
@@ -86,7 +105,7 @@ Intel service (`Hunters.Intel`, same `Hunters` section and `ConnectionStrings__h
 | `Hunters:Hunting:BattleWindow` | `00:15:00` | The battle window, either side of a sighting |
 | `Hunters:Hunting:ScoreHalfLife` | `14.00:00:00` | A sighting's weight in the hunting score halves every this long |
 | `Hunters:Hunting:UpdateInterval` | `00:05:00` | The hunting aggregates are recomputed at most this often while sightings arrive (and at least hourly) |
-| `Hunters:Esi:Contact` | the project URL (Compose: `HUNTERS_PUBLIC_URL`) | Operator contact in the ESI, SDE and zKillboard `User-Agent` |
+| `Hunters:Esi:Contact` | the project URL (Compose: `https://${HUNTERS_DOMAIN}`) | Operator contact in the ESI, SDE and zKillboard `User-Agent` |
 | `Hunters:Sde:CachePath` | `/app/sde` in the image; local app data otherwise | Its own SDE cache (map data and item types). Not shared with the server's volume, which could be mid-download at the same moment |
 | `Hunters:Sde:RefreshInterval` | `06:00:00` | How often to check CCP for a new SDE build |
 
@@ -98,8 +117,32 @@ Intel service (`Hunters.Intel`, same `Hunters` section and `ConnectionStrings__h
 
 Running the server on its own (without Aspire) reads the same `Hunters:Sso:*` keys from its own configuration, for example `src/Hunters.Server/appsettings.Development.json` (git-ignored) or its user secrets.
 
-## Self-hosting guide (to write)
+## Deploying a server
 
-1. Register an application at developers.eveonline.com: callback `https://<host>/auth/eve/callback`, scopes from [Authentication](authentication.md#scopes).
-2. Fill in `.env` from `.env.example` (`EVE_CLIENT_ID`, `EVE_CLIENT_SECRET`, `HUNTERS_PUBLIC_URL`, `DB_PASSWORD`).
-3. `docker compose up -d`.
+On a Linux host with Docker Engine and the Compose plugin:
+
+1. Point a DNS record (`hunters.example.com`) at the host, and open ports 80 and 443.
+2. Register an application at developers.eveonline.com: callback `https://<domain>/auth/eve/callback`, scopes from [Authentication](authentication.md#scopes).
+3. Copy [`docker-compose.yml`](../docker-compose.yml) and [`.env.example`](../.env.example) into a directory on the host, rename the example to `.env` and fill in `DB_PASSWORD`, `HUNTERS_DOMAIN`, `ACME_EMAIL`, `EVE_CLIENT_ID` and `EVE_CLIENT_SECRET`, and optionally `HUNTERS_ADMIN_CHARACTER_ID`. No source checkout is needed.
+4. `docker compose up -d`. The first start downloads the SDE (about 100 MB) before the map is served; `docker compose logs -f hunters intel` shows progress.
+5. Open `https://<domain>` and log in.
+
+**Upgrading:** set `HUNTERS_TAG` to the new version (or keep `latest`), then `docker compose pull && docker compose up -d`. Both services apply their database migrations at startup. Read the release notes first.
+
+**Backups:** the `pgdata` volume (`docker compose exec db pg_dump -U hunters hunters > hunters.sql`) and the `dpkeys` volume. Losing `dpkeys` logs everyone out; the other volumes are caches that are rebuilt.
+
+## Releasing
+
+Releases come from tags on `main`. Pushing a `vX.Y.Z` tag runs the [release workflow](../.github/workflows/release.yml):
+
+1. The CI checks (the same jobs as [`ci.yml`](../.github/workflows/ci.yml)).
+2. Both images are built with `VERSION=X.Y.Z` and pushed to GitHub Container Registry.
+3. A GitHub Release with generated notes (a pre-release when the tag has a suffix such as `-rc.1`).
+
+```sh
+git switch main && git pull
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+New packages on GitHub Container Registry are private. After the first release, make `hunters-server` and `hunters-intel` public under the organisation's *Packages* settings, so servers can pull them without logging in.

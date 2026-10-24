@@ -22,12 +22,15 @@ COPY src/Hunters.Intel.Data/Hunters.Intel.Data.csproj src/Hunters.Intel.Data/
 COPY src/Hunters.Sde/Hunters.Sde.csproj src/Hunters.Sde/
 RUN dotnet restore src/Hunters.Server/Hunters.Server.csproj && dotnet restore src/Hunters.Intel/Hunters.Intel.csproj
 COPY src/ src/
-RUN dotnet publish src/Hunters.Server/Hunters.Server.csproj -c Release -o /app/publish --no-restore
-RUN dotnet publish src/Hunters.Intel/Hunters.Intel.csproj -c Release -o /app/publish-intel --no-restore
+# Set by the release workflow from the git tag (v1.2.3 → 1.2.3); local builds stay 0.0.0-local.
+ARG VERSION=0.0.0-local
+RUN dotnet publish src/Hunters.Server/Hunters.Server.csproj -c Release -o /app/publish --no-restore -p:Version=$VERSION
+RUN dotnet publish src/Hunters.Intel/Hunters.Intel.csproj -c Release -o /app/publish-intel --no-restore -p:Version=$VERSION
 
 # --- Intel service (build with --target intel) ---------------------------------
 # Before the server stage on purpose: a plain `docker build` builds the last stage, the server.
-FROM mcr.microsoft.com/dotnet/runtime:10.0 AS intel
+# aspnet, not runtime: Hunters.ServiceDefaults references the ASP.NET Core shared framework.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS intel
 WORKDIR /app
 # SDE cache mount point, owned by the non-root app user so a named volume inherits the ownership.
 RUN mkdir -p /app/sde && chown "$APP_UID" /app/sde
