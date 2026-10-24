@@ -3,7 +3,6 @@
              xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
              xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
              xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
-             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
              x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.MapControlsWidgetView"
              x:DataType="mw:MapControlsWidgetViewModel">
 
@@ -66,29 +65,6 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
-    <StackPanel Spacing="6" IsVisible="{Binding HasHuntingChoices}">
-      <TextBlock Classes="label" Text="HUNTING" />
-      <ItemsControl ItemsSource="{Binding HuntingChoices}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <WrapPanel ItemSpacing="4" LineSpacing="4" />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="mw:HuntingChoiceViewModel">
-            <Button Classes="hud toggle" Classes.primary="{Binding IsSelected}" Classes.ghost="{Binding !IsSelected}"
-                    Command="{Binding ToggleCommand}">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <c:ProfileMark Profile="{Binding Style}" FontSize="11" />
-                <TextBlock Text="{Binding Name, Converter={x:Static w:UpperCaseConverter.Instance}}" VerticalAlignment="Center" />
-              </StackPanel>
-            </Button>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding ShowsHuntingNote}"
-                 Text="The glow is where a shown profile is likely now: usually seen there at this hour (UTC)." />
-    </StackPanel>
   </StackPanel>
   </ScrollViewer>
 </UserControl>

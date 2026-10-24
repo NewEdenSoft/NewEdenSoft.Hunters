@@ -410,7 +410,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
     partial void OnActivityChanged(ActivityCurrent? value) => RebuildFilter();
 
-    /// <summary>The server has hunting profiles: they are offered in Map controls.</summary>
+    /// <summary>The server has hunting profiles: they are offered in the Hunting widget.</summary>
     [ObservableProperty]
     public partial bool HasHunting { get; private set; }
 
@@ -441,7 +441,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
     partial void OnHourChanged(int value) => RebuildHunting();
 
-    /// <summary>Shows a hunting profile on the map, or hides it (Map controls).</summary>
+    /// <summary>Shows a hunting profile on the map, or hides it (the Hunting widget).</summary>
     public void ToggleHuntingProfile(string id) => _preferences.ToggleHuntingProfile(id);
 
     public ProfileStyle StyleOf(string id) => _catalog.ProfileStyle(id, NameOf(id));

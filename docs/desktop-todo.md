@@ -16,10 +16,10 @@ See [Selection and focus](web-client.md#map).
   - Focus on entering known space: on
   - Focus after a long move: on, 5 jumps (choices 2, 3, 5, 10, 20)
 - [x] **Auto-focus:** follow the **followed character**, else the **main**. Port `autoFocusReason` and `jumpsWithin` (a breadth-first search over gates that stops at the minimum) from `map/autoFocus.ts`, with its tests. The first known location never focuses. The map goes to the new focus, and following carries on.
-- [ ] Focusing by hand moves the map there and stops following, as now; the character chip stays.
+- [x] Focusing by hand moves the map there and stops following, as now; the character chip stays.
 
 ## Hunting and Jump range panels
-- [ ] **Hunting** gets its own widget: the profile toggles and the glow hint move out of Map controls (`HuntingPanel.tsx` on the web).
+- [x] **Hunting** gets its own widget: the profile toggles and the glow hint move out of Map controls (`HuntingPanel.tsx` on the web).
 - [ ] **Jump range** gets its own widget, closed by default (`JumpRangePanel.tsx`). The items below go there instead of Map controls.
 
 ## Nearby panel
