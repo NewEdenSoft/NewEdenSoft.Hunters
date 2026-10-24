@@ -8,9 +8,11 @@ namespace NewEdenSoft.Hunters.Desktop.Map;
 /// Theme colours the map is drawn with. <paramref name="Halo"/> outlines region names so they read
 /// over gates and fills marker badges; <paramref name="Accent"/> draws the hover ring, the focused
 /// system's rings and name, and the markers; <paramref name="HuntGlow"/> is the glow behind systems
-/// where a shown hunting profile is likely now.
+/// where a shown hunting profile is likely now; <paramref name="Selection"/> draws the selected system's
+/// crosshair and name.
 /// </summary>
-public sealed record MapPalette(SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent, SKColor HuntGlow = default);
+public sealed record MapPalette(
+    SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent, SKColor HuntGlow = default, SKColor Selection = default);
 
 /// <summary>One character's marker; offline characters are drawn dimmed at their last known system.</summary>
 public readonly record struct MapMarker(long CharacterId, CharacterMarker Marker, bool IsOnline);
@@ -45,7 +47,8 @@ public readonly record struct MapCamera(float Scale, float OffsetX, float Offset
 /// around each system when zoomed in; systems in view, batched by colour group; then system names
 /// to the bottom right of each system when zoomed in, or region names when zoomed out; last, the
 /// characters' markers, joined by a line to the upper right of their systems. The focused system
-/// gets two rings and always its name, in the accent colour. Shown hunting profiles add a glow under
+/// gets two rings and always its name, in the accent colour; the selected system a ring with four
+/// ticks and always its name, in the text colour. Shown hunting profiles add a glow under
 /// the systems and, zoomed in, a row of badges below each system's name.
 /// </remarks>
 public sealed class MapScene
@@ -148,20 +151,26 @@ public sealed class MapScene
 
     /// <summary>
     /// The visible system nearest to a point on screen, within <see cref="HoverRadius"/> pixels, or -1.
-    /// The focused system (<paramref name="selected"/>) counts as visible, as it is drawn even when hidden.
+    /// The focused and selected systems count as visible, as they are drawn even when hidden.
     /// </summary>
-    public int HitTest(in MapCamera camera, float screenX, float screenY, int selected = -1)
+    public int HitTest(in MapCamera camera, float screenX, float screenY, int focused = -1, int selection = -1)
     {
         var worldX = (screenX - camera.OffsetX) / camera.Scale;
         var worldY = (screenY - camera.OffsetY) / camera.Scale;
-        return _grid.Nearest(worldX, worldY, HoverRadius / camera.Scale, i => Filter.Groups[i] != MapFilter.Hidden || i == selected);
+        return _grid.Nearest(worldX, worldY, HoverRadius / camera.Scale, i => Filter.Groups[i] != MapFilter.Hidden || i == focused || i == selection);
     }
 
-    /// <param name="selected">The focused system's index, or -1.</param>
+    /// <param name="focused">The focused system's index, or -1.</param>
     /// <param name="hunting">The shown hunting profiles' glow and badges, or null.</param>
+    /// <param name="selection">The selected system's index, or -1.</param>
     public void Draw(
-        SKCanvas canvas, in MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup>? markers = null, int selected = -1, HuntingLayer? hunting = null)
+        SKCanvas canvas, in MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup>? markers = null, int focused = -1, HuntingLayer? hunting = null,
+        int selection = -1)
     {
+        // The selection is drawn only apart from the focus, which already marks the system.
+        if (selection == focused)
+            selection = -1;
+
         // Gates go on a layer of their own, so the margins can be cut out of them without cutting
         // through what is behind the map.
         canvas.SaveLayer();
@@ -172,23 +181,27 @@ public sealed class MapScene
         if (hunting is not null)
             DrawHuntGlow(canvas, camera, hunting.Glow);
         DrawSystems(canvas, camera, hovered);
-        if (selected >= 0)
-            DrawSelected(canvas, camera, selected);
+        if (focused >= 0)
+            DrawFocused(canvas, camera, focused);
+        if (selection >= 0)
+            DrawSelection(canvas, camera, selection);
 
         if (camera.Scale >= LabelZoom)
         {
             // Badge rows first, so names can keep clear of them.
             var huntRows = hunting is { Badges.Count: > 0 } && camera.Scale >= HuntBadgeZoom ? LayoutHuntRows(camera, hunting.Badges) : [];
-            DrawLabels(canvas, camera, hovered, selected, huntRows);
+            DrawLabels(canvas, camera, hovered, focused, selection, huntRows);
             if (huntRows.Count > 0)
                 DrawHuntBadges(canvas, camera, huntRows);
         }
         else
         {
             DrawRegionLabels(canvas, camera);
-            // The focused system keeps its name when zoomed out, where no other system has one.
-            if (selected >= 0)
-                DrawSelectedLabel(canvas, camera, selected);
+            // The focused and selected systems keep their names when zoomed out, where no other system has one.
+            if (focused >= 0)
+                DrawLabelZoomedOut(canvas, camera, focused, _palette.Accent);
+            if (selection >= 0)
+                DrawLabelZoomedOut(canvas, camera, selection, _palette.Selection);
         }
 
         if (markers is { Count: > 0 })
@@ -438,12 +451,12 @@ public sealed class MapScene
     }
 
     /// <summary>Two rings around the focused system; its dot too if the filter hides it.</summary>
-    private void DrawSelected(SKCanvas canvas, in MapCamera camera, int selected)
+    private void DrawFocused(SKCanvas canvas, in MapCamera camera, int focused)
     {
-        var radius = SystemRadius(camera.Scale) * Filter.SizeOf(selected);
-        var (sx, sy) = (camera.ToScreenX(X(selected)), camera.ToScreenY(Y(selected)));
+        var radius = SystemRadius(camera.Scale) * Filter.SizeOf(focused);
+        var (sx, sy) = (camera.ToScreenX(X(focused)), camera.ToScreenY(Y(focused)));
         using var paint = new SKPaint { IsAntialias = true, Color = _palette.Accent };
-        if (Filter.Groups[selected] == MapFilter.Hidden)
+        if (Filter.Groups[focused] == MapFilter.Hidden)
             canvas.DrawCircle(sx, sy, radius, paint);
 
         paint.Style = SKPaintStyle.Stroke;
@@ -453,15 +466,37 @@ public sealed class MapScene
         canvas.DrawCircle(sx, sy, radius + 9, paint);
     }
 
-    /// <summary>The focused system's name when zoomed out, to the bottom right of its rings.</summary>
-    private void DrawSelectedLabel(SKCanvas canvas, in MapCamera camera, int selected)
+    /// <summary>
+    /// The selected system: one ring with four ticks around it, like a crosshair, in the text colour, so
+    /// it reads apart from the focus's double ring. Its dot too if the filter hides it.
+    /// </summary>
+    private void DrawSelection(SKCanvas canvas, in MapCamera camera, int selection)
+    {
+        var radius = SystemRadius(camera.Scale) * Filter.SizeOf(selection);
+        var (sx, sy) = (camera.ToScreenX(X(selection)), camera.ToScreenY(Y(selection)));
+        using var paint = new SKPaint { IsAntialias = true, Color = _palette.Selection };
+        if (Filter.Groups[selection] == MapFilter.Hidden)
+            canvas.DrawCircle(sx, sy, radius, paint);
+
+        paint.Style = SKPaintStyle.Stroke;
+        paint.StrokeWidth = 1.5f;
+        canvas.DrawCircle(sx, sy, radius + 5, paint);
+        foreach (var (dx, dy) in Ticks)
+            canvas.DrawLine(sx + dx * (radius + 8), sy + dy * (radius + 8), sx + dx * (radius + 13), sy + dy * (radius + 13), paint);
+    }
+
+    /// <summary>The directions of the selection's ticks.</summary>
+    private static readonly (int X, int Y)[] Ticks = [(1, 0), (-1, 0), (0, 1), (0, -1)];
+
+    /// <summary>The focused or selected system's name when zoomed out, to the bottom right of its rings.</summary>
+    private void DrawLabelZoomedOut(SKCanvas canvas, in MapCamera camera, int index, SKColor colour)
     {
         var radius = SystemRadius(camera.Scale);
-        using var paint = new SKPaint { IsAntialias = true, Color = _palette.Accent };
+        using var paint = new SKPaint { IsAntialias = true, Color = colour };
         canvas.DrawText(
-            _model.Names[selected],
-            camera.ToScreenX(X(selected)) + radius + 10,
-            camera.ToScreenY(Y(selected)) + radius + 4 + _labelAscent,
+            _model.Names[index],
+            camera.ToScreenX(X(index)) + radius + 10,
+            camera.ToScreenY(Y(index)) + radius + 4 + _labelAscent,
             _labelFont,
             paint);
     }
@@ -592,25 +627,27 @@ public sealed class MapScene
     /// <summary>One system's hunting badge row: the system on screen and the row's bounds.</summary>
     private readonly record struct HuntRow(HuntingBadgeGroup Group, float X, float Y, SKRect Bounds);
 
-    private void DrawLabels(SKCanvas canvas, in MapCamera camera, int hovered, int selected, List<HuntRow> huntRows)
+    private void DrawLabels(SKCanvas canvas, in MapCamera camera, int hovered, int focused, int selection, List<HuntRow> huntRows)
     {
         var radius = SystemRadius(camera.Scale);
         var lineHeight = LabelFontSize + 2;
         var taken = new HashSet<long>();
         using var paint = new SKPaint { IsAntialias = true };
 
-        // The hovered and the focused system always get their labels first.
+        // The hovered, focused and selected systems always get their labels first.
         if (hovered >= 0)
             Place(canvas, camera, hovered, _palette.LabelHover, force: true);
-        if (selected >= 0 && selected != hovered)
-            Place(canvas, camera, selected, _palette.Accent, force: true);
+        if (focused >= 0 && focused != hovered)
+            Place(canvas, camera, focused, _palette.Accent, force: true);
+        if (selection >= 0 && selection != hovered)
+            Place(canvas, camera, selection, _palette.Selection, force: true);
 
         // Hunting badges: their systems' names next, then no name goes where the badges are drawn.
         var first = new HashSet<int>();
         foreach (var row in huntRows)
         {
             first.Add(row.Group.SystemIndex);
-            if (row.Group.SystemIndex != hovered && row.Group.SystemIndex != selected)
+            if (row.Group.SystemIndex != hovered && row.Group.SystemIndex != focused && row.Group.SystemIndex != selection)
                 Place(canvas, camera, row.Group.SystemIndex, _palette.Label, force: false);
         }
 
@@ -619,7 +656,7 @@ public sealed class MapScene
 
         for (var i = 0; i < _model.Count; i++)
         {
-            if (i != hovered && i != selected && !first.Contains(i) && Filter.Groups[i] != MapFilter.Hidden)
+            if (i != hovered && i != focused && i != selection && !first.Contains(i) && Filter.Groups[i] != MapFilter.Hidden)
                 Place(canvas, camera, i, _palette.Label, force: false);
         }
 

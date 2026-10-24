@@ -2,21 +2,7 @@
 
 Features are built in the web client first; the desktop mirrors them afterwards. Each web PR adds what the desktop still needs here, and each desktop PR ticks off or removes what it covers. Behaviour and wording should match the web ([Web Client](web-client.md)); the desktop's own conventions are in [Desktop Client](desktop-client.md).
 
-Already on the desktop: system search, the focused system with its menu, the Map controls widget, activity colours, and hunting profiles (glow, badges, hover). The map model has heights and `MapModel.LyBetween` (map pack format 2) and keeps security in doubles.
-
-## Selection and focus (web #48)
-See [Selection and focus](web-client.md#map).
-- [ ] **Selection apart from focus.** `SelectedSystemId` on the desktop is today the focus. Add a separate selection: a single click on a system selects it, and a click on empty space or **Esc** clears it.
-- [ ] **Drawing:** the selection as one ring with four ticks (a crosshair) and its name, in the text colour. The focus keeps its double ring in the primary colour. Both are drawn at every zoom, even when the filter hides the system.
-- [ ] **Search selects** (Enter and a click on a result): the map goes there, and the focus stays as it was. With no search typed, the field still shows the focused system with its clear button.
-- [ ] **Selected card** under the search and the character chip: **Selected**, name, security, region, a **Focus** button and ✕.
-- [ ] **Double click focuses** (when the setting is on): two clicks on the same system within 350 ms.
-- [ ] **Map behaviour settings** on the Settings page, saved with the other desktop settings. Defaults:
-  - Double click to focus: on
-  - Focus on entering known space: on
-  - Focus after a long move: on, 5 jumps (choices 2, 3, 5, 10, 20)
-- [ ] **Auto-focus:** follow the **followed character**, else the **main**. Port `autoFocusReason` and `jumpsWithin` (a breadth-first search over gates that stops at the minimum) from `map/autoFocus.ts`, with its tests. The first known location never focuses. The map goes to the new focus, and following carries on.
-- [ ] Focusing by hand moves the map there and stops following, as now; the character chip stays.
+Already on the desktop: system search, selection and focus (with auto-focus and the map behaviour settings), the focused system's menu, the Map controls widget, activity colours, and hunting profiles (glow, badges, hover). The map model has heights and `MapModel.LyBetween` (map pack format 2) and keeps security in doubles.
 
 ## Hunting and Jump range panels
 - [ ] **Hunting** gets its own widget: the profile toggles and the glow hint move out of Map controls (`HuntingPanel.tsx` on the web).

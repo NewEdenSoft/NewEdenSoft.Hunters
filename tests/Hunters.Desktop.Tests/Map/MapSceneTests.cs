@@ -8,7 +8,7 @@ namespace NewEdenSoft.Hunters.Desktop.Tests.Map;
 public sealed class MapSceneTests
 {
     private static readonly MapPalette Palette = new(
-        SKColors.Black, SKColors.Gray, SKColors.White, SKColors.Silver, SKColors.White, SKColors.Orange);
+        SKColors.Black, SKColors.Gray, SKColors.White, SKColors.Silver, SKColors.White, SKColors.Orange, Selection: SKColors.Lime);
 
     private readonly ThemeCatalog _catalog = ThemeCatalog.LoadEmbedded();
     private readonly MapModel _model = MapModel.Build(MapTestData.Pack());
@@ -114,11 +114,11 @@ public sealed class MapSceneTests
         var camera = new MapCamera(Scale: 40, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
         var radius = MapScene.SystemRadius(40);
 
-        SKColor Sample(int selected, int x, int y)
+        SKColor Sample(int focused, int x, int y)
         {
             using var surface = SKSurface.Create(new SKImageInfo(400, 300));
             surface.Canvas.Clear(SKColors.Navy);
-            scene.Draw(surface.Canvas, camera, hovered: -1, selected: selected);
+            scene.Draw(surface.Canvas, camera, hovered: -1, focused: focused);
             using var image = surface.Snapshot();
             using var pixels = image.PeekPixels();
             return pixels.GetPixelColor(x, y);
@@ -131,7 +131,34 @@ public sealed class MapSceneTests
         Assert.Equal(Palette.Accent, Sample(jita, 200, 150));
 
         Assert.Equal(-1, scene.HitTest(camera, 200, 150));
-        Assert.Equal(jita, scene.HitTest(camera, 200, 150, selected: jita));
+        Assert.Equal(jita, scene.HitTest(camera, 200, 150, focused: jita));
+        Assert.Equal(jita, scene.HitTest(camera, 200, 150, selection: jita));
+    }
+
+    [Fact]
+    public void The_selection_is_a_crosshair_apart_from_the_focus()
+    {
+        var scene = Scene(MapFilters.Security(_model, _catalog));
+        var camera = new MapCamera(Scale: 40, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
+        var jita = _model.IndexOf[10];
+        // On the upper tick (no gate goes up from Jita), past the focus's outer ring.
+        var tickY = (int)MathF.Round(150 - MapScene.SystemRadius(40) - 12);
+
+        SKColor Sample(int focused, int selection)
+        {
+            using var surface = SKSurface.Create(new SKImageInfo(400, 300));
+            surface.Canvas.Clear(SKColors.Navy);
+            scene.Draw(surface.Canvas, camera, hovered: -1, focused: focused, selection: selection);
+            using var image = surface.Snapshot();
+            using var pixels = image.PeekPixels();
+            return pixels.GetPixelColor(200, tickY);
+        }
+
+        Assert.Equal(SKColors.Navy, Sample(-1, -1));
+        // Mostly the selection colour: the 1.5 px tick only partly covers the pixel.
+        Assert.True(Sample(-1, jita).Green > 160);
+        // The focus marks it already.
+        Assert.Equal(SKColors.Navy, Sample(jita, jita));
     }
 
     [Fact]

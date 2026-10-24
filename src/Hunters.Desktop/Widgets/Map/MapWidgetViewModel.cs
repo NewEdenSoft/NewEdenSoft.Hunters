@@ -19,8 +19,10 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// The map of known space, as a widget: docked in the main window or floating as an overlay. The
 /// map pack named by the server's discovery document is downloaded the first time the widget is on
 /// screen in a session and kept in memory for the session. Tracked characters are marked on it at
-/// their systems, with the markers chosen on the Account page. A system can be focused, from the
-/// search box or a system's menu: the map goes there and rings it. The layout and colour are chosen
+/// their systems, with the markers chosen on the Account page. A click selects a system; the search
+/// box selects one too and goes there. A system can be focused, from its menu, the selected card, a
+/// double click, or by itself as the followed character (or the main) moves far (Settings, "Map
+/// behaviour"): the map goes there and rings it. The layout and colour are chosen
 /// in the Map controls widget. Once the map is loaded, the server's activity is asked for every minute
 /// while the widget is on screen (revalidated with its ETag, so mostly a 304), for the activity colours
 /// and the hover panel; with hunting profiles shown, where they are seen too, for their glow and badges.
@@ -76,7 +78,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         _characters = characters;
         _focus = focus;
 
-        Search = new SystemSearchViewModel(Describe, FocusSystem);
+        Search = new SystemSearchViewModel(Describe, FindSystem);
 
         account.PropertyChanged += (_, e) =>
         {
@@ -85,6 +87,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                 EnsureLoaded();
                 UpdateMarkers();
                 focus.Clear();
+                FocusedSystemId = null;
                 SelectedSystemId = null;
             }
         };
@@ -138,17 +141,42 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
     public SystemSearchViewModel Search { get; }
 
-    /// <summary>The focused system: ringed on the map, and the origin for nearby intel. Kept for the session.</summary>
+    /// <summary>The focused system: double-ringed on the map, and the origin for nearby intel and jump range. Kept for the session.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SelectedSystem))]
+    [NotifyPropertyChangedFor(nameof(FocusedSystem), nameof(IsSelectionFocused))]
+    public partial int? FocusedSystemId { get; private set; }
+
+    /// <summary>The focused system's name, security and region, shown in the search box; null when none is focused.</summary>
+    public MapSystemInfo? FocusedSystem => InfoOf(FocusedSystemId);
+
+    /// <summary>The selected system: the one last clicked or searched for. It has a crosshair on the map and a card under the search.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedSystem), nameof(IsSelectionFocused))]
     public partial int? SelectedSystemId { get; private set; }
 
-    /// <summary>The focused system's name, security and region, for its chip; null when none is focused.</summary>
-    public MapSystemInfo? SelectedSystem =>
-        SelectedSystemId is { } id && Model is { } model && model.IndexOf.TryGetValue(id, out var index) ? Describe(index) : null;
+    /// <summary>The selected system's name, security and region, for its card; null when none is selected.</summary>
+    public MapSystemInfo? SelectedSystem => InfoOf(SelectedSystemId);
 
-    /// <summary>Focuses a system: the map goes there, taking over from a followed character as dragging does.</summary>
+    /// <summary>The selected system is the focused one already: its card has no Focus button.</summary>
+    public bool IsSelectionFocused => SelectedSystemId is not null && SelectedSystemId == FocusedSystemId;
+
+    private MapSystemInfo? InfoOf(int? systemId) =>
+        systemId is { } id && Model is { } model && model.IndexOf.TryGetValue(id, out var index) ? Describe(index) : null;
+
+    /// <summary>Focuses a system by hand: the map goes there, taking over from a followed character as dragging does.</summary>
     public void FocusSystem(int index)
+    {
+        if (Model is not { } model || index < 0 || index >= model.Count)
+            return;
+
+        _focus.StopFollowing();
+        _awaitingLocation = null;
+        FocusedSystemId = model.Ids[index];
+        FocusTarget = new MapFocusTarget(model.Ids[index], ZoomIn: true);
+    }
+
+    /// <summary>Selects a system from the search: the map goes there too, and the focus stays as it was.</summary>
+    public void FindSystem(int index)
     {
         if (Model is not { } model || index < 0 || index >= model.Count)
             return;
@@ -159,8 +187,29 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         FocusTarget = new MapFocusTarget(model.Ids[index], ZoomIn: true);
     }
 
+    /// <summary>A click on a system selects it; a click on empty space (-1) clears the selection.</summary>
+    public void SelectSystem(int index) =>
+        SelectedSystemId = Model is { } model && index >= 0 && index < model.Count ? model.Ids[index] : null;
+
+    /// <summary>A double click on a system focuses it, when the setting is on.</summary>
+    public void DoubleClickSystem(int index)
+    {
+        if (_preferences.Behaviour.DoubleClickFocus)
+            FocusSystem(index);
+    }
+
     [RelayCommand]
-    public void ClearSystem() => SelectedSystemId = null;
+    public void ClearSystem() => FocusedSystemId = null;
+
+    [RelayCommand]
+    public void ClearSelection() => SelectedSystemId = null;
+
+    [RelayCommand]
+    private void FocusSelection()
+    {
+        if (SelectedSystemId is { } id && Model is { } model && model.IndexOf.TryGetValue(id, out var index))
+            FocusSystem(index);
+    }
 
     /// <summary>The account's tracked characters with a known location, main first.</summary>
     [ObservableProperty]
@@ -216,6 +265,9 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         if (e.Current?.Location is not { } location)
             return;
 
+        if (AutoFocusSystem(e, location.SolarSystemId))
+            return;
+
         if (e.CharacterId == _awaitingLocation)
         {
             _awaitingLocation = null;
@@ -226,6 +278,25 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             // Following keeps the user's zoom.
             FocusTarget = new MapFocusTarget(location.SolarSystemId, ZoomIn: false);
         }
+    }
+
+    /// <summary>
+    /// The followed character, or the main while nobody is followed, came into known space from unknown
+    /// space or moved far (Settings, "Map behaviour"): its system becomes the focus and the map goes
+    /// there. Following carries on. True when it did.
+    /// </summary>
+    private bool AutoFocusSystem(TrackedCharacterChangedEventArgs e, int to)
+    {
+        var source = _focus.FollowedCharacterId ?? _account.Session?.Account.Characters.FirstOrDefault(c => c.IsMain)?.Id;
+        if (Model is not { } model || e.CharacterId != source || !e.SystemChanged ||
+            AutoFocus.Reason(model, e.Previous?.Location?.SolarSystemId, to, _preferences.Behaviour) is null)
+        {
+            return false;
+        }
+
+        FocusedSystemId = to;
+        FocusTarget = new MapFocusTarget(to, ZoomIn: true);
+        return true;
     }
 
     public bool IsLoaded => Model is not null;
@@ -402,6 +473,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     partial void OnModelChanged(MapModel? value)
     {
         Search.SetModel(value);
+        OnPropertyChanged(nameof(FocusedSystem));
         OnPropertyChanged(nameof(SelectedSystem));
         RebuildHunting();
     }
