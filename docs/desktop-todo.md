@@ -10,7 +10,7 @@ See [Selection and focus](web-client.md#map).
 - [x] **Drawing:** the selection as one ring with four ticks (a crosshair) and its name, in the text colour. The focus keeps its double ring in the primary colour. Both are drawn at every zoom, even when the filter hides the system.
 - [x] **Search selects** (Enter and a click on a result): the map goes there, and the focus stays as it was. With no search typed, the field still shows the focused system with its clear button.
 - [x] **Selected card** under the search and the character chip: **Selected**, name, security, region, a **Focus** button and ✕.
-- [ ] **Double click focuses** (when the setting is on): two clicks on the same system within 350 ms.
+- [x] **Double click focuses** (when the setting is on): two clicks on the same system within 350 ms.
 - [ ] **Map behaviour settings** on the Settings page, saved with the other desktop settings. Defaults:
   - Double click to focus: on
   - Focus on entering known space: on
