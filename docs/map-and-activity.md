@@ -18,7 +18,7 @@ Positions are in light years, oriented for screens (x east, y south). Each syste
 
 - `topDown`: the 3D position seen from above (SDE `x`, `z`), like the in-game star map. See [2D projection](#2d-projection).
 - `flat`: CCP's own flattened layout (SDE `position2D`), like the in-game 2D map.
-- `height`: the third axis of the 3D position (SDE `y`), in light years. With `topDown` it gives the straight-line distance between two systems, as jump drives measure it (`lyBetween` on the web, `MapModel.LyBetween` on the desktop), for jump ranges on the map.
+- `height`: the third axis of the 3D position (SDE `y`), in light years. With `topDown` it gives the straight-line distance between two systems, as jump drives measure it (`lyBetween` on the web, `MapModel.LyBetween` on the desktop), for jump ranges on the map. It is the SDE's world `position`, never `position2D`. Positions and heights are rounded to 0.00001 ly, so distances are within about 0.00002 ly of the SDE's (checked over 200,000 random pairs), and a system at a range's edge lands on the right side.
 
 SDE build 3632936: 5,268 systems, 6,989 gates, 68 regions; 112 KB with Brotli (1 MB uncompressed).
 

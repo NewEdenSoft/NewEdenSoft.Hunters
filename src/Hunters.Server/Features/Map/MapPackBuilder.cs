@@ -60,9 +60,15 @@ public static class MapPackBuilder
         var topDown = Point(s.X, -s.Z);
         var flat = s is { FlatX: { } fx, FlatY: { } fy } ? Point(fx, -fy) : topDown;
         return new MapSystem(s.Id, s.Name, s.RegionId, s.ConstellationId, Math.Round(s.Security, 4), topDown, flat,
-            Math.Round(s.Y / MetresPerLightYear, 3));
+            Math.Round(s.Y / MetresPerLightYear, Decimals));
     }
 
+    /// <summary>
+    /// Positions are rounded to 0.00001 ly: distances from them are within about 0.00002 ly of the SDE's, so
+    /// a system right at a jump range's edge lands on the right side of it.
+    /// </summary>
+    private const int Decimals = 5;
+
     private static MapPoint Point(double xMetres, double yMetres) =>
-        new(Math.Round(xMetres / MetresPerLightYear, 3), Math.Round(yMetres / MetresPerLightYear, 3));
+        new(Math.Round(xMetres / MetresPerLightYear, Decimals), Math.Round(yMetres / MetresPerLightYear, Decimals));
 }
