@@ -22,6 +22,12 @@ public sealed class ThemeCatalog
     public required IReadOnlyList<Rgba> SecuritySteps { get; init; }
     public required Rgba SecurityNull { get; init; }
 
+    /// <summary>
+    /// The lower bounds of the five heat bands per activity metric (<c>npcKills</c>, <c>shipKills</c>,
+    /// <c>jumps</c>, <c>npcChange</c>), drawn in <c>heat-1</c> to <c>heat-5</c>.
+    /// </summary>
+    public required IReadOnlyDictionary<string, IReadOnlyList<int>> Heat { get; init; }
+
     public ThemeDefinition Get(string? id) =>
         Themes.FirstOrDefault(t => t.Id == id) ?? Themes.First(t => t.Id == DefaultThemeId);
 
@@ -74,6 +80,8 @@ public sealed class ThemeCatalog
             Fixed = fixedColors,
             SecuritySteps = security.GetProperty("steps").EnumerateArray().Select(s => Rgba.Parse(s.GetString()!)).ToList(),
             SecurityNull = Rgba.Parse(security.GetProperty("null").GetString()!),
+            Heat = root.GetProperty("heat").EnumerateObject()
+                .ToDictionary(p => p.Name, IReadOnlyList<int> (p) => p.Value.EnumerateArray().Select(b => b.GetInt32()).ToList()),
         };
     }
 }

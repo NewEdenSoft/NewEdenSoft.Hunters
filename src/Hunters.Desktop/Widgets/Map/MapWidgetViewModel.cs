@@ -5,6 +5,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewEdenSoft.Hunters.Client.Sessions;
 using NewEdenSoft.Hunters.Client.Tracking;
+using NewEdenSoft.Hunters.Contracts.Activity;
+using NewEdenSoft.Hunters.Contracts.Discovery;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Theming;
@@ -18,16 +20,25 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// screen in a session and kept in memory for the session. Tracked characters are marked on it at
 /// their systems, with the markers chosen on the Account page. A system can be focused, from the
 /// search box or a system's menu: the map goes there and rings it. The layout and colour are chosen
-/// in the Map controls widget.
+/// in the Map controls widget. Once the map is loaded, the server's activity is asked for every minute
+/// while the widget is on screen (revalidated with its ETag, so mostly a 304), for the activity colours
+/// and the hover panel.
 /// </summary>
 public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 {
     /// <summary>How often to ask again while the server is still building the map pack.</summary>
     private static readonly TimeSpan PreparingRetry = TimeSpan.FromSeconds(10);
 
+    /// <summary>How often to ask for new activity; the server answers 304 until there is a new hour.</summary>
+    private static readonly TimeSpan ActivityPoll = TimeSpan.FromMinutes(1);
+
+    /// <summary>How often to ask the server again whether it has activity, while it has none.</summary>
+    private static readonly TimeSpan FeaturesPoll = TimeSpan.FromMinutes(5);
+
     private readonly AccountPageViewModel _account;
     private readonly MapPreferences _preferences;
     private readonly ThemeCatalog _catalog;
+    private readonly ThemeService _theme;
     private readonly CharacterTracking _tracking;
     private readonly CharacterPreferences _characters;
     private readonly MapFocus _focus;
@@ -35,12 +46,15 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     /// <summary>A character focused before its location was known; the map moves there once it is.</summary>
     private long? _awaitingLocation;
     private CancellationTokenSource? _loading;
+    private CancellationTokenSource? _polling;
+    private Revalidated<ActivityCurrent>? _activity;
     private HuntersSession? _loadedFor;
 
     public MapWidgetViewModel(
         AccountPageViewModel account,
         MapPreferences preferences,
         ThemeCatalog catalog,
+        ThemeService theme,
         CharacterTracking tracking,
         CharacterPreferences characters,
         MapFocus focus)
@@ -48,6 +62,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         _account = account;
         _preferences = preferences;
         _catalog = catalog;
+        _theme = theme;
         _tracking = tracking;
         _characters = characters;
         _focus = focus;
@@ -77,6 +92,8 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             OnPropertyChanged(nameof(FocusedMarker));
         };
         focus.FocusRequested += (_, id) => FocusOn(id);
+        // Quiet systems are drawn in the theme's line colour.
+        theme.ThemeChanged += (_, _) => RebuildFilter();
         focus.PropertyChanged += (_, _) =>
         {
             if (focus.FocusedCharacterId is null)
@@ -228,7 +245,11 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         }
 
         var here = Markers.Where(m => m.SolarSystemId == model.Ids[i]).Select(m => m.IsOnline ? m.Name : $"{m.Name} (offline)").ToList();
-        HoveredSystem = Describe(i) with { Characters = here.Count == 0 ? null : string.Join(", ", here) };
+        HoveredSystem = Describe(i) with
+        {
+            Characters = here.Count == 0 ? null : string.Join(", ", here),
+            NpcKills = MapFilters.ActivityFor(model, Activity) is { } activity ? MapNpcKillsInfo.Create(activity.NpcKills, i) : null,
+        };
     }
 
     /// <summary>A system's name, security and region.</summary>
@@ -282,8 +303,29 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             EnsureLoaded();
     }
 
-    partial void OnFilterIdChanged(MapFilterId value) =>
-        Filter = Model is { } model ? MapFilters.Create(value, model, _catalog) : null;
+    /// <summary>The server has activity data: the activity colours are offered.</summary>
+    [ObservableProperty]
+    public partial bool HasActivity { get; private set; }
+
+    /// <summary>The latest hour of activity; null until the server has sent some.</summary>
+    [ObservableProperty]
+    public partial ActivityCurrent? Activity { get; private set; }
+
+    /// <summary>For NPC rising and falling: the minimum NPC kills in the last hour, chosen in Map controls.</summary>
+    [ObservableProperty]
+    public partial int MinNpc { get; set; }
+
+    partial void OnFilterIdChanged(MapFilterId value) => RebuildFilter();
+
+    partial void OnMinNpcChanged(int value) => RebuildFilter();
+
+    partial void OnActivityChanged(ActivityCurrent? value) => RebuildFilter();
+
+    private void RebuildFilter()
+    {
+        var quiet = ThemeService.ToColor(ThemePalette.Resolve(_catalog, _theme.Current)["line"]);
+        Filter = Model is { } model ? MapFilters.Create(FilterId, model, _catalog, new MapFilterContext(Activity, MinNpc, quiet)) : null;
+    }
 
     partial void OnModelChanged(MapModel? value)
     {
@@ -299,7 +341,12 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         {
             // Another session, possibly on another server: drop the map of the last one.
             _loading?.Cancel();
+            _polling?.Cancel();
+            _polling = null;
             _loadedFor = null;
+            _activity = null;
+            Activity = null;
+            HasActivity = false;
             Model = null;
             Filter = null;
             HoveredSystem = null;
@@ -314,6 +361,49 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
         if (IsActive && _loadedFor is null)
             _ = LoadAsync(session);
+    }
+
+    /// <summary>
+    /// Keeps the activity current while the map is loaded: every minute while on screen, or, while the
+    /// server has none, asks it every five minutes whether it has some now. Failures are left for the
+    /// next round; the map stays as it is.
+    /// </summary>
+    private async Task PollActivityAsync(HuntersSession session, CancellationToken cancellationToken)
+    {
+        var featuresAskedAt = DateTimeOffset.UtcNow;
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (IsActive)
+                {
+                    try
+                    {
+                        if (!HasActivity && DateTimeOffset.UtcNow - featuresAskedAt >= FeaturesPoll)
+                        {
+                            featuresAskedAt = DateTimeOffset.UtcNow;
+                            HasActivity = (await session.GetDiscoveryAsync(cancellationToken)).Features.Contains(HuntersFeatures.Activity);
+                        }
+
+                        if (HasActivity)
+                        {
+                            _activity = await session.GetActivityAsync(_activity, cancellationToken);
+                            Activity = _activity.Value;
+                        }
+                    }
+                    catch (HuntersApiException)
+                    {
+                        // Unreachable for a moment, or no activity yet: try again next round.
+                    }
+                }
+
+                await Task.Delay(ActivityPoll, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Logged out or switched session.
+        }
     }
 
     private async Task LoadAsync(HuntersSession session)
@@ -333,8 +423,11 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                     var pack = await session.GetMapPackAsync(info.SdeBuild, cancel.Token);
                     var model = await Task.Run(() => MapModel.Build(pack), cancel.Token);
                     Model = model;
-                    Filter = MapFilters.Create(FilterId, model, _catalog);
+                    RebuildFilter();
                     StatusText = null;
+                    HasActivity = discovery.Features.Contains(HuntersFeatures.Activity);
+                    _polling = new CancellationTokenSource();
+                    _ = PollActivityAsync(session, _polling.Token);
                     return;
                 }
 
@@ -363,7 +456,48 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
 /// <param name="Index">The system's index on the map.</param>
 /// <param name="Characters">The account's tracked characters in the system, or null.</param>
-public sealed record MapSystemInfo(int Index, string Name, string Security, IBrush SecurityBrush, string Region, string? Characters);
+/// <param name="NpcKills">NPC kills in the last hour and how they compare; null without activity data.</param>
+public sealed record MapSystemInfo(
+    int Index, string Name, string Security, IBrush SecurityBrush, string Region, string? Characters, MapNpcKillsInfo? NpcKills = null);
+
+/// <summary>
+/// The hover panel's NPC line: kills in the last hour, the change from the hour before, the usual for
+/// this hour of the week, and whether the system is in its busy hours.
+/// </summary>
+public sealed record MapNpcKillsInfo(int LastHour, int? Change, string? Usual, string? Peak)
+{
+    public string ChangeText => Change switch
+    {
+        > 0 => $"▲ +{Change}",
+        < 0 => $"▼ {Change}",
+        0 => "±0",
+        _ => "",
+    };
+
+    public bool IsRising => Change > 0;
+
+    public bool IsFalling => Change < 0;
+
+    public bool IsSame => Change == 0;
+
+    public bool IsPeakNow => Peak == PeakNow;
+
+    private const string PeakNow = "Peak now";
+
+    public static MapNpcKillsInfo Create(ActivityColumns npcKills, int index)
+    {
+        var last = npcKills.LastHour[index];
+        var ratio = npcKills.PeakRatio[index];
+        var toPeak = npcKills.HoursToPeak[index];
+        var peak = ratio >= 0.8 ? PeakNow : toPeak is > 0 and <= 6 ? $"Peak in {toPeak} h" : null;
+        var typical = npcKills.Typical?[index];
+        return new MapNpcKillsInfo(
+            last,
+            npcKills.PreviousHour is { } previous ? last - previous[index] : null,
+            typical is { } t ? $"usual {Math.Round(t):0}" : null,
+            peak);
+    }
+}
 
 /// <summary>A system to move the map to; <paramref name="ZoomIn"/> zooms in far enough to read system names.</summary>
 public sealed record MapFocusTarget(int SolarSystemId, bool ZoomIn);

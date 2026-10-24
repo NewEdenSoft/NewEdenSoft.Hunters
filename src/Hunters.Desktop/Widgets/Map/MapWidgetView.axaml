@@ -8,6 +8,18 @@
              x:DataType="mw:MapWidgetViewModel">
 
   <UserControl.Styles>
+    <Style Selector="TextBlock.rising">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.OkBrush}" />
+    </Style>
+    <Style Selector="TextBlock.falling">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.DangerBrush}" />
+    </Style>
+    <Style Selector="TextBlock.peak">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.WarningBrush}" />
+    </Style>
+    <Style Selector="TextBlock.same">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
+    </Style>
     <!-- Search results in the HUD's colours rather than Fluent's -->
     <Style Selector="ListBox#SearchResults ListBoxItem">
       <Setter Property="Padding" Value="10,4" />
@@ -64,6 +76,19 @@
             <TextBlock Classes="mono" FontWeight="SemiBold" FontSize="13" Text="{Binding Security}" Foreground="{Binding SecurityBrush}" />
             <TextBlock Classes="muted" FontSize="13" Text="{Binding Region}" />
           </StackPanel>
+          <!-- NPC kills in the last hour, the change from the hour before, the usual, and the peak -->
+          <Panel IsVisible="{Binding NpcKills, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <StackPanel Orientation="Horizontal" Spacing="8" DataContext="{Binding NpcKills}" x:DataType="mw:MapNpcKillsInfo">
+            <TextBlock Classes="muted" FontSize="13" Text="NPC kills" />
+            <TextBlock Classes="mono" FontSize="13" FontWeight="SemiBold" Text="{Binding LastHour}" />
+            <TextBlock Classes="mono" FontSize="13" Text="{Binding ChangeText}" ToolTip.Tip="Since the hour before"
+                       Classes.rising="{Binding IsRising}" Classes.falling="{Binding IsFalling}" Classes.same="{Binding IsSame}" />
+            <TextBlock FontSize="13" Foreground="{DynamicResource Hud.FgFaintBrush}" Text="{Binding Usual}"
+                       IsVisible="{Binding Usual, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <TextBlock FontSize="13" Text="{Binding Peak}" Classes.muted="{Binding !IsPeakNow}" Classes.peak="{Binding IsPeakNow}"
+                       IsVisible="{Binding Peak, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          </StackPanel>
+          </Panel>
           <TextBlock FontSize="13" Foreground="{DynamicResource Hud.PrimaryBrush}" MaxWidth="280" TextWrapping="Wrap"
                      Text="{Binding Characters}"
                      IsVisible="{Binding Characters, Converter={x:Static ObjectConverters.IsNotNull}}" />

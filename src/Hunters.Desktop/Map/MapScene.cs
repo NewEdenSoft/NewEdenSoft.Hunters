@@ -381,10 +381,14 @@ public sealed class MapScene
         if (margin <= 0)
             return;
 
-        var radius = SystemRadius(camera.Scale) + margin;
+        var radius = SystemRadius(camera.Scale);
         using var path = new SKPath();
-        foreach (var systems in _byGroup)
-            AddCircles(path, systems, camera, radius, radius + 2);
+        for (var group = 0; group < _byGroup.Length; group++)
+        {
+            var r = radius * GroupSize(group) + margin;
+            AddCircles(path, _byGroup[group], camera, r, r + 2);
+        }
+
         using var paint = new SKPaint { IsAntialias = true, BlendMode = SKBlendMode.DstOut };
         canvas.DrawPath(path, paint);
     }
@@ -393,14 +397,15 @@ public sealed class MapScene
     private void DrawSystems(SKCanvas canvas, in MapCamera camera, int hovered)
     {
         var radius = SystemRadius(camera.Scale);
-        var pad = radius + 2;
         using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
         using var path = new SKPath();
 
+        // Groups in order, so with sizes the busier (larger) systems are drawn over the quiet ones.
         for (var group = 0; group < _byGroup.Length; group++)
         {
+            var r = radius * GroupSize(group);
             path.Reset();
-            AddCircles(path, _byGroup[group], camera, radius, pad);
+            AddCircles(path, _byGroup[group], camera, r, r + 2);
             paint.Color = _groupColours[group];
             canvas.DrawPath(path, paint);
         }
@@ -410,14 +415,14 @@ public sealed class MapScene
             paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = 1.5f;
             paint.Color = _palette.Accent;
-            canvas.DrawCircle(camera.ToScreenX(X(hovered)), camera.ToScreenY(Y(hovered)), radius + 4, paint);
+            canvas.DrawCircle(camera.ToScreenX(X(hovered)), camera.ToScreenY(Y(hovered)), radius * Filter.SizeOf(hovered) + 4, paint);
         }
     }
 
     /// <summary>Two rings around the focused system; its dot too if the filter hides it.</summary>
     private void DrawSelected(SKCanvas canvas, in MapCamera camera, int selected)
     {
-        var radius = SystemRadius(camera.Scale);
+        var radius = SystemRadius(camera.Scale) * Filter.SizeOf(selected);
         var (sx, sy) = (camera.ToScreenX(X(selected)), camera.ToScreenY(Y(selected)));
         using var paint = new SKPaint { IsAntialias = true, Color = _palette.Accent };
         if (Filter.Groups[selected] == MapFilter.Hidden)
@@ -552,6 +557,8 @@ public sealed class MapScene
     }
 
     private static long CellKey(int cx, int cy) => ((long)cx << 32) | (uint)cy;
+
+    private float GroupSize(int group) => Filter.Sizes is { } sizes && group < sizes.Count ? sizes[group] : 1;
 
     public static float SystemRadius(float scale) => Math.Clamp(scale * SystemRadiusPerZoom, SystemRadiusMin, SystemRadiusMax);
 

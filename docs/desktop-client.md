@@ -165,18 +165,18 @@ The account's characters at a glance, small enough for an overlay: each row has 
 
 ## Map
 
-The **Map** widget draws known space from the server's map pack, like the [web map](web-client.md#map): the same layouts, sizes, gate styles, colours, labels and colour filters, drawn with SkiaSharp ([D21](decisions.md#d21--the-map-is-2d-drawn-with-canvas-2d-web-and-skia-desktop)). Drag to pan, scroll to zoom; hovering a system shows its name, security and region. Docked, it fills its page; popped out, it is an overlay like any widget. The map has no background of its own, so it shows over the overlay's background at the user's opacity. The layout, colour and legend are in a widget of their own, [Map controls](#map-controls), so the map keeps its space.
+The **Map** widget draws known space from the server's map pack, like the [web map](web-client.md#map): the same layouts, sizes, gate styles, colours, labels and colour filters, drawn with SkiaSharp ([D21](decisions.md#d21--the-map-is-2d-drawn-with-canvas-2d-web-and-skia-desktop)). Drag to pan, scroll to zoom; hovering a system shows its name, security and region, and, when the server has activity, its NPC kills in the last hour with the change from the hour before (▲ / ▼), the usual for this hour of the week, and *Peak now* or *Peak in N h*. Docked, it fills its page; popped out, it is an overlay like any widget. The map has no background of its own, so it shows over the overlay's background at the user's opacity. The layout, colour and legend are in a widget of their own, [Map controls](#map-controls), so the map keeps its space.
 
 | Piece | Role |
 |---|---|
 | `Map/MapModel.cs` | The map pack as flat arrays per system index; positions per layout; region label centres. |
 | `Map/SecurityStatus.cs` | Security as EVE shows it, shared with `ThemeCatalog.SecurityColor`. |
-| `Map/MapFilter.cs` | Colour filters: a colour group per system, or `Hidden`. Security is the first. |
+| `Map/MapFilter.cs` | Colour filters: a colour group per system, or `Hidden`, with an optional size per group and a notice when there is nothing to show. Security, NPC kills, NPC rising and falling, ship kills and jumps, like the web's. |
 | `Map/GridIndex.cs` | Uniform grid for the nearest system to the cursor. |
 | `Map/MapScene.cs` | Everything for one layout, filter and theme, built once: gates by style and colour, gradients, label widths, region names. Draws a frame on any `SKCanvas`; gates go on a layer of their own, so the margins around systems are cut out of the gates only. |
 | `Map/MapControl.cs` | The Avalonia control: camera, pan, zoom, hover, and right clicks on systems. It draws the scene with a custom draw operation on Avalonia's own Skia canvas, so no bitmap is copied. |
 | `Map/SystemSearch.cs` | Finds systems by name, ranked like the web's search. |
-| `Widgets/Map/MapWidgetViewModel.cs` | Loads the map pack while the widget is on screen; the hover panel's system; the focused system. |
+| `Widgets/Map/MapWidgetViewModel.cs` | Loads the map pack while the widget is on screen, then keeps the activity current; the hover panel's system; the focused system. |
 | `Widgets/Map/SystemSearchViewModel.cs` | The search box's query, results and keyboard highlight. |
 | `Widgets/Map/MapControlsWidgetViewModel.cs` | The [Map controls](#map-controls) widget. |
 | `Map/MapPreferences.cs` | The layout setting, saved in the desktop settings (`Map.Layout`) and chosen in Map controls or on the Settings page. CCP's 2D map is the default. |
@@ -189,13 +189,15 @@ The **Map** widget draws known space from the server's map pack, like the [web m
 
 **Search and the focused system.** As on the [web map](web-client.md#map), a system can be **focused**: it is the origin for nearby intel, and the map rings it twice in the theme's primary colour and always names it, even zoomed out. The search box at the top left finds systems by name (case and punctuation ignored, so `1dq1a` finds 1DQ1-A): exact names first, then names starting with the query, then names containing it. **/** puts the cursor in it; ↑ and ↓ move through the results, **Enter** or a click focuses one, **Esc** clears the search. Right-clicking a system opens its menu: **Focus** it, or **Clear focus** on the focused one. Focusing moves the map there (zooming in to names) and stops following a character, as dragging does; the character's chip stays. The focused system shows as a chip under the search, with a button to clear it. It is kept for the session, not saved. The search hides when the map is smaller than 300 × 220, as in a small overlay.
 
+**Activity.** Once the map is loaded, and if the server's discovery document lists the `activity` feature, the widget asks for `/api/activity/current` every minute while it is on screen. It sends the last answer's ETag (`HuntersSession.GetActivityAsync`), so the server answers 304 until there is a new hour. A server without activity is asked again every five minutes. The activity colours use the same heat bands as the web (`heat` in `design/themes.json`, `heat-1` to `heat-5`); systems below the first band are drawn small in the theme's line colour, and busier bands larger, up to twice the size. NPC rising and falling compare with the hour before, from a minimum of NPC kills in the last hour (any, 25, 100 or 250).
+
 The map pack is downloaded the first time the widget is on screen in a session and kept in memory for the session. While the server is still preparing it, the page asks again every 10 seconds. A disk cache by SDE build comes later.
 
-Next for the map: activity colouring, hunting profiles, the Nearby panel, route highlight on hover, fleet member markers.
+Next for the map: hunting profiles, the Nearby panel, route highlight on hover, fleet member markers.
 
 ## Map controls
 
-How the [map](#map) is drawn: its **layout** (CCP's 2D map or top-down), its **colour** filter, and the filter's legend. It is a widget of its own, so the map stays clear: dock it as a page, or pop it out as an overlay next to the map. Its state is the map's (`MapWidgetViewModel.FilterId`, `MapPreferences.Layout`), so both stay in step wherever they are shown.
+How the [map](#map) is drawn: its **layout** (CCP's 2D map or top-down), its **colour** filter (the activity ones only when the server has activity), the **minimum NPC kills** for NPC rising and falling, and the filter's legend, or why it shows nothing yet. It is a widget of its own, so the map stays clear: dock it as a page, or pop it out as an overlay next to the map. Its state is the map's (`MapWidgetViewModel.FilterId` and `MinNpc`, `MapPreferences.Layout`), so both stay in step wherever they are shown.
 
 ## Platform support
 
