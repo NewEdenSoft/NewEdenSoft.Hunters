@@ -20,7 +20,7 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// map pack named by the server's discovery document is downloaded the first time the widget is on
 /// screen in a session and kept in memory for the session. Tracked characters are marked on it at
 /// their systems, with the markers chosen on the Account page. A click selects a system; the search
-/// box selects one too and goes there. A system can be focused from its menu or the selected card:
+/// box selects one too and goes there. A system can be focused from its menu, the selected card or a double click:
 /// the map goes there and rings it. The layout and colour are chosen
 /// in the Map controls widget. Once the map is loaded, the server's activity is asked for every minute
 /// while the widget is on screen (revalidated with its ETag, so mostly a 304), for the activity colours
@@ -187,7 +187,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         FocusTarget = new MapFocusTarget(model.Ids[index], ZoomIn: true);
     }
 
-    /// <summary>Focuses a system (its menu, the selected card): the map goes there, taking over from a followed character as dragging does.</summary>
+    /// <summary>Focuses a system (its menu, the selected card, a double click): the map goes there, taking over from a followed character as dragging does.</summary>
     public void FocusSystem(int index)
     {
         if (Model is not { } model || index < 0 || index >= model.Count)

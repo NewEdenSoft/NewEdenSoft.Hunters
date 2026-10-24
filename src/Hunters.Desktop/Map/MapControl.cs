@@ -21,7 +21,8 @@ public sealed record MapCharacterMarker(long CharacterId, string Name, int Solar
 
 /// <summary>
 /// Draws the map with Skia (docs/decisions.md, D21) and handles pan (drag), zoom (wheel), hover,
-/// clicks on character markers and systems, a system's menu (right click), and animated focus on a system.
+/// clicks on character markers and systems (and double clicks on systems), a system's menu (right
+/// click), and animated focus on a system.
 /// The drawing itself is in <see cref="MapScene"/>; this control owns the camera and the input, and
 /// rebuilds the scene when the model, layout, filter or theme colours change. It has no background
 /// of its own, so the map shows over its parent (a panel, or an overlay at the user's opacity).
@@ -88,6 +89,9 @@ public sealed class MapControl : Control
     /// <summary>A press that moves less than this is a click, not a drag.</summary>
     private const double ClickSlop = 4;
 
+    /// <summary>Two clicks on the same system within this time are a double click.</summary>
+    private static readonly TimeSpan DoubleClickTime = TimeSpan.FromMilliseconds(350);
+
     private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
 
     private static readonly Lazy<MapFonts> Fonts = new(() => new MapFonts(
@@ -107,6 +111,9 @@ public sealed class MapControl : Control
     private (int SolarSystemId, bool ZoomIn)? _pendingFocus;
     private FocusAnimation? _animation;
     private IReadOnlyList<MapMarkerGroup> _markerGroups = [];
+
+    /// <summary>The last click on a system and its timestamp (ms), to tell a double click.</summary>
+    private (int Index, ulong At)? _lastClick;
 
     static MapControl()
     {
@@ -206,6 +213,9 @@ public sealed class MapControl : Control
 
     /// <summary>A click on a system (its index), or on empty space (-1).</summary>
     public event EventHandler<int>? SystemClicked;
+
+    /// <summary>A second click on the same system within <see cref="DoubleClickTime"/>; raised after <see cref="SystemClicked"/>.</summary>
+    public event EventHandler<int>? SystemDoubleClicked;
 
     /// <summary>
     /// Moves the map to a system with a short animation, zooming in to at least <see cref="FocusScale"/>
@@ -408,10 +418,20 @@ public sealed class MapControl : Control
             if (MarkerAt(at) is { } characterId)
                 MarkerClicked?.Invoke(this, characterId);
             else
-                SystemClicked?.Invoke(this, SystemAt(at));
+                Click(SystemAt(at), e.Timestamp);
         }
 
         UpdateHover(at);
+    }
+
+    /// <summary>A click on a system (or -1, empty space), and a double click if it is the second in a row.</summary>
+    private void Click(int index, ulong timestamp)
+    {
+        var isDouble = index >= 0 && _lastClick is { } last && last.Index == index && timestamp - last.At < DoubleClickTime.TotalMilliseconds;
+        _lastClick = isDouble ? null : (index, timestamp);
+        SystemClicked?.Invoke(this, index);
+        if (isDouble)
+            SystemDoubleClicked?.Invoke(this, index);
     }
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)

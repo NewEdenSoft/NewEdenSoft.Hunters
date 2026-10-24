@@ -34,6 +34,7 @@ public partial class MapWidgetView : UserControl
             _menu?.Hide();
             _viewModel?.SelectSystem(index);
         };
+        Map.SystemDoubleClicked += (_, index) => _viewModel?.FocusSystem(index);
         // The map handles the wheel itself; an open menu closes as it zooms.
         Map.AddHandler(PointerWheelChangedEvent, (_, _) => _menu?.Hide(), handledEventsToo: true);
 
