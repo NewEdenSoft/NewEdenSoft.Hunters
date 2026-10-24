@@ -60,6 +60,7 @@
                   Layout="{Binding Layout}"
                   Filter="{Binding Filter}"
                   Markers="{Binding Markers}"
+                  FocusedSystemId="{Binding FocusedSystemId}"
                   SelectedSystemId="{Binding SelectedSystemId}"
                   Hunting="{Binding Hunting}"
                   HuntGlowColor="{DynamicResource Hud.HuntGlowColor}"
@@ -144,8 +145,8 @@
 
       <!-- The focused system, with clear -->
       <ContentControl Theme="{StaticResource MapOverlay}" Padding="10,6"
-                      IsVisible="{Binding SelectedSystem, Converter={x:Static ObjectConverters.IsNotNull}}">
-        <Grid ColumnDefinitions="Auto,*,Auto" DataContext="{Binding SelectedSystem}" x:DataType="mw:MapSystemInfo">
+                      IsVisible="{Binding FocusedSystem, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <Grid ColumnDefinitions="Auto,*,Auto" DataContext="{Binding FocusedSystem}" x:DataType="mw:MapSystemInfo">
           <Ellipse Width="10" Height="10" Stroke="{DynamicResource Hud.PrimaryBrush}" StrokeThickness="2" VerticalAlignment="Center" Margin="0,0,8,0" />
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}" FontWeight="SemiBold" Foreground="{DynamicResource Hud.PrimaryBrush}" />
