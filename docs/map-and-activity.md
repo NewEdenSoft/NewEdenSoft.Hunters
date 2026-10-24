@@ -88,27 +88,28 @@ The intel service's `KillFeedService` (`src/Hunters.Intel/Kills`) reads zKillboa
 
 - **Reading:** one file at a time, 100 ms apart while catching up (zKillboard allows 15 requests a second), with a `User-Agent` naming the operator contact. A 404 is ambiguous, so it is compared with `sequence.json` (which lags a little behind the files): above it, the file isn't written yet and the reader waits 6 seconds, as zKillboard asks; at or below it, the file is gone and is skipped.
 - **Position:** saved in `intel.FeedPositions` in the same save as each kill, so a restart resumes at the next file. A position older than `Hunters:Kills:ResumeWithin` (20 hours, before zKillboard drops the files) starts again at the newest file. The first start also begins at the newest.
-- **Slim kills** (`intel.Kills`, about 35,000 a day, kept for `Hunters:Kills:Retention`, 90 days): id and hash, sequence, time, system, zKillboard's `npc` and `solo`, total value; the victim's character, corporation, alliance, ship (or structure, or deployable such as a CRAB beacon) and **fitted** module types (slots, rigs and subsystems, not cargo); and **per attacker** the character (0 for NPCs), ship and weapon, as parallel arrays. Hunting profiles count pilots per ship and smartbombers by weapon, so the attackers are kept whole. A kill announced twice is stored once.
+- **Slim kills** (`intel.Kills`, about 35,000 a day, kept for `Hunters:Kills:Retention`, 90 days): id and hash, sequence, time, system, zKillboard's `npc` and `solo`, total value; the victim's character, corporation, alliance, ship (or structure, or deployable such as a CRAB beacon) and **fitted** module types (slots, rigs and subsystems, not cargo); and **per attacker** the character (0 for NPCs), corporation, alliance, ship and weapon, as parallel arrays. The smartbomber and camp rules compare an attacker's corporation and alliance with the victim's, so the attackers are kept whole. Kills stored before the corporations were kept get them from ESI's `POST /characters/affiliation/` (up to 1,000 pilots a call; the corporation a pilot is in then, not at the kill) before a profile that needs them is rebuilt (`KillAffiliations`). A kill announced twice is stored once.
 - Failures back off like the ESI collector (1, 2, 4, 8, then every 15 minutes) and keep the position.
 
 ### Hunting profiles
 
-A hunting profile is a kind of target: where it is seen, and when, is built up from the kills (`src/Hunters.Intel/Hunting`). The built-in profiles (`HuntingProfiles.All`) are defined in code:
+A hunting profile is a kind of target: where it is seen, and when, is built up from the kills (`src/Hunters.Intel/Hunting`). **What dies in a system is what lives there:** a capital that only helped kill something may have come for that one kill and left, so ships count when they die, not when they kill. The built-in profiles (`HuntingProfiles.All`) are defined in code:
 
 | Profile | Seen when |
 |---|---|
-| `carriers` | a pilot flies a Carrier (group 547); **indicator:** a CRAB beacon killed, 0.75 |
-| `supers` | a pilot flies a Supercarrier (659) or Titan (30); **indicator:** a CRAB beacon killed, 0.75 |
-| `dreads` | a pilot flies a Dreadnought (485) or Lancer Dreadnought (4594) |
-| `fax` | a pilot flies a Force Auxiliary (1538) |
-| `marauders` | a pilot flies a Marauder (900) |
-| `ishtars` | a pilot flies an Ishtar (type 12005) |
-| `smartbombers` | the victim has a Smart Bomb (group 72) fitted, or an attacker's last hit was one |
+| `carriers` | a Carrier (group 547) dies; **indicator:** a CRAB beacon killed, 0.75 |
+| `supers` | a Supercarrier (659) or Titan (30) dies; **indicator:** a CRAB beacon killed, 0.75 |
+| `dreads` | a Dreadnought (485) or Lancer Dreadnought (4594) dies |
+| `fax` | a Force Auxiliary (1538) dies |
+| `marauders` | a Marauder (900) dies |
+| `ishtars` | an Ishtar (type 12005) dies |
+| `smartbombers` | a ship with an area weapon fitted dies (Smart Bomb, group 72, or Vorton Projector, 4060), or an attacker's area weapon kills a victim in **its own corporation or alliance**: friendly fire in a group that bombs together (smartbomb battleships catching a corp-mate's ship and pod, or their own Mobile Tractor Units; Thunderchild groups) |
 | `crab` | a CRAB beacon is killed: every type in the group of "CONCORD Rogue Analysis Beacon" (the CONCORD and the CONCORD-Carrier beacon) |
-| `smartbomb-camps` | an attacker's last hit was a Smart Bomb (72) **on a capsule** (29): PvP smartbombing, typically a camp on a low-sec pipe gate. **Keeps fights:** a burst of pods is its target, so the battle rule doesn't apply to it (the 25-attacker rule still does) |
+| `smartbomb-camps` | an attacker's last hit was a Smart Bomb (72) **on a capsule** (29) of **another corporation and alliance**: PvP smartbombing, typically a camp on a low-sec pipe gate. A group's own pods caught in its bombs are friendly fire, not a camp. **Keeps fights:** a burst of pods is its target, so the battle rule doesn't apply to it (the 25-attacker rule still does) |
 
-- **Pilots** are seen as the victim or as an attacker; attackers without a character (NPCs) are not.
-- **Rule kinds:** a pilot's **ship**; a **module** fitted on the victim or an attacker's weapon; a pilotless **victim** type (a deployable); an attacker's **weapon**, optionally only on given victims (smart bombs on capsules).
+- **Pilots** are seen as the victim, or, for a weapon rule, as the attacker; attackers without a character (NPCs) are not.
+- **Losses to NPCs count double** (`HuntingProfiles.NpcLossWeight`): a pilot killed by NPCs only (zKillboard's `npc`) died ratting there, the strongest sign it comes back. Pilotless victims (CRAB beacons) count as they are.
+- **Rule kinds:** a dying pilot's **ship**; a **module** fitted on the dying ship; a pilotless **victim** type (a deployable); an attacker's **weapon**, optionally only on given victims (smart bombs on capsules) and only on its **own side** (the victim in the attacker's corporation or alliance) or the **other side**. A kill whose attackers' corporations aren't known is not the attacker's own side.
 - **Indicators** are indirect evidence with a weight below 1. Anchoring a CRAB beacon is mostly a capital ratting habit, so a beacon killed shows a capital ratted there even when no capital is on any killmail. Indicator sightings have no pilot, are flagged as indicators, and add their weight, so direct and indirect evidence combine but can still be told apart.
 - **Resolving:** each rule's groups, types and type names are resolved against the SDE catalogue to a set of type ids, which is all matching looks at. What can't be found is logged as a warning and left out.
 

@@ -46,6 +46,7 @@ public static class IntelHost
         services.AddSingleton<ActivityAggregatorService>();
         services.AddHostedService(sp => sp.GetRequiredService<ActivityAggregatorService>());
         services.AddSingleton<ISystemActivitySource, EsiSystemActivitySource>();
+        services.AddSingleton<IAffiliationSource, EsiAffiliationSource>();
         services.AddSingleton<SystemActivityService>();
         services.AddHostedService(sp => sp.GetRequiredService<SystemActivityService>());
         services.AddSingleton<HuntingProfileStore>();

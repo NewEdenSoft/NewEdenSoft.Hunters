@@ -2,8 +2,9 @@ namespace NewEdenSoft.Hunters.Intel.Data;
 
 /// <summary>
 /// One kill from zKillboard's R2Z2 feed, slimmed to what intel needs (docs/map-and-activity.md, "Kills"):
-/// where and when, the victim with its fitted modules, and every attacker's pilot, ship and weapon as
-/// parallel arrays (hunting profiles count pilots per ship, and smartbombers by weapon). About 35,000 a
+/// where and when, the victim with its fitted modules, and every attacker's pilot, corporation,
+/// alliance, ship and weapon as parallel arrays (hunting profiles count victims per ship, and
+/// smartbombers by an area weapon hitting their own corporation or alliance). About 35,000 a
 /// day, kept for <c>Hunters:Kills:Retention</c>.
 /// </summary>
 public sealed class Kill
@@ -47,6 +48,15 @@ public sealed class Kill
 
     /// <summary>Per attacker; 0 for NPCs and structures without a pilot.</summary>
     public long[] AttackerCharacterIds { get; set; } = [];
+
+    /// <summary>
+    /// Per attacker; 0 when unknown. Empty for kills stored before attackers' corporations were kept, until
+    /// they are filled in from ESI (the corporation the pilot is in then, not at the kill).
+    /// </summary>
+    public long[] AttackerCorporationIds { get; set; } = [];
+
+    /// <summary>Per attacker; 0 for none. Empty like <see cref="AttackerCorporationIds"/>.</summary>
+    public long[] AttackerAllianceIds { get; set; } = [];
 
     /// <summary>Per attacker; 0 when unknown.</summary>
     public int[] AttackerShipTypeIds { get; set; } = [];

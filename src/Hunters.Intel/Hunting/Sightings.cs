@@ -9,9 +9,10 @@ namespace NewEdenSoft.Hunters.Intel.Hunting;
 public static class SightingMatcher
 {
     /// <summary>
-    /// The sightings on one kill: per profile, each pilot whose ship or weapon matches (victim or
-    /// attacker), the victim's fitted modules, and pilotless victims such as CRAB beacons. A pilot or
-    /// victim matched by several rules is seen once, with the strongest evidence.
+    /// The sightings on one kill: per profile, the victim by its ship or fitted modules, pilotless victims
+    /// such as CRAB beacons, and attackers by their weapon where a rule asks for it. A victim killed by
+    /// NPCs only counts <see cref="HuntingProfiles.NpcLossWeight"/> times. A pilot or victim matched by
+    /// several rules is seen once, with the strongest evidence.
     /// </summary>
     /// <param name="fleetAttackers">More attackers than this marks the kill's sightings as a fleet fight.</param>
     public static List<Sighting> Match(Kill kill, IEnumerable<ResolvedProfile> profiles, int fleetAttackers)
@@ -21,7 +22,8 @@ public static class SightingMatcher
         void See(ResolvedProfile profile, ResolvedRule rule, long pilot, SightingRole role, int type)
         {
             var key = (profile.Id, pilot);
-            if (found.TryGetValue(key, out var seen) && (seen.Weight > rule.Weight || seen.Weight == rule.Weight && !seen.Indicator))
+            var weight = role == SightingRole.Victim && pilot != 0 && kill.Npc ? rule.Weight * HuntingProfiles.NpcLossWeight : rule.Weight;
+            if (found.TryGetValue(key, out var seen) && (seen.Weight > weight || seen.Weight == weight && !seen.Indicator))
                 return;
             found[key] = new Sighting
             {
@@ -33,7 +35,7 @@ public static class SightingMatcher
                 PilotId = pilot,
                 Role = role,
                 TypeId = type,
-                Weight = rule.Weight,
+                Weight = weight,
                 Indicator = rule.Indicator,
                 IsFleet = kill.AttackerCount > fleetAttackers,
                 AttackerCount = kill.AttackerCount,
@@ -49,23 +51,11 @@ public static class SightingMatcher
                     case RuleKind.Ship:
                         if (rule.Types.Contains(kill.VictimShipTypeId))
                             See(profile, rule, kill.VictimCharacterId ?? 0, SightingRole.Victim, kill.VictimShipTypeId);
-                        for (var i = 0; i < kill.AttackerCharacterIds.Length; i++)
-                        {
-                            if (kill.AttackerCharacterIds[i] != 0 && rule.Types.Contains(kill.AttackerShipTypeIds[i]))
-                                See(profile, rule, kill.AttackerCharacterIds[i], SightingRole.Attacker, kill.AttackerShipTypeIds[i]);
-                        }
-
                         break;
 
                     case RuleKind.Module:
                         if (kill.VictimFittedTypeIds.FirstOrDefault(rule.Types.Contains) is var fitted and not 0)
                             See(profile, rule, kill.VictimCharacterId ?? 0, SightingRole.Victim, fitted);
-                        for (var i = 0; i < kill.AttackerCharacterIds.Length; i++)
-                        {
-                            if (kill.AttackerCharacterIds[i] != 0 && rule.Types.Contains(kill.AttackerWeaponTypeIds[i]))
-                                See(profile, rule, kill.AttackerCharacterIds[i], SightingRole.Attacker, kill.AttackerWeaponTypeIds[i]);
-                        }
-
                         break;
 
                     case RuleKind.Weapon:
@@ -73,7 +63,7 @@ public static class SightingMatcher
                             break;
                         for (var i = 0; i < kill.AttackerCharacterIds.Length; i++)
                         {
-                            if (kill.AttackerCharacterIds[i] != 0 && rule.Types.Contains(kill.AttackerWeaponTypeIds[i]))
+                            if (kill.AttackerCharacterIds[i] != 0 && rule.Types.Contains(kill.AttackerWeaponTypeIds[i]) && IsOnSide(kill, i, rule.Side))
                                 See(profile, rule, kill.AttackerCharacterIds[i], SightingRole.Attacker, kill.AttackerWeaponTypeIds[i]);
                         }
 
@@ -89,6 +79,22 @@ public static class SightingMatcher
         }
 
         return [.. found.Values];
+    }
+
+    /// <summary>
+    /// Whether the victim is on the <paramref name="side"/> of attacker <paramref name="i"/>: in its
+    /// corporation or alliance (own), or not (other). Unknown (a kill whose attackers' corporations are
+    /// not filled in yet) is not its own side.
+    /// </summary>
+    private static bool IsOnSide(Kill kill, int i, VictimSide side)
+    {
+        if (side == VictimSide.Any)
+            return true;
+
+        var corporation = i < kill.AttackerCorporationIds.Length ? kill.AttackerCorporationIds[i] : 0;
+        var alliance = i < kill.AttackerAllianceIds.Length ? kill.AttackerAllianceIds[i] : 0;
+        var own = corporation != 0 && corporation == kill.VictimCorporationId || alliance != 0 && alliance == kill.VictimAllianceId;
+        return own == (side == VictimSide.Own);
     }
 }
 

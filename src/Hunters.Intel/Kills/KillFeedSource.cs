@@ -82,6 +82,8 @@ public sealed record KillFeedFile(
         VictimFittedTypeIds = [.. (Esi.Victim.Items ?? []).Where(i => Fitted(i.Flag)).Select(i => i.ItemTypeId).Distinct().Order()],
         AttackerCount = Esi.Attackers.Count,
         AttackerCharacterIds = [.. Esi.Attackers.Select(a => a.CharacterId ?? 0)],
+        AttackerCorporationIds = [.. Esi.Attackers.Select(a => a.CorporationId ?? 0)],
+        AttackerAllianceIds = [.. Esi.Attackers.Select(a => a.AllianceId ?? 0)],
         AttackerShipTypeIds = [.. Esi.Attackers.Select(a => a.ShipTypeId ?? 0)],
         AttackerWeaponTypeIds = [.. Esi.Attackers.Select(a => a.WeaponTypeId ?? 0)],
     };
@@ -106,6 +108,8 @@ public sealed record FeedItem(
 
 public sealed record FeedAttacker(
     [property: JsonPropertyName("character_id")] long? CharacterId,
+    [property: JsonPropertyName("corporation_id")] long? CorporationId,
+    [property: JsonPropertyName("alliance_id")] long? AllianceId,
     [property: JsonPropertyName("ship_type_id")] int? ShipTypeId,
     [property: JsonPropertyName("weapon_type_id")] int? WeaponTypeId);
 

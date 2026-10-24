@@ -98,17 +98,19 @@ public sealed class SightingStoreTests(IntelDatabase database) : IAsyncLifetime
             pod.Time = Time.AddSeconds(i * 30);
             return pod;
         }).ToArray();
-        await RecordAsync(pods);
+        // A carrier lost in the middle of it: in the battle.
+        var carrier = Carrier(400, Time.AddMinutes(3), pilot: Other);
+        await RecordAsync([.. pods, carrier]);
         await using (var db = Db())
         {
-            db.Kills.AddRange(pods);
+            db.Kills.AddRange([.. pods, carrier]);
             await db.SaveChangesAsync();
             await SightingStore.MarkBattlesAsync(db, new HuntingOptions(), FakeSde.Jita, Time.AddMinutes(5), null, ["smartbomb-camps"], CancellationToken.None);
         }
 
         var sightings = await SightingsAsync();
         Assert.False(Assert.Single(sightings, s => s.Profile == "smartbomb-camps").IsFleet);
-        Assert.True(Assert.Single(sightings, s => s.Profile == "smartbombers").IsFleet);
+        Assert.True(Assert.Single(sightings, s => s.Profile == "carriers").IsFleet);
     }
 
     [Fact]

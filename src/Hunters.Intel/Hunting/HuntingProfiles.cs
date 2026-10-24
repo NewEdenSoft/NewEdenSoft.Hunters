@@ -4,13 +4,17 @@ using NewEdenSoft.Hunters.Intel.Sde;
 
 namespace NewEdenSoft.Hunters.Intel.Hunting;
 
-/// <summary>What a rule looks for on a killmail.</summary>
+/// <summary>
+/// What a rule looks for on a killmail. What dies in a system is what lives there; a ship that only
+/// helped kill something may have come for that kill and left, so ship and module rules look at the
+/// victim only.
+/// </summary>
 public enum RuleKind
 {
-    /// <summary>A pilot flying one of the types, as the victim or an attacker.</summary>
+    /// <summary>A pilot flying one of the types, dying.</summary>
     Ship,
 
-    /// <summary>One of the types fitted on the victim, or the weapon an attacker last hit with.</summary>
+    /// <summary>A pilot with one of the types fitted, dying.</summary>
     Module,
 
     /// <summary>One of the types dying, with no pilot (a deployable such as a CRAB beacon).</summary>
@@ -18,9 +22,25 @@ public enum RuleKind
 
     /// <summary>
     /// An attacker whose last hit was one of the types, optionally only on given victims (smart bombs on
-    /// capsules: a gate camp, not a ratting smartbomber).
+    /// capsules: a gate camp, not a ratting smartbomber), and optionally only on its own side or the
+    /// other (<see cref="VictimSide"/>).
     /// </summary>
     Weapon,
+}
+
+/// <summary>Whose victims a <see cref="RuleKind.Weapon"/> rule counts, by the attacker's corporation and alliance.</summary>
+public enum VictimSide
+{
+    Any,
+
+    /// <summary>The attacker's own corporation or alliance: area weapons hitting fleet mates, a group bombing together.</summary>
+    Own,
+
+    /// <summary>
+    /// Anyone else: a camp popping strangers' pods, not its own. A kill whose attackers' corporations are
+    /// not known counts as the other side.
+    /// </summary>
+    Other,
 }
 
 /// <summary>
@@ -30,6 +50,7 @@ public enum RuleKind
 /// <param name="Weight">How much a match counts: 1 for the target itself, less for indirect evidence.</param>
 /// <param name="Indicator">Indirect evidence: a sign the target was there, not the target on the killmail.</param>
 /// <param name="VictimGroups">For <see cref="RuleKind.Weapon"/>: only kills of these victims (SDE groups) count.</param>
+/// <param name="Side">For <see cref="RuleKind.Weapon"/>: whose victims count.</param>
 public sealed record ProfileRule(
     RuleKind Kind,
     int[]? Groups = null,
@@ -37,7 +58,8 @@ public sealed record ProfileRule(
     string? GroupOfType = null,
     double Weight = 1,
     bool Indicator = false,
-    int[]? VictimGroups = null);
+    int[]? VictimGroups = null,
+    VictimSide Side = VictimSide.Any);
 
 /// <param name="Id">Stable id, stored with each sighting and used by the API.</param>
 /// <param name="KeepsFights">
@@ -54,7 +76,13 @@ public static class HuntingProfiles
 {
     // SDE group ids, checked against the SDE when the profiles are resolved.
     public const int Capsule = 29, Titan = 30, SmartBomb = 72, Dreadnought = 485, Carrier = 547, Supercarrier = 659, Marauder = 900,
-        ForceAuxiliary = 1538, LancerDreadnought = 4594;
+        ForceAuxiliary = 1538, VortonProjector = 4060, LancerDreadnought = 4594;
+
+    /// <summary>
+    /// A pilot killed by NPCs only counts this many times: it died ratting there, the strongest sign it
+    /// comes back. Pilotless victims (CRAB beacons) count as they are.
+    /// </summary>
+    public const double NpcLossWeight = 2;
 
     public const int Ishtar = 12005;
 
@@ -75,15 +103,25 @@ public static class HuntingProfiles
         new("fax", "Force Auxiliaries", [new(RuleKind.Ship, Groups: [ForceAuxiliary])]),
         new("marauders", "Marauders", [new(RuleKind.Ship, Groups: [Marauder])]),
         new("ishtars", "Ishtars", [new(RuleKind.Ship, Types: [Ishtar])]),
-        new("smartbombers", "Smartbombers", [new(RuleKind.Module, Groups: [SmartBomb])]),
+        // Area weapons: smart bombs, and the Vorton projectors of EDENCOM ships (Thunderchild groups). A
+        // victim with one fitted, or an attacker's area weapon killing one of its own corporation or
+        // alliance: friendly fire in a group that bombs together.
+        new("smartbombers", "Smartbombers",
+        [
+            new(RuleKind.Module, Groups: [SmartBomb, VortonProjector]),
+            new(RuleKind.Weapon, Groups: [SmartBomb, VortonProjector], Side: VictimSide.Own),
+        ]),
         new("crab", "CRAB beacons", [new(RuleKind.Victim, GroupOfType: CrabBeacon)]),
-        // Pods popped by smart bombs: PvP smartbombing, typically a camp on a low-sec pipe gate.
-        new("smartbomb-camps", "Smartbomb camps", [new(RuleKind.Weapon, Groups: [SmartBomb], VictimGroups: [Capsule])], KeepsFights: true),
+        // Strangers' pods popped by smart bombs: PvP smartbombing, typically a camp on a low-sec pipe gate.
+        // A group's own pods caught in its bombs are friendly fire, not a camp.
+        new("smartbomb-camps", "Smartbomb camps",
+            [new(RuleKind.Weapon, Groups: [SmartBomb], VictimGroups: [Capsule], Side: VictimSide.Other)], KeepsFights: true),
     ];
 }
 
 /// <summary>A rule with its types resolved against the SDE; <paramref name="Victims"/> null means any victim.</summary>
-public sealed record ResolvedRule(RuleKind Kind, FrozenSet<int> Types, double Weight, bool Indicator, FrozenSet<int>? Victims = null);
+public sealed record ResolvedRule(
+    RuleKind Kind, FrozenSet<int> Types, double Weight, bool Indicator, FrozenSet<int>? Victims = null, VictimSide Side = VictimSide.Any);
 
 /// <summary>A profile ready to match kills, and the definition its sightings are stored under.</summary>
 public sealed record ResolvedProfile(HuntingProfile Profile, IReadOnlyList<ResolvedRule> Rules, string Definition)
@@ -133,15 +171,17 @@ public sealed record ResolvedProfile(HuntingProfile Profile, IReadOnlyList<Resol
                 victims = catalog.Types.Values.Where(t => victimGroups.Contains(t.GroupId)).Select(t => t.Id).ToFrozenSet();
             }
 
-            rules.Add(new ResolvedRule(rule.Kind, types.ToFrozenSet(), rule.Weight, rule.Indicator, victims));
+            rules.Add(new ResolvedRule(rule.Kind, types.ToFrozenSet(), rule.Weight, rule.Indicator, victims, rule.Side));
         }
 
-        // What the sightings depend on: each rule's kind, weight, exact types and victims, and whether
-        // fights are kept (it changes which sightings are marked as fleet).
+        // What the sightings depend on: each rule's kind, weight, exact types, victims and side, whether
+        // fights are kept (it changes which sightings are marked as fleet), and how NPC losses count.
         var definition = string.Join(';', rules.Select(r =>
                 $"{r.Kind}{(r.Indicator ? "?" : "")}@{r.Weight.ToString(CultureInfo.InvariantCulture)}:{string.Join(',', r.Types.Order())}"
-                + (r.Victims is { } v ? $">{string.Join(',', v.Order())}" : "")))
-            + (profile.KeepsFights ? ";keeps fights" : "");
+                + (r.Victims is { } v ? $">{string.Join(',', v.Order())}" : "")
+                + (r.Side == VictimSide.Any ? "" : $">{r.Side.ToString().ToLowerInvariant()} side")))
+            + (profile.KeepsFights ? ";keeps fights" : "")
+            + $";npc losses x{HuntingProfiles.NpcLossWeight.ToString(CultureInfo.InvariantCulture)}";
         return new ResolvedProfile(profile, rules, definition);
     }
 }

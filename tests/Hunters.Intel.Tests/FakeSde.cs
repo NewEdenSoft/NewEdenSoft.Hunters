@@ -15,6 +15,8 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
 
     public const int SmartBombGroup = 72, Smartbomb = 3993, Ishtar = 12005, Rifter = 587, Capsule = 670;
 
+    public const int VortonGroup = 4060, Vorton = 54748, Thunderchild = 54733;
+
     public long Build { get; set; } = 3_000_001;
 
     public Exception? Failure { get; set; }
@@ -52,6 +54,8 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
                 new SdeType(Rifter, "Rifter", 25, true),
                 new SdeType(Capsule, "Capsule", 29, true),
                 new SdeType(Smartbomb, "Large Graviton Smartbomb II", SmartBombGroup, true),
+                new SdeType(Vorton, "Large Vorton Projector II", VortonGroup, true),
+                new SdeType(Thunderchild, "Thunderchild", 27, true),
                 new SdeType(CrabBeacon, "CONCORD Rogue Analysis Beacon", CrabGroup, true),
                 new SdeType(CarrierCrabBeacon, "CONCORD-Carrier Rogue Analysis Beacon", CrabGroup, true),
                 // An unpublished copy with the same name in another group: the published one must win.
@@ -60,7 +64,8 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
             [
                 new SdeGroup(CarrierGroup, "Carrier", ShipCategory), new SdeGroup(SupercarrierGroup, "Supercarrier", ShipCategory),
                 new SdeGroup(358, "Heavy Assault Cruiser", ShipCategory), new SdeGroup(25, "Frigate", ShipCategory), new SdeGroup(29, "Capsule", ShipCategory),
-                new SdeGroup(SmartBombGroup, "Smart Bomb", 7), new SdeGroup(CrabGroup, "Rogue Analysis Beacon", 22),
+                new SdeGroup(SmartBombGroup, "Smart Bomb", 7), new SdeGroup(VortonGroup, "Vorton Projector", 7),
+                new SdeGroup(27, "Battleship", ShipCategory), new SdeGroup(CrabGroup, "Rogue Analysis Beacon", 22),
                 new SdeGroup(4810, "Analysis Beacon", 22),
             ],
             [new SdeCategory(ShipCategory, "Ship"), new SdeCategory(7, "Module"), new SdeCategory(22, "Deployable")]));

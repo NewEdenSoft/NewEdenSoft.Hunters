@@ -176,7 +176,15 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.Property<long>("KillmailId")
                         .HasColumnType("bigint");
 
+                    b.PrimitiveCollection<long[]>("AttackerAllianceIds")
+                        .IsRequired()
+                        .HasColumnType("bigint[]");
+
                     b.PrimitiveCollection<long[]>("AttackerCharacterIds")
+                        .IsRequired()
+                        .HasColumnType("bigint[]");
+
+                    b.PrimitiveCollection<long[]>("AttackerCorporationIds")
                         .IsRequired()
                         .HasColumnType("bigint[]");
 
