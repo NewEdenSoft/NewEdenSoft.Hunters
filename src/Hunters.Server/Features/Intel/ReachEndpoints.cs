@@ -23,7 +23,7 @@ public static class ReachEndpoints
 
     public static IEndpointRouteBuilder MapIntel(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/intel/reach", (int from, int? jumps, double? ly, string? profile, int? limit,
+        endpoints.MapGet("/api/intel/reach", (int from, int? jumps, double? ly, string? profile, int? limit, string? sort,
                 HttpContext http, MapPackStore maps, ActivityStore activity, HuntingStore hunting, TimeProvider time) =>
             {
                 if (maps.Current is not { } map)
@@ -34,7 +34,7 @@ public static class ReachEndpoints
                         extensions: new Dictionary<string, object?> { ["code"] = MapEndpoints.LoadingCode });
                 }
 
-                var errors = Validate(jumps, ly, limit, profile, hunting.Current);
+                var errors = Validate(jumps, ly, limit, profile, sort, hunting.Current);
                 if (errors.Count > 0)
                     return Results.ValidationProblem(errors);
 
@@ -47,6 +47,7 @@ public static class ReachEndpoints
 
                 var now = time.GetUtcNow();
                 var (activityNow, huntingNow) = (activity.Current, hunting.Current);
+                sort ??= ReachSorts.NpcRising;
                 var etag = $"\"reach-{map.Build}-{activityNow?.Version ?? 0}-{huntingNow?.Version ?? 0}-{now:yyyyMMddHH}\"";
                 if (Revalidation.IsNotModified(http, etag, MaxAge))
                     return Results.StatusCode(StatusCodes.Status304NotModified);
@@ -54,8 +55,8 @@ public static class ReachEndpoints
                 var rows = Reach.Find(map.Geometry, origin, jumps, ly)
                     .Select(r => Row(map.Geometry, r, activityNow, huntingNow, now.Hour))
                     .ToList();
-                var sorted = Sort(rows, profile).Take(limit ?? DefaultLimit).ToList();
-                return Results.Ok(new IntelReach(from, jumps, ly, profile, rows.Count, now.Hour, activityNow?.Version, huntingNow?.Version, sorted));
+                var sorted = Sort(rows, profile, sort).Take(limit ?? DefaultLimit).ToList();
+                return Results.Ok(new IntelReach(from, jumps, ly, profile, rows.Count, now.Hour, activityNow?.Version, huntingNow?.Version, sorted, sort));
             })
             .WithName("GetIntelReach")
             .WithTags("Intel")
@@ -64,7 +65,7 @@ public static class ReachEndpoints
         return endpoints;
     }
 
-    private static Dictionary<string, string[]> Validate(int? jumps, double? ly, int? limit, string? profile, HuntingSnapshot? hunting)
+    private static Dictionary<string, string[]> Validate(int? jumps, double? ly, int? limit, string? profile, string? sort, HuntingSnapshot? hunting)
     {
         var errors = new Dictionary<string, string[]>();
         if (jumps is null && ly is null)
@@ -77,6 +78,8 @@ public static class ReachEndpoints
             errors["limit"] = [$"The limit must be 1–{MaxLimit}."];
         if (profile is not null && hunting is not null && hunting.Profiles.All(p => p.Id != profile))
             errors["profile"] = [$"Unknown hunting profile \"{profile}\"."];
+        if (sort is not null && !ReachSorts.All.Contains(sort))
+            errors["sort"] = [$"The sort must be one of: {string.Join(", ", ReachSorts.All)}."];
         return errors;
     }
 
@@ -118,8 +121,11 @@ public static class ReachEndpoints
             busiest > 0 ? Math.Round(thisHour / busiest, 3) : null);
     }
 
-    /// <summary>By the profile's "likely now" (then its score), or else by the rise in NPC kills; then nearest first.</summary>
-    private static IEnumerable<ReachSystem> Sort(List<ReachSystem> rows, string? profile)
+    /// <summary>
+    /// By the profile's "likely now" (then its score); else by the rise in NPC kills, or by the most NPC kills
+    /// (last hour, then 24 hours); then nearest first.
+    /// </summary>
+    private static IEnumerable<ReachSystem> Sort(List<ReachSystem> rows, string? profile, string sort)
     {
         if (profile is not null)
         {
@@ -127,6 +133,14 @@ public static class ReachEndpoints
             return rows
                 .OrderByDescending(r => Of(r)?.LikelyNow ?? -1)
                 .ThenByDescending(r => Of(r)?.Score ?? -1)
+                .ThenBy(r => r.Jumps ?? int.MaxValue).ThenBy(r => r.Ly);
+        }
+
+        if (sort == ReachSorts.NpcKills)
+        {
+            return rows
+                .OrderByDescending(r => r.Activity?.NpcKills.LastHour ?? 0)
+                .ThenByDescending(r => r.Activity?.NpcKills.Day ?? 0)
                 .ThenBy(r => r.Jumps ?? int.MaxValue).ThenBy(r => r.Ly);
         }
 

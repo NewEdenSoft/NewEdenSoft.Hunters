@@ -173,7 +173,7 @@ Responses carry an ETag from the version (304 when it still matches) and `max-ag
 
 ## Reach
 
-`GET /api/intel/reach?from={systemId}&jumps={n}&ly={x}&profile={id}&limit={n}` answers "what's in reach from here" ([D23](decisions.md#d23--range-queries-run-on-the-server-with-the-users-own-limits)), for example after a filament drops a Black Ops somewhere random.
+`GET /api/intel/reach?from={systemId}&jumps={n}&ly={x}&profile={id}&sort={order}&limit={n}` answers "what's in reach from here" ([D23](decisions.md#d23--range-queries-run-on-the-server-with-the-users-own-limits)), for example after a filament drops a Black Ops somewhere random.
 
 - **The user's limits are the query:**
   - `jumps` (1–50): every system within that many gate jumps, whatever its light-year distance; a target 5 jumps away but out of jump range still shows (gate there, or use a midpoint)
@@ -185,7 +185,11 @@ Responses carry an ETag from the version (304 when it still matches) and `max-ag
 - **Each row's intel:**
   - activity, per metric: last hour, previous hour, 24 hours, usual for the hour, peak ratio, hours to peak; null until the server has activity data
   - the hunting profiles seen there: score, last seen, **likely now** (the score times the current hour's share of the sightings) and **peak now** (the current hour against the busiest hour of the day)
-- **Order:** by the requested profile's likely now (then its score), or else by the rise in NPC kills (last hour minus the hour before); then nearest. `limit` caps the rows (default 200, at most 500); `total` says how many were in reach.
+- **Order:**
+  - with a `profile`: its likely now, then its score
+  - otherwise by `sort`: `npc-rising` (the default; the rise in NPC kills, last hour minus the hour before) or `npc-kills` (the most NPC kills in the last hour, then in 24 hours)
+
+  Ties go to the nearest. The answer echoes `sort`; an unknown sort is a 400. `limit` caps the rows (default 200, at most 500); `total` says how many were in reach.
 - The origin is included (0 jumps, 0 ly). An origin not on the map is 404, bad limits or an unknown profile 400. The ETag combines the map build, the activity and hunting versions and the hour, so an answer is revalidated cheaply until any of them moves.
 
 ## Live kill feed

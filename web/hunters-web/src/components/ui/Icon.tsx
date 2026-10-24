@@ -20,6 +20,8 @@ const paths = {
   radar: 'M12 21 A9 9 0 1 0 12 3 A9 9 0 1 0 12 21 Z M12 16 A4 4 0 1 0 12 8 M12 12 L18.4 5.6 M12 12 L12 12.01',
   // A range: a circle around a point, with its radius (jump range).
   range: 'M12 21 A9 9 0 1 0 12 3 A9 9 0 1 0 12 21 Z M12 12 L20.5 9 M10.5 12 A1.5 1.5 0 1 0 13.5 12 A1.5 1.5 0 1 0 10.5 12 Z',
+  // A point with rays around it (the Nearby panel).
+  nearby: 'M12 14 A2 2 0 1 0 12 10 A2 2 0 1 0 12 14 Z M12 2.5 L12 6 M12 18 L12 21.5 M2.5 12 L6 12 M18 12 L21.5 12 M5.3 5.3 L7.8 7.8 M16.2 16.2 L18.7 18.7 M18.7 5.3 L16.2 7.8 M7.8 16.2 L5.3 18.7',
   // A circled "i" (the System panel).
   info: 'M12 21 A9 9 0 1 0 12 3 A9 9 0 1 0 12 21 Z M12 11 L12 16.5 M12 7.5 L12 7.51',
   // A flag on a pole (set destination).

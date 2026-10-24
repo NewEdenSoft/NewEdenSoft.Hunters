@@ -42,6 +42,7 @@ import { HuntingPanel } from '../../components/map/HuntingPanel'
 import { JumpRangePanel } from '../../components/map/JumpRangePanel'
 import { ControlGroup } from '../../components/ui/ControlGroup'
 import { SystemInfoPanel } from '../../components/map/SystemInfoPanel'
+import { NearbyPanel } from '../../components/map/NearbyPanel'
 import type { ActivityMetrics } from '../../api/activity'
 
 export interface MapSearch {
@@ -346,6 +347,10 @@ function LoadedMap({
             {filter.notice ? <p className="text-[0.8125rem] text-fg-muted">{filter.notice}</p> : <MapLegend filter={filter} />}
           </div>
             ),
+          },
+          {
+            definition: panel('nearby'),
+            content: <NearbyPanel model={model} focused={focused} selection={selection} profiles={huntingProfiles} onSelect={findSystem} onFocus={focusSystem} />,
           },
           {
             definition: panel('hunting'),

@@ -5,9 +5,10 @@ namespace NewEdenSoft.Hunters.Contracts.Intel;
 /// within <see cref="Jumps"/> gate jumps and/or every cyno target within <see cref="Ly"/> light years.
 /// Each row carries both distances, so the client decides what is in jump range for its ship.
 /// </summary>
-/// <param name="Profile">The profile the rows are sorted by ("likely now"); null sorts by the rise in NPC kills.</param>
+/// <param name="Profile">The profile the rows are sorted by ("likely now"); null sorts by <paramref name="Sort"/>.</param>
 /// <param name="Total">How many systems are in reach; <see cref="Systems"/> holds at most the requested limit.</param>
 /// <param name="HourOfDay">The current hour (UTC) "likely now" and "peak now" refer to.</param>
+/// <param name="Sort">Without a profile, the order: <see cref="ReachSorts.NpcRising"/> or <see cref="ReachSorts.NpcKills"/>.</param>
 public sealed record IntelReach(
     int From,
     int? Jumps,
@@ -17,7 +18,20 @@ public sealed record IntelReach(
     int HourOfDay,
     long? ActivityVersion,
     long? HuntingVersion,
-    IReadOnlyList<ReachSystem> Systems);
+    IReadOnlyList<ReachSystem> Systems,
+    string Sort = ReachSorts.NpcRising);
+
+/// <summary>The orders of <see cref="IntelReach"/> without a profile.</summary>
+public static class ReachSorts
+{
+    /// <summary>The rise in NPC kills since the hour before (the default).</summary>
+    public const string NpcRising = "npc-rising";
+
+    /// <summary>The most NPC kills in the last hour, then in the last 24 hours.</summary>
+    public const string NpcKills = "npc-kills";
+
+    public static readonly IReadOnlyList<string> All = [NpcRising, NpcKills];
+}
 
 /// <param name="Jumps">Gate jumps from the origin; null when no gates lead there.</param>
 /// <param name="Ly">Straight-line distance from the origin, in light years.</param>
@@ -48,7 +62,7 @@ public sealed record ReachProfile(string Profile, double Score, DateTimeOffset L
 
 public static class IntelPaths
 {
-    public static string Reach(int from, int? jumps = null, double? ly = null, string? profile = null, int? limit = null)
+    public static string Reach(int from, int? jumps = null, double? ly = null, string? profile = null, int? limit = null, string? sort = null)
     {
         var query = new List<string> { $"from={from}" };
         if (jumps is { } j)
@@ -59,6 +73,8 @@ public static class IntelPaths
             query.Add($"profile={Uri.EscapeDataString(profile)}");
         if (limit is { } n)
             query.Add($"limit={n}");
+        if (sort is not null)
+            query.Add($"sort={Uri.EscapeDataString(sort)}");
         return $"/api/intel/reach?{string.Join('&', query)}";
     }
 }

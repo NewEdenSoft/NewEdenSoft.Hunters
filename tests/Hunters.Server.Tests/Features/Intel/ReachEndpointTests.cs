@@ -144,6 +144,20 @@ public sealed class ReachEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Sorted_by_npc_kills_the_busiest_come_first()
+    {
+        PublishIntel();
+        var client = await ReadyAsync();
+
+        var reach = await client.GetFromJsonAsync<IntelReach>(IntelPaths.Reach(Origin, jumps: 2, ly: 8, sort: ReachSorts.NpcKills));
+
+        // 50, 40 (the bigger rise, +40), 10, 0.
+        Assert.Equal([NullSecTwoJumps, FarCyno, Origin, HighSecNeighbour], reach!.Systems.Select(s => s.SystemId));
+        Assert.Equal(ReachSorts.NpcKills, reach.Sort);
+        Assert.Equal(ReachSorts.NpcRising, (await client.GetFromJsonAsync<IntelReach>(IntelPaths.Reach(Origin, jumps: 2)))!.Sort);
+    }
+
+    [Fact]
     public async Task With_a_profile_the_systems_where_it_is_likely_now_come_first()
     {
         PublishIntel();
@@ -175,12 +189,13 @@ public sealed class ReachEndpointTests : IDisposable
     [InlineData(51, null, null, "jumps")]
     [InlineData(null, 25.0, null, "ly")]
     [InlineData(2, null, "titans", "profile")]
-    public async Task Bad_limits_and_unknown_profiles_are_rejected(int? jumps, double? ly, string? profile, string field)
+    [InlineData(2, null, null, "sort", "busiest")]
+    public async Task Bad_limits_unknown_profiles_and_sorts_are_rejected(int? jumps, double? ly, string? profile, string field, string? sort = null)
     {
         PublishIntel();
         var client = await ReadyAsync();
 
-        var response = await client.GetAsync(IntelPaths.Reach(Origin, jumps, ly, profile));
+        var response = await client.GetAsync(IntelPaths.Reach(Origin, jumps, ly, profile, sort: sort));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains($"\"{field}\"", await response.Content.ReadAsStringAsync());

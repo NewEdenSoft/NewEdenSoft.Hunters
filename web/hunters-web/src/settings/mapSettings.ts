@@ -2,6 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 import type { MapLayout } from '../map/model'
 import { defaultMapBehaviour, minJumpChoices, type MapBehaviour } from '../map/autoFocus'
 import { MAX_JUMP_RANGE, MIN_JUMP_RANGE } from '../map/jumpRange'
+import { defaultNearby, parseNearby, type NearbySetting } from '../map/nearby'
 
 // Map settings, kept in this browser like the theme (theme/themes.ts).
 const LAYOUT_KEY = 'hunters.map.layout'
@@ -162,6 +163,50 @@ export function useMapBehaviour(): [MapBehaviour, (change: Partial<MapBehaviour>
 /** The current behaviour, for code outside React (the auto-focus subscription). */
 export function getMapBehaviour(): MapBehaviour {
   return behaviour
+}
+
+// What the Nearby panel looks for around the focused system (map/nearby.ts).
+const NEARBY_KEY = 'hunters.nearby'
+const nearbyListeners = new Set<() => void>()
+
+function readNearby(): NearbySetting {
+  try {
+    return parseNearby(JSON.parse(localStorage.getItem(NEARBY_KEY) ?? 'null'))
+  } catch {
+    return defaultNearby
+  }
+}
+
+let nearby = readNearby()
+
+function subscribeNearby(listener: () => void): () => void {
+  nearbyListeners.add(listener)
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === NEARBY_KEY) {
+      nearby = readNearby()
+      listener()
+    }
+  }
+  window.addEventListener('storage', onStorage)
+  return () => {
+    nearbyListeners.delete(listener)
+    window.removeEventListener('storage', onStorage)
+  }
+}
+
+/** The Nearby panel's limits and sort, kept in this browser, and a setter for part of them. */
+export function useNearby(): [NearbySetting, (change: Partial<NearbySetting>) => void] {
+  const current = useSyncExternalStore(subscribeNearby, () => nearby)
+  const update = useCallback((change: Partial<NearbySetting>) => {
+    nearby = { ...nearby, ...change }
+    try {
+      localStorage.setItem(NEARBY_KEY, JSON.stringify(nearby))
+    } catch {
+      // Storage unavailable; the choice still applies for this session.
+    }
+    nearbyListeners.forEach((listener) => listener())
+  }, [])
+  return [current, update]
 }
 
 // The jump range drawn around the focused system (map/jumpRange.ts).
