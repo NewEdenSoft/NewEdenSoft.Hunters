@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Client.Http;
 using NewEdenSoft.Hunters.Contracts.Account;
+using NewEdenSoft.Hunters.Contracts.Activity;
 using NewEdenSoft.Hunters.Contracts.Auth;
 using NewEdenSoft.Hunters.Contracts.Discovery;
 using NewEdenSoft.Hunters.Contracts.Map;
@@ -87,6 +88,13 @@ public sealed class HuntersSession : ICharacterTokenProvider
     /// <summary>The map pack of one SDE build, as named by <see cref="DiscoveryDocument.MapPack"/>.</summary>
     public Task<MapPack> GetMapPackAsync(long sdeBuild, CancellationToken cancellationToken = default) =>
         SendAsync<MapPack>(HttpMethod.Get, MapPaths.Pack(sdeBuild), cancellationToken: cancellationToken);
+
+    /// <summary>
+    /// Activity now for the whole map. It changes once an hour, so pass the last answer: the server then
+    /// answers 304 until there is a new hour, and the same instance comes back.
+    /// </summary>
+    public Task<Revalidated<ActivityCurrent>> GetActivityAsync(Revalidated<ActivityCurrent>? previous, CancellationToken cancellationToken = default) =>
+        GetRevalidatedAsync(ActivityPaths.Current, previous, cancellationToken);
 
     public async Task SetMainCharacterAsync(long characterId, CancellationToken cancellationToken = default)
     {
@@ -201,13 +209,29 @@ public sealed class HuntersSession : ICharacterTokenProvider
                ?? throw new HuntersApiException(null, "The server sent an empty response.", response.StatusCode);
     }
 
-    private async Task<HttpResponseMessage> SendCoreAsync(HttpMethod method, string path, object? body, CancellationToken cancellationToken)
+    /// <summary>A GET revalidated with the ETag of the previous answer; on 304 the previous answer is returned.</summary>
+    private async Task<Revalidated<T>> GetRevalidatedAsync<T>(string path, Revalidated<T>? previous, CancellationToken cancellationToken)
+        where T : class
+    {
+        using var response = await SendCoreAsync(HttpMethod.Get, path, null, cancellationToken, previous?.ETag);
+        if (response.StatusCode == HttpStatusCode.NotModified && previous is not null)
+            return previous;
+
+        var value = await response.Content.ReadFromJsonAsync<T>(cancellationToken)
+                    ?? throw new HuntersApiException(null, "The server sent an empty response.", response.StatusCode);
+        return new Revalidated<T>(value, response.Headers.ETag);
+    }
+
+    private async Task<HttpResponseMessage> SendCoreAsync(
+        HttpMethod method, string path, object? body, CancellationToken cancellationToken, EntityTagHeaderValue? ifNoneMatch = null)
     {
         if (IsEnded)
             throw new HuntersApiException(HuntersApiException.SessionEnded, "You are logged out.");
 
         using var request = new HttpRequestMessage(method, new Uri(Server, path));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _sessionToken);
+        if (ifNoneMatch is not null)
+            request.Headers.IfNoneMatch.Add(ifNoneMatch);
         if (body is not null)
             request.Content = JsonContent.Create(body);
 
@@ -221,7 +245,7 @@ public sealed class HuntersSession : ICharacterTokenProvider
             throw new HuntersApiException(HuntersApiException.ServerUnreachable, $"Could not reach the server: {e.Message}", inner: e);
         }
 
-        if (response.IsSuccessStatusCode)
+        if (response.IsSuccessStatusCode || (ifNoneMatch is not null && response.StatusCode == HttpStatusCode.NotModified))
             return response;
 
         using (response)

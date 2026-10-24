@@ -29,7 +29,7 @@
     </StackPanel>
     <StackPanel Spacing="6">
       <TextBlock Classes="label" Text="COLOUR" />
-      <ItemsControl ItemsSource="{Binding FilterChoices}" ItemTemplate="{StaticResource Choice}">
+      <ItemsControl ItemsSource="{Binding ShownFilterChoices}" ItemTemplate="{StaticResource Choice}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
             <WrapPanel ItemSpacing="4" LineSpacing="4" />
@@ -37,6 +37,18 @@
         </ItemsControl.ItemsPanel>
       </ItemsControl>
     </StackPanel>
+    <StackPanel Spacing="6" IsVisible="{Binding ShowsMinNpc}">
+      <TextBlock Classes="label" Text="MIN NPC KILLS, LAST HOUR" />
+      <ItemsControl ItemsSource="{Binding MinNpcChoices}" ItemTemplate="{StaticResource Choice}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="4" LineSpacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </StackPanel>
+    <TextBlock Classes="muted" FontSize="13" TextWrapping="Wrap" Text="{Binding Notice}"
+               IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}" />
     <ItemsControl ItemsSource="{Binding Legend}" IsVisible="{Binding IsLoaded}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
