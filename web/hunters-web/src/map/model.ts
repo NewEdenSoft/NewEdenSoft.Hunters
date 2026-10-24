@@ -21,7 +21,8 @@ export interface MapModel {
   names: string[]
   regionIds: Int32Array
   constellationIds: Int32Array
-  security: Float32Array
+  /** True security status, kept in 64 bits: in 32 bits 0.45 reads 0.4499…, shown as 0.4 rather than 0.5. */
+  security: Float64Array
   /** Interleaved x, y in light years, per layout. */
   positions: Record<MapLayout, Float32Array>
   /** The third axis of each system's 3D position, in light years: with the top-down x, y, for {@link lyBetween}. */
@@ -53,7 +54,7 @@ export function buildMapModel(pack: MapPack): MapModel {
   const ids = new Int32Array(count)
   const regionIds = new Int32Array(count)
   const constellationIds = new Int32Array(count)
-  const security = new Float32Array(count)
+  const security = new Float64Array(count)
   const topDown = new Float32Array(count * 2)
   const flat = new Float32Array(count * 2)
   const heights = new Float32Array(count)

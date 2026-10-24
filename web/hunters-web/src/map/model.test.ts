@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildMapModel, lyBetween } from './model'
+import { formatSecurity } from './security'
 
 const system = (id: number, x: number, y: number, height?: number) => ({
   id,
@@ -24,5 +25,18 @@ describe('lyBetween', () => {
     expect(lyBetween(model, 0, 1)).toBeCloseTo(13)
     // A pack without heights (format 1): flat in the top-down plane.
     expect(lyBetween(model, 0, 2)).toBeCloseTo(5)
+  })
+})
+
+describe('security', () => {
+  it('keeps the true value, so 0.45 shows as high-sec 0.5', () => {
+    const model = buildMapModel({
+      sdeBuild: 1,
+      regions: [{ id: 1, name: 'Region' }],
+      systems: [{ ...system(1, 0, 0), security: 0.45 }],
+      gates: [],
+    })
+
+    expect(formatSecurity(model.security[0])).toBe('0.5')
   })
 })

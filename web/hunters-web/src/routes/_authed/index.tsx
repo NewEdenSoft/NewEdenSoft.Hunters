@@ -32,7 +32,8 @@ import { parseSystemParam } from '../../map/systemSearch'
 import { useCharacterMarkers, useMapFocusTarget } from '../../map/useCharacterMarkers'
 import { panelDefinitions } from '../../panels/definitions'
 import { Panels } from '../../panels/Panels'
-import { getMapBehaviour, mapLayouts, useMapLayout, useShownHuntingProfiles } from '../../settings/mapSettings'
+import { getMapBehaviour, mapLayouts, useJumpRange, useMapLayout, useShownHuntingProfiles } from '../../settings/mapSettings'
+import { formatLy, jumpRangeOf, jumpRangePresets, MAX_JUMP_RANGE, MIN_JUMP_RANGE } from '../../map/jumpRange'
 import { buildHuntingLayer, profilesBySystem, type HuntingLayer, type PlaceProfile } from '../../map/hunting'
 import { useUtcHour } from '../../map/useUtcHour'
 import { profileStyle } from '../../theme/themes'
@@ -215,6 +216,13 @@ function LoadedMap({
     if (system !== undefined && focused < 0) setSystem(undefined)
   }, [system, focused, setSystem])
 
+  // The jump range: drawn around the focused system while it is on.
+  const [rangeSetting, setRangeSetting] = useJumpRange()
+  const jumpRange = useMemo(
+    () => (rangeSetting.enabled && focused >= 0 ? { origin: focused, ly: rangeSetting.ly, inRange: jumpRangeOf(model, focused, rangeSetting.ly) } : null),
+    [model, focused, rangeSetting.enabled, rangeSetting.ly],
+  )
+
   // Escape clears the selection, unless the user is typing somewhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -267,6 +275,7 @@ function LoadedMap({
         npcKills={npcKills}
         hunting={hunting}
         profilesAt={profilesAt}
+        jumpRange={jumpRange}
         onClearSystem={() => setSystem(undefined)}
       />
       <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] grid w-[calc(100%-1.5rem)] max-w-80 -translate-x-1/2 justify-items-center gap-2">
@@ -315,6 +324,48 @@ function LoadedMap({
               </ControlGroup>
             )}
             {filter.notice ? <p className="text-[0.8125rem] text-fg-muted">{filter.notice}</p> : <MapLegend filter={filter} />}
+            <ControlGroup label="Jump range">
+              <Toggle active={rangeSetting.enabled} onClick={() => setRangeSetting({ enabled: !rangeSetting.enabled })}>
+                {rangeSetting.enabled ? 'On' : 'Off'} · {formatLy(rangeSetting.ly)}
+              </Toggle>
+            </ControlGroup>
+            {rangeSetting.enabled && (
+              <div className="-mt-1.5 grid gap-1.5">
+                <div className="flex flex-wrap gap-1">
+                  {jumpRangePresets.map((p) => (
+                    <Toggle key={p.id} active={p.ly === rangeSetting.ly} onClick={() => setRangeSetting({ ly: p.ly })} title={`${formatLy(p.ly)} with Jump Drive Calibration V`}>
+                      {p.label}
+                    </Toggle>
+                  ))}
+                </div>
+                <label className="flex items-center gap-2 text-[0.8125rem] text-fg-muted">
+                  Custom
+                  <input
+                    type="number"
+                    min={MIN_JUMP_RANGE}
+                    max={MAX_JUMP_RANGE}
+                    step={0.1}
+                    value={rangeSetting.ly}
+                    onChange={(e) => {
+                      const ly = e.target.valueAsNumber
+                      if (Number.isFinite(ly)) setRangeSetting({ ly })
+                    }}
+                    className="w-20 border border-line-strong bg-bg px-2 py-1 font-mono text-fg focus:border-primary focus:outline-none"
+                  />
+                  ly
+                </label>
+                <p className="text-[0.75rem] text-fg-muted">
+                  {focused >= 0 ? (
+                    <>
+                      <span className="text-jump-range">Blue</span>: systems a jump drive can land in from {model.names[focused]} (not high-sec, Pochven or
+                      Zarzakh).
+                    </>
+                  ) : (
+                    'Focus a system (double click it) to see what is in range of it.'
+                  )}
+                </p>
+              </div>
+            )}
             {huntingProfiles.length > 0 && (
               <ControlGroup label="Hunting">
                 {huntingProfiles.map((p) => {

@@ -165,6 +165,8 @@ interface Palette {
   selection: string
   /** The glow behind systems where a shown hunting profile is likely now. */
   huntGlow: string
+  /** The blue behind systems a jump drive can reach from the focused system. */
+  jumpRange: string
   /** Resolved colours of the filter's groups. */
   groups: string[]
 }
@@ -217,6 +219,8 @@ export class MapRenderer {
   private markerFont = ''
   private markerGroups: MapMarkerGroup[] = []
   private hunting: HuntingLayer | null = null
+  /** 1 per system a jump drive can reach from the focused system, or null when the range isn't shown. */
+  private jumpRange: Uint8Array | null = null
   private huntFont = ''
   /** Resolved badge colours, by CSS colour. */
   private readonly huntColours = new Map<string, string>()
@@ -318,6 +322,12 @@ export class MapRenderer {
   setSelection(index: number): void {
     if (index === this.selection) return
     this.selection = index
+    this.requestDraw()
+  }
+
+  /** The systems in jump range (1 each, see map/jumpRange.ts), or null to show none. Changing it only redraws. */
+  setJumpRange(inRange: Uint8Array | null): void {
+    this.jumpRange = inRange
     this.requestDraw()
   }
 
@@ -477,6 +487,7 @@ export class MapRenderer {
       ctx.globalCompositeOperation = 'source-over'
     }
 
+    if (this.jumpRange) this.drawJumpRange(radius, pad)
     if (this.hunting) this.drawHuntGlow(radius, pad)
 
     for (let group = 0; group < this.byGroup.length; group++) {
@@ -494,6 +505,9 @@ export class MapRenderer {
       ctx.fillStyle = palette.groups[group]
       ctx.fill()
     }
+
+    // Over the systems, so the range shows on busy (large, bright) systems too.
+    if (this.jumpRange) this.drawJumpRangeRings(radius, pad)
 
     if (this.hovered >= 0) {
       const sx = xy[this.hovered * 2] * scale + offsetX
@@ -738,6 +752,56 @@ export class MapRenderer {
       if (i !== this.hovered && i !== this.focused && i !== this.selection && !done.has(i) && this.filter.groups[i] !== HIDDEN)
         place(i, this.palette.label, false)
     }
+  }
+
+  /**
+   * A cool blue behind each system a jump drive can reach from the focused system: a soft disc, so a
+   * range reads as one blue area zoomed out and as marked systems zoomed in. Under the hunting glow.
+   * It reaches past the system's drawn size, so the activity colours' larger systems keep their blue.
+   */
+  private drawJumpRange(radius: number, pad: number): void {
+    const { ctx, xy, scale, offsetX, offsetY, palette } = this
+    const inRange = this.jumpRange!
+    const inner = withAlpha(palette.jumpRange, 0.8)
+    const outer = withAlpha(palette.jumpRange, 0)
+    for (let i = 0; i < inRange.length; i++) {
+      if (!inRange[i]) continue
+      const drawn = this.radiusOf(i, radius)
+      const reach = Math.max(drawn * 3, drawn + 8, 9)
+      const sx = xy[i * 2] * scale + offsetX
+      const sy = xy[i * 2 + 1] * scale + offsetY
+      if (sx < -reach - pad || sy < -reach - pad || sx > this.width + reach + pad || sy > this.height + reach + pad) continue
+      const gradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, reach)
+      gradient.addColorStop(0, inner)
+      gradient.addColorStop(0.5, withAlpha(palette.jumpRange, 0.45))
+      gradient.addColorStop(1, outer)
+      ctx.fillStyle = gradient
+      ctx.beginPath()
+      ctx.arc(sx, sy, reach, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  /**
+   * A thin blue ring just outside each system in jump range, over the systems: whatever colour and size
+   * the filter draws a system in, the ring shows it is in range. One path for all of them.
+   */
+  private drawJumpRangeRings(radius: number, pad: number): void {
+    const { ctx, xy, scale, offsetX, offsetY, palette } = this
+    const inRange = this.jumpRange!
+    ctx.beginPath()
+    for (let i = 0; i < inRange.length; i++) {
+      if (!inRange[i]) continue
+      const sx = xy[i * 2] * scale + offsetX
+      const sy = xy[i * 2 + 1] * scale + offsetY
+      if (sx < -pad || sy < -pad || sx > this.width + pad || sy > this.height + pad) continue
+      const r = this.radiusOf(i, radius) + 2
+      ctx.moveTo(sx + r, sy)
+      ctx.arc(sx, sy, r, 0, Math.PI * 2)
+    }
+    ctx.lineWidth = 1.5
+    ctx.strokeStyle = palette.jumpRange
+    ctx.stroke()
   }
 
   /**
@@ -1217,6 +1281,7 @@ function resolvePalette(filter: MapFilter): Palette {
     focused: resolveColor('var(--primary)'),
     selection: resolveColor('var(--fg)'),
     huntGlow: resolveColor('var(--hunt-glow)'),
+    jumpRange: resolveColor('var(--jump-range)'),
     groups: filter.colours.map(resolveColor),
   }
 }

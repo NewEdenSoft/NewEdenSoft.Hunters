@@ -5,9 +5,17 @@ import { SystemContextMenu } from '../components/map/SystemContextMenu'
 import { securityColor } from '../theme/themes'
 import type { MapFilter } from './filters'
 import type { HuntingLayer, PlaceProfile } from './hunting'
+import { formatLy, isCynoTarget } from './jumpRange'
 import { MapRenderer, type MapContextMenuRequest, type MapHover, type MapMarkerGroup } from './MapRenderer'
-import type { MapLayout, MapModel } from './model'
+import { lyBetween, type MapLayout, type MapModel } from './model'
 import { formatSecurity } from './security'
+
+/** The jump range shown on the map: from the origin (the focused system), how far, and the systems it reaches. */
+export interface JumpRangeView {
+  origin: number
+  ly: number
+  inRange: Uint8Array
+}
 
 /** A system to move the map to; a new object for every request, so each one is applied. */
 export interface MapFocusTarget {
@@ -41,6 +49,8 @@ interface MapViewProps {
   hunting?: HuntingLayer | null
   /** The shown hunting profiles seen at each system, listed in the hover panel. */
   profilesAt?: Map<number, PlaceProfile[]> | null
+  /** The jump range: a blue glow on the systems it reaches; the hover panel tells the distance. */
+  jumpRange?: JumpRangeView | null
 }
 
 /**
@@ -65,6 +75,7 @@ export function MapView({
   npcKills = null,
   hunting = null,
   profilesAt = null,
+  jumpRange = null,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<MapRenderer | null>(null)
@@ -73,13 +84,13 @@ export function MapView({
   const closeMenu = useCallback(() => setMenu(null), [])
 
   // The renderer lives as long as the model; everything else is applied to it without recreating it.
-  const latest = useRef({ layout, filter, markers, focus, focused, selection, hunting, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem })
+  const latest = useRef({ layout, filter, markers, focus, focused, selection, hunting, jumpRange, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem })
   useEffect(() => {
-    latest.current = { layout, filter, markers, focus, focused, selection, hunting, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem }
+    latest.current = { layout, filter, markers, focus, focused, selection, hunting, jumpRange, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem }
   })
 
   useEffect(() => {
-    const { layout, filter, markers, focus, focused, selection, hunting } = latest.current
+    const { layout, filter, markers, focus, focused, selection, hunting, jumpRange } = latest.current
     const renderer = new MapRenderer(canvasRef.current!, model, layout, filter)
     renderer.onHover = setHover
     renderer.onMarkerClick = (id) => latest.current.onMarkerClick?.(id)
@@ -91,6 +102,7 @@ export function MapView({
     renderer.setFocused(focused)
     renderer.setSelection(selection)
     renderer.setHunting(hunting)
+    renderer.setJumpRange(jumpRange?.inRange ?? null)
     renderer.setMarkers(markers)
     if (focus) renderer.focusOn(focus.systemIndex, focus.zoomIn)
     rendererRef.current = renderer
@@ -125,6 +137,10 @@ export function MapView({
   }, [hunting])
 
   useEffect(() => {
+    rendererRef.current?.setJumpRange(jumpRange?.inRange ?? null)
+  }, [jumpRange])
+
+  useEffect(() => {
     if (focus) rendererRef.current?.focusOn(focus.systemIndex, focus.zoomIn)
   }, [focus])
 
@@ -141,6 +157,7 @@ export function MapView({
           characters={here?.map((m) => (m.online ? m.name : `${m.name} (offline)`)).join(', ')}
           npcKills={npcKills}
           profiles={profilesAt?.get(hover.index)}
+          jumpRange={jumpRange}
         />
       )}
       {menu && (
@@ -170,12 +187,14 @@ function SystemPanel({
   characters,
   npcKills,
   profiles,
+  jumpRange,
 }: {
   model: MapModel
   hover: MapHover
   characters?: string
   npcKills: ActivityColumns | null
   profiles?: PlaceProfile[]
+  jumpRange: JumpRangeView | null
 }) {
   const { areaWidth } = hover
   const security = model.security[hover.index]
@@ -193,10 +212,29 @@ function SystemPanel({
         </span>
         {model.regionNames.get(model.regionIds[hover.index])}
       </span>
+      {jumpRange && hover.index !== jumpRange.origin && <JumpRangeLine model={model} range={jumpRange} index={hover.index} />}
       {npcKills && <NpcKillsLine npcKills={npcKills} index={hover.index} />}
       {profiles && profiles.length > 0 && <ProfilesLines profiles={profiles} />}
       {characters && <span className="text-[0.8125rem] text-primary">{characters}</span>}
     </div>
+  )
+}
+
+/** How far the system is from the focused one, and whether a jump drive can land there in range. */
+function JumpRangeLine({ model, range, index }: { model: MapModel; range: JumpRangeView; index: number }) {
+  const ly = lyBetween(model, range.origin, index)
+  const status = range.inRange[index] ? 'in range' : !isCynoTarget(model, index) ? 'no cyno' : 'out of range'
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] text-fg-muted">
+      <span className="font-mono font-semibold text-fg">{formatLy(Math.round(ly * 100) / 100)}</span>
+      from {model.names[range.origin]}
+      <span
+        className={range.inRange[index] ? 'text-jump-range' : 'text-fg-faint'}
+        title={status === 'no cyno' ? 'Jump drives cannot land here: high-sec, Pochven or Zarzakh' : `Jump range ${formatLy(range.ly)}`}
+      >
+        {status}
+      </span>
+    </span>
   )
 }
 
