@@ -85,19 +85,41 @@ Each frame: gates are stroked under the view transform: solid within a constella
 - **Badges** (from 50 px/ly, where there is room): a row of small badges, one per shown profile seen there in the kept data, below the system's name on a short line from the system, like the character markers above it. They're faint where the profile is seen but not usually at this hour. Rows that would overlap a neighbour's are left out. The names of hunted systems are placed before other names, and no name is drawn over a badge row.
 - **How it's built:** `buildHuntingLayer` turns the overview into the layer (`glow` per system, badge groups), and `MapRenderer.setHunting` draws it.
 
-**System search and the focused system.** A search field sits at the top centre of the map, with the focused character's chip under it.
+**Selection and focus.** They are different things:
+- the **focus** is a staging point: where you are, or are about to jump from, and the origin for nearby intel and jump range
+- the **selection** is an interaction: the system you clicked or searched for
 
-- **Search:** typing a system's name lists up to eight matches with security and region (`map/systemSearch.ts`):
+| | Selection | Focus |
+|---|---|---|
+| Set by | a click (or tap) on a system; the search | a double click (when on), a system's menu, the selection's **Focus** button, or automatically (below) |
+| Cleared by | a click on empty space, **Esc**, or the card's ✕ | the menu's **Clear focus**, or the search field's ✕ |
+| Drawn as | one ring with four ticks, like a crosshair, and its name, in the text colour | a double ring and its name, in the primary colour |
+| Kept | for the page | in the URL (`?system=<id>`), so the map opens on it when linked or reloaded; an id not on the map is dropped |
+
+Both are drawn at every zoom, even when the colour filter hides the system. Focusing by hand moves the map there (zooming in to read names) and stops following a character, as dragging does; the character's chip stays.
+
+- **Search:** a field at the top centre of the map. Typing a system's name lists up to eight matches with security and region (`map/systemSearch.ts`):
   - case and punctuation are ignored, so `1dq1a` finds 1DQ1-A
   - the exact name comes first, then names that start with the text, then names that contain it
-  - **/** anywhere on the page starts a search; Up and Down choose, Enter focuses, Escape closes
-- **The system menu:** a right click on a system opens its menu (`SystemContextMenu`), with **Focus system**, or **Clear focus** on the focused one. On touch, holding a finger still on a system for half a second opens it; a short tap still shows the hover panel. A right click on empty space leaves the browser's own menu.
-- **The focused system:** the origin later intel builds on (nearby systems, details).
-  - It's kept in the URL (`?system=<id>`), so the map opens on it when linked or reloaded; an id that isn't on the map is dropped.
-  - Focusing one moves the map there (zooming in to read names) and stops following a character, as dragging does; the character's chip stays.
-  - It's drawn with a double ring and its name in the primary colour, at every zoom, even when the colour filter hides it.
-  - The search field shows it with a button to clear it.
-- **How it's built:** `MapRenderer.setSelected` draws it; `onContextMenu` reports right clicks and long presses; `useMapFocusTarget` moves the map for the latest request, a character's or a system's.
+  - **/** anywhere on the page starts a search; Up and Down choose, Enter **selects** (the map goes there), Escape closes
+  - when not in use, the field shows the focused system, with a button to clear it
+- **Under the search:** the focused character's chip, then the selection's card (**Selected**, name, security, region, **Focus**, ✕).
+- **The system menu:** a right click on a system opens its menu (`SystemContextMenu`), with **Focus system**, or **Clear focus** on the focused one. On touch, holding a finger still on a system for half a second opens it; a short tap selects it and shows the hover panel. A right click on empty space leaves the browser's own menu.
+- **Double click:** two clicks (or taps) on the same system within 350 ms. The renderer tells them apart itself, so touch works too.
+- **Map behaviour** (Settings page, kept in local storage under `hunters.map.behaviour`, `map/autoFocus.ts`):
+
+  | Setting | Default | What it does |
+  |---|---|---|
+  | Double click to focus | on | Double clicking a system focuses it. A single click selects either way |
+  | Focus on entering known space | on | Coming into a system on the map from one that isn't (wormhole space, anywhere unknown) focuses it |
+  | Focus after a long move | on, 5 jumps | A move of at least 2, 3, 5, 10 or 20 gate jumps at once (a filament, a jump bridge, a cyno), or between systems with no gate route, focuses where you land |
+
+  The automatic rules follow the **followed character**, or the **main** while nobody is followed, so alts moving around don't move the focus. The map goes to the new focus, and following carries on. Gate jumps are counted with a breadth-first search over the map's gates that stops at the minimum (`jumpsWithin`).
+- **How it's built:**
+  - `MapRenderer.setFocused` and `setSelection` draw the two
+  - `onSystemClick` and `onSystemDoubleClick` report clicks (-1 for empty space), and `onContextMenu` reports right clicks and long presses
+  - `useAutoFocus` watches the tracker
+  - `useMapFocusTarget` moves the map for the latest request: a character's, or a system's
 
 The layout is a user setting, kept in local storage like the theme (`settings/mapSettings.ts`, key `hunters.map.layout`) and chosen in the Map panel or on the Settings page. The colour filter and the focused system are in the URL (`/?colour=…&system=…`, defaults left out), so a view can be linked.
 

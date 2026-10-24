@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { activityQuery, type ActivityColumns } from '../../api/activity'
 import { discoveryQuery } from '../../api/discovery'
 import { huntingOverviewQuery, huntingProfilesQuery, type HuntingProfileInfo } from '../../api/hunting'
@@ -25,12 +25,14 @@ import { MapView } from '../../map/MapView'
 import { CharactersPanel } from '../../components/characters/CharactersPanel'
 import { FocusChip } from '../../components/characters/FocusChip'
 import { SystemSearch } from '../../components/map/SystemSearch'
+import { SelectionCard } from '../../components/map/SelectionCard'
+import { useAutoFocus } from '../../map/useAutoFocus'
 import { focusCharacter, stopFollowing } from '../../map/mapFocus'
 import { parseSystemParam } from '../../map/systemSearch'
 import { useCharacterMarkers, useMapFocusTarget } from '../../map/useCharacterMarkers'
 import { panelDefinitions } from '../../panels/definitions'
 import { Panels } from '../../panels/Panels'
-import { mapLayouts, useMapLayout, useShownHuntingProfiles } from '../../settings/mapSettings'
+import { getMapBehaviour, mapLayouts, useMapLayout, useShownHuntingProfiles } from '../../settings/mapSettings'
 import { buildHuntingLayer, profilesBySystem, type HuntingLayer, type PlaceProfile } from '../../map/hunting'
 import { useUtcHour } from '../../map/useUtcHour'
 import { profileStyle } from '../../theme/themes'
@@ -202,21 +204,48 @@ function LoadedMap({
   setSystem: (id: number | undefined) => void
 }) {
   const markers = useCharacterMarkers(model)
-  const selected = system === undefined ? -1 : (model.indexOf.get(system) ?? -1)
+  // The focused system is the staging point (in the URL); the selection is the system last clicked.
+  const focused = system === undefined ? -1 : (model.indexOf.get(system) ?? -1)
+  const [selection, setSelection] = useState(-1)
   // Opened with a focused system: the map starts there.
-  const [focus, goTo] = useMapFocusTarget(model, selected)
+  const [focus, goTo] = useMapFocusTarget(model, focused)
 
   // A system id from an old link that is not on this map: forget it.
   useEffect(() => {
-    if (system !== undefined && selected < 0) setSystem(undefined)
-  }, [system, selected, setSystem])
+    if (system !== undefined && focused < 0) setSystem(undefined)
+  }, [system, focused, setSystem])
 
-  /** Focus a system: the map goes there, taking over from a followed character as dragging does. */
+  // Escape clears the selection, unless the user is typing somewhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (e.key !== 'Escape' || (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+      setSelection(-1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  /** Focus a system by hand: the map goes there, taking over from a followed character as dragging does. */
   const focusSystem = (index: number) => {
     stopFollowing()
     goTo(index)
     setSystem(model.ids[index])
   }
+
+  /** Select a system from the search: the map goes there too. */
+  const findSystem = (index: number) => {
+    stopFollowing()
+    goTo(index)
+    setSelection(index)
+  }
+
+  // The followed character (or the main) left unknown space or moved far: its system becomes the focus.
+  // Following goes on; the map goes there.
+  useAutoFocus(model, (index) => {
+    goTo(index)
+    setSystem(model.ids[index])
+  })
 
   return (
     <div className="relative size-full">
@@ -228,7 +257,12 @@ function LoadedMap({
         focus={focus}
         onMarkerClick={focusCharacter}
         onUserPan={stopFollowing}
-        selected={selected}
+        focused={focused}
+        selection={selection}
+        onSelectSystem={setSelection}
+        onDoubleClickSystem={(index) => {
+          if (getMapBehaviour().doubleClickFocus) focusSystem(index)
+        }}
         onFocusSystem={focusSystem}
         npcKills={npcKills}
         hunting={hunting}
@@ -236,8 +270,17 @@ function LoadedMap({
         onClearSystem={() => setSystem(undefined)}
       />
       <div className="pointer-events-none absolute top-3 left-1/2 z-[1000] grid w-[calc(100%-1.5rem)] max-w-80 -translate-x-1/2 justify-items-center gap-2">
-        <SystemSearch model={model} selected={selected} onSelect={focusSystem} onClear={() => setSystem(undefined)} />
+        <SystemSearch model={model} focused={focused} onSelect={findSystem} onClear={() => setSystem(undefined)} />
         <FocusChip />
+        {selection >= 0 && (
+          <SelectionCard
+            model={model}
+            index={selection}
+            focused={selection === focused}
+            onFocus={() => focusSystem(selection)}
+            onDismiss={() => setSelection(-1)}
+          />
+        )}
       </div>
 
       <Panels
