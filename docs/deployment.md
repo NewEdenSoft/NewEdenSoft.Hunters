@@ -137,12 +137,16 @@ Releases come from tags on `main`. Pushing a `vX.Y.Z` tag runs the [release work
 
 1. The CI checks (the same jobs as [`ci.yml`](../.github/workflows/ci.yml)).
 2. Both images are built with `VERSION=X.Y.Z` and pushed to GitHub Container Registry.
-3. A GitHub Release with generated notes (a pre-release when the tag has a suffix such as `-rc.1`).
+3. The GitHub Release, marked as a pre-release when the tag has a suffix such as `-rc.1`.
+
+Either push the tag, and the release is created with generated notes:
 
 ```sh
 git switch main && git pull
 git tag v0.1.0
 git push origin v0.1.0
 ```
+
+Or create the release on GitHub (*Releases → Draft a new release*, with a new tag on `main`). That creates the tag, which starts the same workflow; it keeps your release and its notes. The images appear a few minutes after the release does.
 
 New packages on GitHub Container Registry are private. After the first release, make `hunters-server` and `hunters-intel` public under the organisation's *Packages* settings, so servers can pull them without logging in.

@@ -66,11 +66,17 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Create release
+      # A release drafted on GitHub creates its tag, which starts this workflow: keep that release and
+      # its notes, and only set the pre-release flag. A pushed tag gets a release with generated notes.
+      - name: Create or update release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          flags=(--repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes)
-          if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
-          gh release create "$TAG" "${flags[@]}"
+          prerelease=false
+          if [[ "$TAG" == *-* ]]; then prerelease=true; fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease="$prerelease"
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --prerelease="$prerelease"
+          fi
