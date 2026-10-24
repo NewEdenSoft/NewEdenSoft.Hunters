@@ -22,6 +22,18 @@ See [Selection and focus](web-client.md#map).
 - [ ] **Hunting** gets its own widget: the profile toggles and the glow hint move out of Map controls (`HuntingPanel.tsx` on the web).
 - [ ] **Jump range** gets its own widget, closed by default (`JumpRangePanel.tsx`). The items below go there instead of Map controls.
 
+## Nearby panel
+See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reach`.
+- [ ] A **Nearby** widget from the focused system. Without a focus it says to focus one.
+- [ ] **Settings:** gate jumps (Off, 3, 5, 10, 15; 5 by default); jump range on or off (the Jump range widget's light years); sort by NPC kills rising or a profile's likely now (a dropdown). Saved with the desktop settings. Port `parseNearby`, `nearbyRequest`, `distanceText` and `inJumpRange` from `map/nearby.ts`, with their tests.
+- [ ] **Rows** (up to 50, with the count in reach), each with:
+  - name and security
+  - distance (jumps, ly, or both; *no gates*), in jump-range blue when in range
+  - NPC kills last hour with ▲ / ▼
+  - profile badges, bright when likely now, the sorting one outlined
+- [ ] **Clicking a row** selects the system and moves the map there.
+- [ ] Refreshed every two minutes; keep the old rows, dimmed, while loading.
+
 ## System panel
 See [System panel](web-client.md#map). Needs the server's `GET /api/kills/systems/{id}` (the `kills` feature) and `GET /api/hunting/systems/{id}`.
 - [ ] A **System** widget showing the selected system, or the focused one while nothing is selected, tagged Selected / Focused.

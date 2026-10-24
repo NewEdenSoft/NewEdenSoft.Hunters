@@ -1,6 +1,6 @@
 import type { IconName } from '../components/ui/Icon'
 
-export type PanelId = 'map' | 'hunting' | 'jump-range' | 'characters' | 'system'
+export type PanelId = 'map' | 'nearby' | 'hunting' | 'jump-range' | 'characters' | 'system'
 
 /** A panel over the map: its title, launcher icon, where it starts, and how it can be sized. */
 export interface PanelDefinition {
@@ -25,7 +25,9 @@ export const panelDefinitions: PanelDefinition[] = [
   // The legend shares out the width; below 330 px its labels would touch.
   { id: 'map', title: 'Map', icon: 'layers', initial: { x: 12, y: 12, width: 340 }, minWidth: 330 },
   // Under the Map panel (8 px apart with the Security colour).
-  { id: 'hunting', title: 'Hunting', icon: 'radar', initial: { x: 12, y: 342, width: 340 }, minWidth: 220 },
+  { id: 'nearby', title: 'Nearby', icon: 'nearby', initial: { x: 12, y: 342, width: 340 }, minWidth: 280 },
+  // Its toggles are set once and rarely touched, so it waits on the rail (it opens where Nearby starts).
+  { id: 'hunting', title: 'Hunting', icon: 'radar', initial: { x: 12, y: 342, width: 340 }, minWidth: 220, openByDefault: false },
   // The range is off until chosen, so its panel waits on the rail.
   { id: 'jump-range', title: 'Jump range', icon: 'range', initial: { x: -12, y: 330, width: 290 }, minWidth: 220, openByDefault: false },
   { id: 'characters', title: 'Characters', icon: 'users', initial: { x: -12, y: 12, width: 290 }, minWidth: 220 },

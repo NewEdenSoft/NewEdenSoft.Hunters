@@ -37,7 +37,7 @@ Panels float over the map, the web version of the desktop's widgets (`src/panels
 
 **Stacking:** the panel clicked or focused last (a click, a tap, or tabbing into it) is on top. The search at the top of the map, with the character chip and the Selected card, is a layer in the same order, so a panel moved under it comes over it when clicked, and the search comes back over the panel when clicked or opened with **/**. The order is renumbered 1..n on every change (`panels/stacking.ts`), so z-indexes stay small, older saved layouts are renumbered when read, and the map's right-click menu stays above everything. The search's place in the order is not saved; it starts on top.
 
-Panels snap to the map's edges (12 px in) and to the panels beside them (lined up, or 8 px apart) when dropped within 12 px. A panel fits its content until the user resizes it. When the window shrinks, panels are drawn inside it without changing what is saved, so they go back to their places when it grows again. Panels so far: **Map** (layout, colour, legend), **Hunting** (the profiles shown on the map, below the Map panel), **Jump range** (closed until opened from the rail, since the range is off until chosen), **Characters** (below) and **System** (below Characters; see [System panel](#map)). Nearby activity and Fleet follow.
+Panels snap to the map's edges (12 px in) and to the panels beside them (lined up, or 8 px apart) when dropped within 12 px. A panel fits its content until the user resizes it. When the window shrinks, panels are drawn inside it without changing what is saved, so they go back to their places when it grows again. Panels so far: **Map** (layout, colour, legend), **Nearby** (below the Map panel; see [Nearby panel](#map)), **Hunting** (the profiles shown on the map; closed until opened from the rail, then where Nearby starts), **Jump range** (closed until opened from the rail, since the range is off until chosen), **Characters** (below) and **System** (below Characters; see [System panel](#map)). Nearby activity and Fleet follow.
 
 **On a phone** (below Tailwind's `sm`, 40rem; `useIsPhone`), `Panels` shows the same panels as a **bottom sheet** (`BottomSheet.tsx`) instead: a strip of tabs along the bottom of the map, one per panel. The selected tab shows its name; the others show only their icon (with the name as a tooltip), so four or more tabs fit a phone's width. Tapping a tab opens the sheet on that panel (up to half the screen, scrolling inside); tapping the open tab closes it, and picking a character to show on the map closes it too. The rail becomes a bar along the bottom (map, Account, Settings, log out; no panel toggles), above the safe area. Touch has no hover, so a tap on the map shows the system under the finger (a tap on a marker focuses it), and the system panel stays on screen. The devtools are left out on a phone, where they would cover the bar.
 
@@ -130,6 +130,21 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
 - **Without a focus** nothing is drawn, and the panel says to focus a system.
 - **Drawing:** a soft blue glow under each system in range, reaching past the system's drawn size, and a thin blue ring just outside it, drawn over the systems. With an activity colour on, busy systems are drawn larger and brighter; the ring keeps them readable as in range.
 - **How it's built:** `map/jumpRange.ts` (`jumpRangeOf` returns 1 per system in range), and `MapRenderer.setJumpRange` draws the glow under the hunting glow and the systems and the rings over them.
+
+**Nearby panel.** The **Nearby** panel (`components/map/NearbyPanel.tsx`) lists what is in reach of the **focused** system, from `GET /api/intel/reach` ([Reach](map-and-activity.md#reach)):
+
+- **Gate jumps:** Off, 3, 5 (the default), 10 or 15: every system within that many jumps.
+- **Jump range:** adds every cyno target within the Jump range panel's light years, however many gate jumps away. Together they give the union; with neither, the panel asks for one.
+- **Sort by:** *NPC kills rising* (the rise since the hour before, the default), or a hunting profile's *likely now*, from a list (one toggle per profile would fill the panel). The server sorts, then nearest first.
+- **Rows** (up to 50; the panel says how many are in reach), each showing:
+  - name and security
+  - the distance: gate jumps, light years, or both, as asked; *no gates* where none lead there. It is in the jump-range blue when the system is a cyno target in range, with a tooltip for *out of range* or *no cyno*.
+  - NPC kills in the last hour with ▲ / ▼ since the hour before
+  - the badges of the hunting profiles seen there: bright when likely now, faint otherwise, the sorting profile outlined
+- **Clicking a row** selects the system and takes the map there, like the search, so the System panel shows it.
+- **Without a focus**, the panel says to focus a system.
+- **Data:** asked again every two minutes; the server's ETag moves with the hour and the data, so most answers are 304. The previous rows stay, dimmed, while a new answer loads.
+- **Settings:** kept in local storage under `hunters.nearby`; the pure rules are in `map/nearby.ts`, with tests.
 
 **System panel.** The **System** panel (`components/map/SystemInfoPanel.tsx`) shows the **selected** system, or the **focused** one while nothing is selected, tagged *Selected* and/or *Focused*. The Selected card under the search stays as well.
 
