@@ -103,6 +103,7 @@ export function FloatingPanel({ definition, children }: { definition: PanelDefin
       ref={ref}
       aria-label={title}
       onPointerDownCapture={() => bringToFront(id)}
+      onFocusCapture={() => bringToFront(id)}
       style={{ left: rect.x, top: rect.y, width: rect.width, height: state.collapsed ? undefined : state.height, zIndex: state.z }}
       className="pointer-events-auto absolute flex max-h-full flex-col border border-line-strong bg-surface/92 shadow-[0_8px_28px_rgb(0_0_0/0.45)] backdrop-blur-sm"
     >
