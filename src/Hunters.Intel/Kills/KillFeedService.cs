@@ -11,7 +11,9 @@ namespace NewEdenSoft.Hunters.Intel.Kills;
 /// once as a slim <see cref="Kill"/>, with the feed position in the same save so a restart resumes
 /// where it stopped, and records the kill's hunting-profile sightings. zKillboard keeps files for about a
 /// day: a position older than <see cref="KillsOptions.ResumeWithin"/> skips to the newest. Kills and
-/// sightings older than the retention are deleted hourly. Failures are retried with the collector's backoff.
+/// sightings older than the retention are deleted hourly. Failures are retried with the collector's backoff;
+/// a block for too many requests pauses for as long as zKillboard says (or an hour). The pace itself is
+/// <see cref="KillFeedGate"/>'s, in the source.
 /// </summary>
 public sealed partial class KillFeedService(
     IKillFeedSource source,
@@ -25,6 +27,9 @@ public sealed partial class KillFeedService(
     private static readonly TimeSpan PruneInterval = TimeSpan.FromHours(1);
 
     private long? _next;
+
+    /// <summary>The newest sequence announced when last asked: a missing file at or below it is gone, not late.</summary>
+    private long _latest = long.MinValue;
     private bool _caughtUp;
     private int _stored;
     private int _failures;
@@ -59,7 +64,11 @@ public sealed partial class KillFeedService(
             if (file is null)
             {
                 // Above the announced sequence: not written yet. At or below it: gone, or never written.
-                if (sequence > await source.GetLatestSequenceAsync(cancellationToken))
+                // The announced sequence is asked again only past the last answer, so a run of gaps costs
+                // one request each.
+                if (sequence > _latest)
+                    _latest = await source.GetLatestSequenceAsync(cancellationToken);
+                if (sequence > _latest)
                 {
                     if (!_caughtUp)
                         LogCaughtUp(sequence, _stored);
@@ -70,14 +79,19 @@ public sealed partial class KillFeedService(
 
                 LogMissing(sequence);
                 _next = sequence + 1;
-                return settings.RequestInterval;
+                return TimeSpan.Zero;
             }
 
             if (await StoreAsync(sequence, file, await profiles.WhenReadyAsync(cancellationToken), cancellationToken))
                 _stored++;
             _next = sequence + 1;
             _failures = 0;
-            return settings.RequestInterval;
+            return TimeSpan.Zero;
+        }
+        catch (KillFeedBlockedException e)
+        {
+            LogBlocked(e.Message, e.RetryAfter);
+            return e.RetryAfter;
         }
         catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -174,6 +188,9 @@ public sealed partial class KillFeedService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Deleted {Count} kills from before {Cutoff:u}")]
     private partial void LogPruned(int count, DateTimeOffset cutoff);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "zKillboard blocked the R2Z2 kill feed: {Reason} Resuming in {Pause}")]
+    private partial void LogBlocked(string reason, TimeSpan pause);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Could not read the R2Z2 kill feed (attempt {Attempt}); retrying in {Delay}")]
     private partial void LogFailed(Exception exception, int attempt, TimeSpan delay);

@@ -13,8 +13,16 @@ public sealed class FakeKillFeed : IKillFeedSource
 
     public List<long> Requested { get; } = [];
 
-    public Task<long> GetLatestSequenceAsync(CancellationToken cancellationToken) =>
-        Failure is { } e ? Task.FromException<long>(e) : Task.FromResult(Latest);
+    /// <summary>How many times the announced sequence was asked for.</summary>
+    public int LatestRequests { get; private set; }
+
+    public Task<long> GetLatestSequenceAsync(CancellationToken cancellationToken)
+    {
+        if (Failure is { } e)
+            return Task.FromException<long>(e);
+        LatestRequests++;
+        return Task.FromResult(Latest);
+    }
 
     public Task<KillFeedFile?> GetAsync(long sequence, CancellationToken cancellationToken)
     {

@@ -21,25 +21,45 @@ public interface IKillFeedSource
 
 /// <summary>
 /// <see cref="IKillFeedSource"/> over HTTP (<c>r2z2.zkillboard.com/ephemeral/</c>). zKillboard asks for a
-/// <c>User-Agent</c> with a contact, at most 15 requests a second, and 6 seconds after a 404 (the reader
-/// keeps to those). Other failures throw <see cref="HttpRequestException"/>.
+/// <c>User-Agent</c> with a contact, at most 15 requests a second (above it, the address is blocked for an
+/// hour), and 6 seconds after a 404 for a file not written yet. Every request waits for the
+/// <see cref="KillFeedGate"/>. A block (429 or 403) throws <see cref="KillFeedBlockedException"/>; other
+/// failures throw <see cref="HttpRequestException"/>.
 /// </summary>
-public sealed class R2Z2KillFeedSource(HttpClient http) : IKillFeedSource
+public sealed class R2Z2KillFeedSource(HttpClient http, KillFeedGate gate, IOptions<IntelOptions> options) : IKillFeedSource
 {
     public async Task<long> GetLatestSequenceAsync(CancellationToken cancellationToken)
     {
-        var latest = await http.GetFromJsonAsync<SequenceFile>("sequence.json", cancellationToken);
+        using var response = await SendAsync("sequence.json", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var latest = await response.Content.ReadFromJsonAsync<SequenceFile>(cancellationToken);
         return latest?.Sequence ?? throw new HttpRequestException("R2Z2 sent an empty sequence.json.");
     }
 
     public async Task<KillFeedFile?> GetAsync(long sequence, CancellationToken cancellationToken)
     {
-        using var response = await http.GetAsync($"{sequence}.json", cancellationToken);
+        using var response = await SendAsync($"{sequence}.json", cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
             return null;
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<KillFeedFile>(cancellationToken)
             ?? throw new HttpRequestException($"R2Z2 sent an empty file for sequence {sequence}.");
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(string path, CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken);
+        var response = await http.GetAsync(path, cancellationToken);
+        if (response.StatusCode is not (HttpStatusCode.TooManyRequests or HttpStatusCode.Forbidden))
+            return response;
+
+        using (response)
+        {
+            // As long as zKillboard says, or the hour its block lasts.
+            var retry = response.Headers.RetryAfter;
+            var wait = retry?.Delta ?? (retry?.Date is { } until ? until - DateTimeOffset.UtcNow : options.Value.Kills.BlockedPause);
+            throw new KillFeedBlockedException(wait > TimeSpan.Zero ? wait : options.Value.Kills.BlockedPause, (int)response.StatusCode);
+        }
     }
 
     private sealed record SequenceFile([property: JsonPropertyName("sequence")] long Sequence);
