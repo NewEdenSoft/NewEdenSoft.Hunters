@@ -71,7 +71,7 @@ public sealed class KillFeedServiceTests(IntelDatabase database) : IAsyncLifetim
         Assert.Equal([1100L, 1101L], kills.Select(k => k.KillmailId));
         Assert.Equal((101L, Now), (position!.Sequence, position.UpdatedAt));
         Assert.Equal(
-            [TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(6)],
+            [TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromSeconds(6)],
             delays);
         Assert.Equal(102, Reader.Next);
     }
@@ -111,9 +111,9 @@ public sealed class KillFeedServiceTests(IntelDatabase database) : IAsyncLifetim
         _feed.Publish(100, 1100, Now);
         await StepsAsync(1);
 
-        // 101 is announced but missing (zKillboard skipped it): skip it straight away.
+        // 101 is announced but missing (zKillboard skipped it): skip it straight away (the gate paces requests).
         _feed.Latest = 101;
-        Assert.Equal(TimeSpan.FromMilliseconds(100), await Reader.StepAsync(CancellationToken.None));
+        Assert.Equal(TimeSpan.Zero, await Reader.StepAsync(CancellationToken.None));
         Assert.Equal(102, Reader.Next);
 
         // 102 isn't announced yet: wait the 6 seconds zKillboard asks for, and ask again.
@@ -188,7 +188,36 @@ public sealed class KillFeedServiceTests(IntelDatabase database) : IAsyncLifetim
 
         _feed.Failure = null;
         _feed.Publish(101, 1101, Now);
-        Assert.Equal(TimeSpan.FromMilliseconds(100), await Reader.StepAsync(CancellationToken.None));
+        Assert.Equal(TimeSpan.Zero, await Reader.StepAsync(CancellationToken.None));
         Assert.Equal(2, (await StoredAsync()).Kills.Count);
+    }
+
+    [Fact]
+    public async Task A_run_of_missing_files_asks_for_the_announced_sequence_once()
+    {
+        _feed.Publish(100, 1100, Now);
+        await StepsAsync(1);
+        _feed.Publish(105, 1105, Now);
+        var asked = _feed.LatestRequests;
+
+        // 101 to 104 are gone: one look at the announced sequence covers them all.
+        Assert.All(await StepsAsync(5), d => Assert.Equal(TimeSpan.Zero, d));
+        Assert.Equal(asked + 1, _feed.LatestRequests);
+        Assert.Equal([1100L, 1105L], (await StoredAsync()).Kills.Select(k => k.KillmailId));
+    }
+
+    [Fact]
+    public async Task A_block_pauses_for_as_long_as_zkillboard_says_and_keeps_the_position()
+    {
+        _feed.Publish(100, 1100, Now);
+        await StepsAsync(1);
+
+        _feed.Failure = new KillFeedBlockedException(TimeSpan.FromMinutes(42), 429);
+        Assert.Equal([TimeSpan.FromMinutes(42), TimeSpan.FromMinutes(42)], await StepsAsync(2));
+
+        _feed.Failure = null;
+        _feed.Publish(101, 1101, Now);
+        await StepsAsync(1);
+        Assert.Equal([1100L, 1101L], (await StoredAsync()).Kills.Select(k => k.KillmailId));
     }
 }

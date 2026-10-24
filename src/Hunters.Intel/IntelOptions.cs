@@ -61,8 +61,15 @@ public sealed class KillsOptions
 
     public Uri FeedUrl { get; set; } = new("https://r2z2.zkillboard.com/ephemeral/");
 
-    /// <summary>The pause between files while catching up; zKillboard allows at most 15 requests a second.</summary>
-    public TimeSpan RequestInterval { get; set; } = TimeSpan.FromMilliseconds(100);
+    /// <summary>
+    /// The most requests a second to R2Z2, for everything the service asks it (<see cref="Kills.KillFeedGate"/>).
+    /// zKillboard blocks an address for an hour above 15; 5 leaves room for a second reader on the same
+    /// address, and catches up a day of kills in about two hours.
+    /// </summary>
+    public double MaxRequestsPerSecond { get; set; } = 5;
+
+    /// <summary>The pause after zKillboard blocks the address (429 or 403) without saying for how long.</summary>
+    public TimeSpan BlockedPause { get; set; } = TimeSpan.FromHours(1);
 
     /// <summary>The wait when the next file isn't written yet; zKillboard asks for at least 6 seconds.</summary>
     public TimeSpan WaitWhenCaughtUp { get; set; } = TimeSpan.FromSeconds(6);

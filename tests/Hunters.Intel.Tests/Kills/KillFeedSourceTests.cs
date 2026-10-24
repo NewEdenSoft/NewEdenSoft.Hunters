@@ -1,6 +1,9 @@
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NewEdenSoft.Hunters.Intel.Kills;
 
 namespace NewEdenSoft.Hunters.Intel.Tests.Kills;
@@ -24,13 +27,19 @@ public sealed class KillFeedSourceTests
     private static HttpResponseMessage Json(string json) =>
         new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
 
-    /// <summary>The source as the intel service registers it, over a fake R2Z2.</summary>
-    private static (IKillFeedSource Source, FakeR2Z2 Server) Source(Func<HttpRequestMessage, HttpResponseMessage> answer)
+    /// <summary>The source as the intel service registers it, over a fake R2Z2 (and optionally a fake clock for its gate).</summary>
+    private static (IKillFeedSource Source, FakeR2Z2 Server) Source(Func<HttpRequestMessage, HttpResponseMessage> answer, TimeProvider? time = null)
     {
         var server = new FakeR2Z2(answer);
         var services = new ServiceCollection();
         services.AddOptions<IntelOptions>().Configure(o => o.Esi.Contact = "https://hunters.example");
         services.AddIntelServices();
+        if (time is not null)
+        {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton(time);
+        }
+
         services.AddHttpClient<IKillFeedSource, R2Z2KillFeedSource>(R2Z2KillFeedSource.Configure)
             .ConfigurePrimaryHttpMessageHandler(() => server);
         return (services.BuildServiceProvider().GetRequiredService<IKillFeedSource>(), server);
@@ -60,6 +69,43 @@ public sealed class KillFeedSourceTests
 
         Assert.Null(await source.GetAsync(1, CancellationToken.None));
         await Assert.ThrowsAsync<HttpRequestException>(() => source.GetAsync(2, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task A_block_says_how_long_to_pause_or_an_hour()
+    {
+        var (source, _) = Source(r =>
+        {
+            if (r.RequestUri!.AbsolutePath.EndsWith("sequence.json"))
+                return new HttpResponseMessage(HttpStatusCode.Forbidden);
+            var limited = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+            limited.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(120));
+            return limited;
+        });
+
+        Assert.Equal(TimeSpan.FromMinutes(2), (await Assert.ThrowsAsync<KillFeedBlockedException>(() => source.GetAsync(1, CancellationToken.None))).RetryAfter);
+        Assert.Equal(TimeSpan.FromHours(1), (await Assert.ThrowsAsync<KillFeedBlockedException>(() => source.GetLatestSequenceAsync(CancellationToken.None))).RetryAfter);
+    }
+
+    [Fact]
+    public async Task Every_request_waits_its_turn_at_the_gate()
+    {
+        var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var (source, server) = Source(r => r.RequestUri!.AbsolutePath.EndsWith("sequence.json")
+            ? Json("""{"sequence":5}""")
+            : new HttpResponseMessage(HttpStatusCode.NotFound), time);
+
+        // 5 a second: one request every 200 ms, files and the announced sequence alike.
+        await source.GetAsync(1, CancellationToken.None);
+        var second = source.GetLatestSequenceAsync(CancellationToken.None);
+        Assert.False(second.IsCompleted);
+        Assert.Single(server.Requests);
+
+        time.Advance(TimeSpan.FromMilliseconds(199));
+        Assert.False(second.IsCompleted);
+        time.Advance(TimeSpan.FromMilliseconds(1));
+        Assert.Equal(5, await second);
+        Assert.Equal(2, server.Requests.Count);
     }
 
     [Fact]
