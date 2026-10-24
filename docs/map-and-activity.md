@@ -5,19 +5,25 @@
 The server loads the SDE with NewEdenKit.Sde and builds a compact **map pack**, versioned by SDE build number. Clients download it once and cache it by build number (not by server), so switching servers does not re-download it.
 
 - **When:** in the background at startup (`MapPackService`), then every `Hunters:Sde:RefreshInterval` it checks CCP for a new build. The archive (about 100 MB) is downloaded only for a new build and cached in `Hunters:Sde:CachePath`. Until the first load finishes, the discovery document has no `mapPack` and the endpoint answers 503.
-- **Where:** `GET /api/map/packs/{sdeBuild}` (session required). The discovery document's `mapPack.sdeBuild` names the current build; other builds are 404. The response is immutable and served precompressed (Brotli or gzip).
+- **Where:** `GET /api/map/packs/{sdeBuild}?format={format}` (session required). The discovery document's `mapPack` names the current `sdeBuild` and `format`; other builds are 404. The response is immutable and served precompressed (Brotli or gzip). The format only makes the URL new, so a client never uses a cached pack of an older format (`MapPack.Format`; 2 added `height`).
 - **What:** known space, meaning every k-space system (id below 31,000,000) with at least one stargate. That leaves out wormhole space, Abyssal deadspace and the unreachable Jove systems, and keeps Pochven and Zarzakh.
 
 | Contents | Fields |
 |---|---|
 | Regions | id, name |
-| Systems | id, name, region, constellation, true security, `topDown` and `flat` positions |
+| Systems | id, name, region, constellation, true security, `topDown` and `flat` positions, `height` |
 | Gates | `from`, `to` (each connection once, `from` < `to`) |
 
-Positions are in light years, oriented for screens (x east, y south). Each system has two layouts:
+Positions are in light years, oriented for screens (x east, y south). The SDE gives each system **two sets of coordinates**, and they are not interchangeable:
 
-- `topDown`: the 3D position seen from above (SDE `x`, `z`), like the in-game star map. See [2D projection](#2d-projection).
-- `flat`: CCP's own flattened layout (SDE `position2D`), like the in-game 2D map.
+| SDE field | What it is | In the map pack | Use it for |
+|---|---|---|---|
+| `position` (`x`, `y`, `z`) | Where the system **is** in the world, in metres | `topDown` (`x`, `z`) and `height` (`y`) | Drawing the top-down layout, **and every distance** |
+| `position2D` (`x`, `y`) | CCP's hand-made flattened layout of the in-game 2D map | `flat` | **Display only**: drawing the 2D layout. Never distances, ranges or anything else measured |
+
+- `topDown`: the world position seen from above (SDE `x`, `z`), like the in-game star map. See [2D projection](#2d-projection).
+- `flat`: CCP's flattened layout (SDE `position2D`), like the in-game 2D map. **For display only.** It is drawn to be readable, not to scale: neighbouring systems are spread apart and regions are moved, so distances on it are meaningless (Jita to Perimeter is 0.78 "ly" on it, 2.10 ly in the world; Jita to Amarr 28.35, against 20.28).
+- `height`: the third axis of the world position (SDE `y`), in light years. With `topDown` it gives the straight-line distance between two systems, as jump drives measure it (`lyBetween` on the web, `MapModel.LyBetween` on the desktop), for jump ranges on the map. Positions and heights are rounded to 0.00001 ly, so distances are within about 0.00002 ly of the SDE's (checked over 200,000 random pairs), and a system at a range's edge lands on the right side.
 
 SDE build 3632936: 5,268 systems, 6,989 gates, 68 regions; 112 KB with Brotli (1 MB uncompressed).
 
@@ -27,7 +33,7 @@ The first map style is a top-down projection of the SDE's 3D coordinates: system
 
 Region bounding boxes are precomputed so clients can zoom to a region directly.
 
-Wormhole space is not in the map pack (no stargates). The SDE now also has CCP's flattened layout (`position2D`), which the map pack carries as `flat`; which layout the clients use by default is decided by trying both.
+Wormhole space is not in the map pack (no stargates). The SDE now also has CCP's flattened layout (`position2D`), which the map pack carries as `flat` for display only (see above); CCP's 2D map is the clients' default layout.
 
 ## Path finding
 

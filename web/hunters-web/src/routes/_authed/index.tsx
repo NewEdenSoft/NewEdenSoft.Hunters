@@ -74,9 +74,10 @@ function MapPage() {
     },
   })
   const sdeBuild = discovery.data?.mapPack?.sdeBuild
+  const packFormat = discovery.data?.mapPack?.format
   const hasActivity = discovery.data?.features.includes('activity') ?? false
   const hasHunting = discovery.data?.features.includes('hunting') ?? false
-  const pack = useQuery({ ...mapPackQuery(sdeBuild ?? 0), enabled: sdeBuild !== undefined })
+  const pack = useQuery({ ...mapPackQuery(sdeBuild ?? 0, packFormat), enabled: sdeBuild !== undefined })
   const model = useMemo(() => (pack.data ? buildMapModel(pack.data) : null), [pack.data])
 
   // Activity is fetched whenever the server has it: the hover panel always shows NPC kills.

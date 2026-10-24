@@ -12,7 +12,10 @@ public sealed record SdeRegion(int Id, string Name);
 /// <param name="X">SDE position, metres.</param>
 /// <param name="Y">SDE position, metres: up and down. The 2D layouts leave it out; distances need it.</param>
 /// <param name="Z">SDE position, metres.</param>
-/// <param name="FlatX">SDE <c>position2D</c>, metres; null when the SDE has none (wormhole space).</param>
+/// <param name="FlatX">
+/// SDE <c>position2D</c>, metres; null when the SDE has none (wormhole space). CCP's flattened 2D map, for
+/// display only: not to scale, so distances come from <paramref name="X"/>, <paramref name="Y"/> and <paramref name="Z"/>.
+/// </param>
 public sealed record SdeSolarSystem(
     int Id,
     string Name,

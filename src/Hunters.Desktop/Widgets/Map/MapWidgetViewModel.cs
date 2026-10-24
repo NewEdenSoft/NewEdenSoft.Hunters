@@ -515,7 +515,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                 var discovery = await session.GetDiscoveryAsync(cancel.Token);
                 if (discovery.MapPack is { } info)
                 {
-                    var pack = await session.GetMapPackAsync(info.SdeBuild, cancel.Token);
+                    var pack = await session.GetMapPackAsync(info.SdeBuild, info.Format, cancel.Token);
                     var model = await Task.Run(() => MapModel.Build(pack), cancel.Token);
                     Model = model;
                     RebuildFilter();

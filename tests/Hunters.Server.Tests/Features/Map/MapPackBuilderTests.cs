@@ -38,6 +38,21 @@ public sealed class MapPackBuilderTests
     }
 
     [Fact]
+    public void Heights_are_the_third_axis_in_light_years()
+    {
+        var sde = new FakeSdeMap().Data;
+        var raised = sde with
+        {
+            Systems = [.. sde.Systems.Select(s => s.Name == "Perimeter" ? s with { Y = 2.5 * FakeSdeMap.Ly } : s)],
+        };
+
+        var pack = MapPackBuilder.Build(raised);
+
+        Assert.Equal(2.5, pack.Systems.Single(s => s.Name == "Perimeter").Height);
+        Assert.Equal(0, pack.Systems.Single(s => s.Name == "Jita").Height);
+    }
+
+    [Fact]
     public void Flat_layout_falls_back_to_top_down_when_the_sde_has_none()
     {
         var perimeter = _pack.Systems.Single(s => s.Name == "Perimeter");
