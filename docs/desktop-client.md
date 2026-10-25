@@ -224,7 +224,13 @@ What a jump drive reaches from the focused system, like the web's Jump range pan
 
 ## Nearby
 
-What is in reach of the focused system, from the server's `GET /api/intel/reach` (`HuntersSession.GetReachAsync`), like the web's Nearby panel. Asked for while the widget is on screen, each time the focus changes. For now it lists every system within 5 gate jumps, NPC kills rising first, with its name, security and gate jumps (*no gates* when none lead there). Without a focus it says to focus a system. The settings, hiding quiet systems, the cards and refreshing come next (see [Desktop To-Do](desktop-todo.md)).
+What is in reach of the focused system, from the server's `GET /api/intel/reach` (`HuntersSession.GetReachAsync`), like the web's Nearby panel. Asked for while the widget is on screen, each time the focus changes. Each time the focus or a setting changes, it asks again.
+
+- **Gate jumps:** Off, 3, 5, 10 or 15 (5 by default).
+- **Jump range:** on or off ("On · 8 ly"): cyno targets within the [Jump range](#jump-range) widget's light years too, however many gate jumps away.
+- **Sort by:** a list: NPC kills rising (the default), NPC kills (`sort=npc-kills`), or a hunting profile's likely now. A profile the server no longer lists falls back to NPC kills rising.
+
+With neither gate jumps nor jump range it says to choose one; without a focus, to focus a system. Each row has the system's name, security and distance: gate jumps, light years, or both, as asked (*no gates* when none lead there). The setting is saved with the desktop settings (`Map.Nearby`, `NearbySetting`, through `MapPreferences.Nearby`), with **show quiet systems** (off), used once quiet systems are hidden. The rules are `Nearby` (`Validate`, `Request`, `IsActive`, `DistanceText`, `InJumpRange`), like the web's `map/nearby.ts`. Hiding quiet systems, the cards and refreshing come next (see [Desktop To-Do](desktop-todo.md)).
 
 ## Platform support
 

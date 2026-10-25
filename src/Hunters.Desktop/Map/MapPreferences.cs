@@ -18,6 +18,7 @@ public sealed class MapPreferences : ObservableObject
     private IReadOnlyList<string> _huntingProfiles;
     private MapBehaviour _behaviour;
     private JumpRangeSetting _jumpRange;
+    private NearbySetting _nearby;
 
     public MapPreferences(ISettingsStore settings)
     {
@@ -30,6 +31,18 @@ public sealed class MapPreferences : ObservableObject
         _behaviour = MapBehaviour.MinJumpChoices.Contains(behaviour.MinJumps) ? behaviour : behaviour with { MinJumps = new MapBehaviour().MinJumps };
         var jumpRange = map.JumpRange ?? new JumpRangeSetting();
         _jumpRange = jumpRange.Ly is >= JumpRanges.MinLy and <= JumpRanges.MaxLy ? jumpRange : jumpRange with { Ly = new JumpRangeSetting().Ly };
+        _nearby = Map.Nearby.Validate(map.Nearby);
+    }
+
+    /// <summary>What the Nearby widget looks for around the focused system: gate jumps, the jump range, the sort, and quiet systems.</summary>
+    public NearbySetting Nearby
+    {
+        get => _nearby;
+        set
+        {
+            if (SetProperty(ref _nearby, value))
+                _settings.Update(s => s with { Map = s.Map with { Nearby = value } });
+        }
     }
 
     /// <summary>Whether the jump range is drawn around the focused system, and how far it reaches (the Jump range widget). The range is kept within 0.5 to 20 ly.</summary>

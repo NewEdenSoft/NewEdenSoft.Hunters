@@ -1,10 +1,44 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
+             xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
+             xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
              x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.NearbyWidgetView"
              x:DataType="mw:NearbyWidgetViewModel">
   <ScrollViewer>
   <StackPanel Spacing="8" Margin="12">
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="GATE JUMPS" />
+      <ItemsControl ItemsSource="{Binding JumpChoices}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="4" LineSpacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="m:ChoiceViewModel">
+            <Button Classes="hud toggle"
+                    Classes.primary="{Binding IsSelected}"
+                    Classes.ghost="{Binding !IsSelected}"
+                    Command="{Binding SelectCommand}"
+                    Content="{Binding Label, Converter={x:Static w:UpperCaseConverter.Instance}}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="JUMP RANGE" />
+      <Button Classes="hud toggle" Classes.primary="{Binding ByJumpRange}" Classes.ghost="{Binding !ByJumpRange}" HorizontalAlignment="Left"
+              Command="{Binding ToggleJumpRangeCommand}"
+              Content="{Binding JumpRangeText, Converter={x:Static w:UpperCaseConverter.Instance}}"
+              ToolTip.Tip="Cyno targets within the Jump range widget's range, however many gate jumps away" />
+    </StackPanel>
+    <StackPanel Spacing="6" Margin="0,0,0,4">
+      <TextBlock Classes="label" Text="SORT BY" />
+      <!-- A list, not toggles: one per profile would fill the widget -->
+      <ComboBox ItemsSource="{Binding SortOptions}" SelectedItem="{Binding SelectedSort}" HorizontalAlignment="Stretch"
+                AutomationProperties.Name="Sort by" />
+    </StackPanel>
     <TextBlock Classes="muted" FontSize="13" TextWrapping="Wrap" Text="{Binding StatusText}"
                IsVisible="{Binding !HasError}" />
     <TextBlock Foreground="{DynamicResource Hud.DangerBrush}" FontSize="13" TextWrapping="Wrap" Text="{Binding StatusText}"
