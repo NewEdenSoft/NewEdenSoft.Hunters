@@ -4,6 +4,7 @@ using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Intel.Hunting;
 using NewEdenSoft.Hunters.Intel.Kills;
 using NewEdenSoft.Hunters.Intel.Sde;
+using NewEdenSoft.Hunters.Intel.Sovereignty;
 using NewEdenSoft.Hunters.Sde;
 
 namespace NewEdenSoft.Hunters.Intel;
@@ -49,6 +50,10 @@ public static class IntelHost
         services.AddSingleton<IAffiliationSource, EsiAffiliationSource>();
         services.AddSingleton<SystemActivityService>();
         services.AddHostedService(sp => sp.GetRequiredService<SystemActivityService>());
+        services.AddSingleton<ISovereigntySource, EsiSovereigntySource>();
+        services.AddSingleton<SovereigntyStore>();
+        services.AddSingleton<SovereigntyService>();
+        services.AddHostedService(sp => sp.GetRequiredService<SovereigntyService>());
         services.AddSingleton<HuntingProfileStore>();
         services.AddSingleton<HuntingProfileService>();
         services.AddSingleton<HuntingAggregator>();

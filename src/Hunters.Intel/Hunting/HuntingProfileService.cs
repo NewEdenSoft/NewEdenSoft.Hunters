@@ -4,6 +4,7 @@ using NewEdenSoft.Hunters.Intel.Activity;
 using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Intel.Kills;
 using NewEdenSoft.Hunters.Intel.Sde;
+using NewEdenSoft.Hunters.Intel.Sovereignty;
 
 namespace NewEdenSoft.Hunters.Intel.Hunting;
 
@@ -36,6 +37,7 @@ public sealed class HuntingProfileStore
 public sealed partial class HuntingProfileService(
     SdeCatalogStore catalogs,
     HuntingProfileStore store,
+    SovereigntyStore sovereignty,
     HuntingAggregatorService aggregates,
     IAffiliationSource affiliations,
     IServiceScopeFactory scopes,
@@ -71,6 +73,8 @@ public sealed partial class HuntingProfileService(
         try
         {
             var catalog = await catalogs.WhenReadyAsync(cancellationToken);
+            // Sightings are built with who is local, so not before the first sovereignty map.
+            await sovereignty.WhenReadyAsync(cancellationToken);
             requests = await TakeRequestsAsync(cancellationToken);
             if (requests.Length > 0 || !ReferenceEquals(catalog, _synced))
                 await SyncAsync(catalog, cancellationToken);
@@ -216,7 +220,7 @@ public sealed partial class HuntingProfileService(
             if (batch.Count == 0)
                 break;
 
-            var found = batch.SelectMany(k => SightingMatcher.Match(k, profiles, settings.FleetAttackers)).ToList();
+            var found = batch.SelectMany(k => SightingMatcher.Match(k, profiles, settings.FleetAttackers, sovereignty.Current)).ToList();
             await SightingStore.InsertAsync(db, found, cancellationToken);
             kills += batch.Count;
             sightings += found.Count;

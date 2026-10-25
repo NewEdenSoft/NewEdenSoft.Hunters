@@ -4,6 +4,7 @@ using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Intel.Hunting;
 using NewEdenSoft.Hunters.Intel.Kills;
 using NewEdenSoft.Hunters.Intel.Sde;
+using NewEdenSoft.Hunters.Intel.Sovereignty;
 using NewEdenSoft.Hunters.Sde;
 
 namespace NewEdenSoft.Hunters.Intel.Tests.Hunting;
@@ -171,6 +172,34 @@ public sealed class SightingMatcherTests
     }
 
     [Fact]
+    public async Task Someone_seen_in_their_own_alliances_sovereignty_is_a_local_and_counts_more()
+    {
+        var profiles = await ProfilesAsync();
+        var sovereignty = new SovereigntyMap([new SovereignClaim(FakeSde.Jita, Alliance, Corp, Time.AddDays(-30))]);
+        string Seen(Kill kill, SovereigntyMap? map = null) =>
+            string.Join(", ", SightingMatcher.Match(kill, profiles, 25, map ?? sovereignty).Select(s => $"{Describe(s)}{(s.Local ? " local" : "")}").Order());
+
+        // The victim's alliance holds the system: a local. With an NPC loss, both count.
+        Assert.Equal("ishtars 90000001 Victim 12005 1.5 local", Seen(Kill(FakeSde.Ishtar, victim: Pilot, victimAlliance: Alliance)));
+        Assert.Equal("ishtars 90000001 Victim 12005 3 local", Seen(Kill(FakeSde.Ishtar, victim: Pilot, victimAlliance: Alliance, npc: true)));
+
+        // Another alliance, none, or no map: a passer-by.
+        Assert.Equal("ishtars 90000001 Victim 12005 1", Seen(Kill(FakeSde.Ishtar, victim: Pilot, victimAlliance: 99000002)));
+        Assert.Equal("ishtars 90000001 Victim 12005 1", Seen(Kill(FakeSde.Ishtar, victim: Pilot)));
+        Assert.Equal("ishtars 90000001 Victim 12005 1", Seen(Kill(FakeSde.Ishtar, victim: Pilot, victimAlliance: Alliance), SovereigntyMap.Empty));
+
+        // Killed before the alliance claimed the system: who held it then is not known.
+        var newClaim = new SovereigntyMap([new SovereignClaim(FakeSde.Jita, Alliance, Corp, Time.AddHours(1))]);
+        Assert.Equal("ishtars 90000001 Victim 12005 1", Seen(Kill(FakeSde.Ishtar, victim: Pilot, victimAlliance: Alliance), newClaim));
+
+        // A CRAB beacon's owner, and an attacker's own alliance.
+        Assert.Equal("carriers 0 Victim 60244 1.125 indicator local, crab 0 Victim 60244 1.5 local, supers 0 Victim 60244 1.125 indicator local",
+            Seen(Kill(FakeSde.CrabBeacon, victimAlliance: Alliance)));
+        Assert.Equal("smartbombers 90000002 Attacker 3993 1.5 local",
+            Seen(Kill(FakeSde.Capsule, victim: Pilot, attackers: [(Other, FakeSde.Rifter, FakeSde.Smartbomb)], victimAlliance: Alliance, attackerAlliance: Alliance)));
+    }
+
+    [Fact]
     public async Task Ishtars_are_one_ship_type()
     {
         var sightings = SightingMatcher.Match(Kill(FakeSde.Ishtar, victim: Pilot), await ProfilesAsync(), 25);
@@ -207,8 +236,8 @@ public sealed class SightingMatcherTests
         // The camp rule: smart bombs, on capsules only, keeping fights.
         var camps = profiles.Single(p => p.Id == "smartbomb-camps");
         Assert.Equal([FakeSde.Capsule], camps.Rules[0].Victims!);
-        Assert.Equal("Weapon@1:3937,3945,3961,3977,3993>670>other side;keeps fights;npc losses x2", camps.Definition);
-        Assert.Equal("Module@1:3937,3945,3961,3977,3993x5;Weapon@1:3937,3945,3961,3977,3993,54748>own side;npc losses x2",
+        Assert.Equal("Weapon@1:3937,3945,3961,3977,3993>670>other side;keeps fights;npc losses x2;locals x1.5", camps.Definition);
+        Assert.Equal("Module@1:3937,3945,3961,3977,3993x5;Weapon@1:3937,3945,3961,3977,3993,54748>own side;npc losses x2;locals x1.5",
             profiles.Single(p => p.Id == "smartbombers").Definition);
     }
 }

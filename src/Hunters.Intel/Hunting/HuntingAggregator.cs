@@ -67,7 +67,7 @@ public sealed partial class HuntingAggregator(
         string source;
         if (regionOf is null)
         {
-            source = """SELECT "Profile", "SystemId" AS id, "Time", "Weight", "Indicator", "PilotId" FROM intel."Sightings" WHERE NOT "IsFleet" """;
+            source = """SELECT "Profile", "SystemId" AS id, "Time", "Weight", "Indicator", "PilotId", "Local" FROM intel."Sightings" WHERE NOT "IsFleet" """;
         }
         else
         {
@@ -75,7 +75,7 @@ public sealed partial class HuntingAggregator(
             parameters.Add(new NpgsqlParameter("systems", NpgsqlDbType.Array | NpgsqlDbType.Integer) { Value = systems.Select(s => s.Id).ToArray() });
             parameters.Add(new NpgsqlParameter("regions", NpgsqlDbType.Array | NpgsqlDbType.Integer) { Value = systems.Select(s => s.RegionId).ToArray() });
             source = """
-                SELECT s."Profile", m.region AS id, s."Time", s."Weight", s."Indicator", s."PilotId"
+                SELECT s."Profile", m.region AS id, s."Time", s."Weight", s."Indicator", s."PilotId", s."Local"
                 FROM intel."Sightings" s JOIN unnest(@systems, @regions) AS m(system, region) ON m.system = s."SystemId"
                 WHERE NOT s."IsFleet"
                 """;
@@ -100,10 +100,12 @@ public sealed partial class HuntingAggregator(
                     coalesce(sum("Weight") FILTER (WHERE "Time" >= @now - interval '30 days' AND "Indicator"), 0) AS month_indicator,
                     sum("Weight" * power(0.5, greatest(extract(epoch FROM @now - "Time"), 0) / @halfLifeSeconds)) AS score,
                     max("Time") AS last_seen,
-                    count(DISTINCT "PilotId") FILTER (WHERE "PilotId" <> 0 AND "Time" >= @now - interval '30 days') AS pilots
+                    count(DISTINCT "PilotId") FILTER (WHERE "PilotId" <> 0 AND "Time" >= @now - interval '30 days') AS pilots,
+                    coalesce(sum("Weight") FILTER (WHERE "Time" >= @now - interval '30 days' AND "Local"), 0) AS month_local,
+                    count(DISTINCT "PilotId") FILTER (WHERE "PilotId" <> 0 AND "Time" >= @now - interval '30 days' AND "Local") AS local_pilots
                 FROM src GROUP BY 1, 2)
-            INSERT INTO intel."{table}" ("Profile", "{key}", "Week", "Month", "MonthIndicator", "Score", "LastSeen", "Pilots", "Hours")
-            SELECT t."Profile", t.id, t.week, t.month, t.month_indicator, t.score, t.last_seen, t.pilots, h.hours
+            INSERT INTO intel."{table}" ("Profile", "{key}", "Week", "Month", "MonthIndicator", "Score", "LastSeen", "Pilots", "MonthLocal", "LocalPilots", "Hours")
+            SELECT t."Profile", t.id, t.week, t.month, t.month_indicator, t.score, t.last_seen, t.pilots, t.month_local, t.local_pilots, h.hours
             FROM totals t JOIN hours h USING ("Profile", id)
             """;
         return db.Database.ExecuteSqlRawAsync(sql, parameters, cancellationToken);

@@ -90,6 +90,12 @@ public static class HuntingProfiles
     /// </summary>
     public const double NpcLossWeight = 2;
 
+    /// <summary>
+    /// A sighting of someone in their own alliance's sovereignty counts this many times: a local who lives
+    /// there, not a random occurrence. It stacks with <see cref="NpcLossWeight"/>.
+    /// </summary>
+    public const double LocalWeight = 1.5;
+
     public const int Ishtar = 12005;
 
     /// <summary>Smart bombs a dying ship needs fitted to count as a smartbomber.</summary>
@@ -194,14 +200,15 @@ public sealed record ResolvedProfile(HuntingProfile Profile, IReadOnlyList<Resol
 
         // What the sightings depend on: each rule's kind, weight, exact types, how many must be fitted,
         // victims and side, whether fights are kept (it changes which sightings are marked as fleet), and
-        // how NPC losses count.
+        // how NPC losses and locals count.
         var definition = string.Join(';', rules.Select(r =>
                 $"{r.Kind}{(r.Indicator ? "?" : "")}@{r.Weight.ToString(CultureInfo.InvariantCulture)}:{string.Join(',', r.Types.Order())}"
                 + (r.MinFitted > 1 ? $"x{r.MinFitted}" : "")
                 + (r.Victims is { } v ? $">{string.Join(',', v.Order())}" : "")
                 + (r.Side == VictimSide.Any ? "" : $">{r.Side.ToString().ToLowerInvariant()} side")))
             + (profile.KeepsFights ? ";keeps fights" : "")
-            + $";npc losses x{HuntingProfiles.NpcLossWeight.ToString(CultureInfo.InvariantCulture)}";
+            + $";npc losses x{HuntingProfiles.NpcLossWeight.ToString(CultureInfo.InvariantCulture)}"
+            + $";locals x{HuntingProfiles.LocalWeight.ToString(CultureInfo.InvariantCulture)}";
         return new ResolvedProfile(profile, rules, definition);
     }
 }

@@ -69,7 +69,7 @@ public sealed class HuntingEndpointTests(PostgresFixture postgres) : IAsyncLifet
 
         db.HuntingSystemStats.AddRange(
             new HuntingSystemStats { Profile = "carriers", SystemId = Sobaseki, Score = 1.2, Week = 1, Month = 2, Pilots = 1, LastSeen = UpdatedAt.AddDays(-2), Hours = Hours(3, 2) },
-            new HuntingSystemStats { Profile = "carriers", SystemId = Jita, Score = 6.12345, Week = 3.75, Month = 7.5, MonthIndicator = 0.75, Pilots = 4, LastSeen = UpdatedAt.AddHours(-1), Hours = Hours(19, 7.5) },
+            new HuntingSystemStats { Profile = "carriers", SystemId = Jita, Score = 6.12345, Week = 3.75, Month = 7.5, MonthIndicator = 0.75, Pilots = 4, MonthLocal = 4.5, LocalPilots = 2, LastSeen = UpdatedAt.AddHours(-1), Hours = Hours(19, 7.5) },
             new HuntingSystemStats { Profile = "crab", SystemId = Jita, Score = 2, Week = 1, Month = 1, LastSeen = UpdatedAt.AddHours(-3), Hours = Hours(17, 1) },
             new HuntingSystemStats { Profile = "titans", SystemId = Jita, Score = 9, Week = 1, Month = 1, LastSeen = UpdatedAt, Hours = Hours(0, 1) });
         db.HuntingRegionStats.AddRange(
@@ -185,6 +185,7 @@ public sealed class HuntingEndpointTests(PostgresFixture postgres) : IAsyncLifet
         Assert.Equal(["carriers", "crab"], jita.Profiles.Select(p => p.Profile));
         var carriers = jita.Profiles[0];
         Assert.Equal(("Carriers", 6.123, 0.75, 4), (carriers.Name, carriers.Score, carriers.MonthIndicator, carriers.Pilots));
+        Assert.Equal((4.5, 2), (carriers.MonthLocal, carriers.LocalPilots));
         Assert.Equal(7.5, carriers.Hours[19]);
 
         Assert.Empty((await client.GetFromJsonAsync<HuntingPlace>(HuntingPaths.System(Perimeter)))!.Profiles);

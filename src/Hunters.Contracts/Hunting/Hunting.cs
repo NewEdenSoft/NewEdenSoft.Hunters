@@ -31,6 +31,11 @@ public sealed record HuntingPlace(int Id, long Version, DateTimeOffset UpdatedAt
 /// <param name="MonthIndicator">The part of <paramref name="Month"/> from indirect evidence (CRAB beacons for Carriers).</param>
 /// <param name="Pilots">Different pilots seen in the last 30 days.</param>
 /// <param name="Hours">24 weighted sightings by hour of the day (UTC).</param>
+/// <param name="MonthLocal">
+/// The part of <paramref name="Month"/> from locals: seen in their own alliance's sovereignty, which
+/// counts 1.5 times.
+/// </param>
+/// <param name="LocalPilots">The part of <paramref name="Pilots"/> seen as locals.</param>
 public sealed record HuntingPlaceProfile(
     string Profile,
     string Name,
@@ -40,7 +45,9 @@ public sealed record HuntingPlaceProfile(
     double MonthIndicator,
     int Pilots,
     DateTimeOffset LastSeen,
-    IReadOnlyList<double> Hours);
+    IReadOnlyList<double> Hours,
+    double MonthLocal = 0,
+    int LocalPilots = 0);
 
 public static class HuntingPaths
 {

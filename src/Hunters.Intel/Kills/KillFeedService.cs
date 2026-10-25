@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using NewEdenSoft.Hunters.Intel.Activity;
 using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Intel.Hunting;
+using NewEdenSoft.Hunters.Intel.Sovereignty;
 
 namespace NewEdenSoft.Hunters.Intel.Kills;
 
@@ -19,6 +20,7 @@ public sealed partial class KillFeedService(
     IKillFeedSource source,
     IServiceScopeFactory scopes,
     HuntingProfileStore profiles,
+    SovereigntyStore sovereignty,
     HuntingAggregatorService aggregates,
     IOptions<IntelOptions> options,
     TimeProvider time,
@@ -131,7 +133,7 @@ public sealed partial class KillFeedService(
         var kill = file.ToKill();
         var settings = options.Value.Hunting;
 
-        var changed = await SightingStore.InsertAsync(db, SightingMatcher.Match(kill, hunting, settings.FleetAttackers), cancellationToken);
+        var changed = await SightingStore.InsertAsync(db, SightingMatcher.Match(kill, hunting, settings.FleetAttackers, sovereignty.Current), cancellationToken);
 
         // zKillboard can announce a kill again (a repost, a corrected value); the first one stays.
         var isNew = !await db.Kills.AnyAsync(k => k.KillmailId == file.KillmailId, cancellationToken);

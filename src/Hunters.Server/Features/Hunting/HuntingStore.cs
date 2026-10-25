@@ -19,8 +19,8 @@ public sealed class HuntingSnapshot
         Profiles = profiles;
         var names = profiles.ToDictionary(p => p.Id, p => p.Name);
 
-        Systems = systems.GroupBy(s => s.SystemId).ToDictionary(g => g.Key, g => Place(g.Select(s => Row(s.Profile, s.Score, s.Week, s.Month, s.MonthIndicator, s.Pilots, s.LastSeen, s.Hours))));
-        Regions = regions.GroupBy(r => r.RegionId).ToDictionary(g => g.Key, g => Place(g.Select(r => Row(r.Profile, r.Score, r.Week, r.Month, r.MonthIndicator, r.Pilots, r.LastSeen, r.Hours))));
+        Systems = systems.GroupBy(s => s.SystemId).ToDictionary(g => g.Key, g => Place(g.Select(s => Row(s.Profile, s.Score, s.Week, s.Month, s.MonthIndicator, s.Pilots, s.LastSeen, s.Hours, s.MonthLocal, s.LocalPilots))));
+        Regions = regions.GroupBy(r => r.RegionId).ToDictionary(g => g.Key, g => Place(g.Select(r => Row(r.Profile, r.Score, r.Week, r.Month, r.MonthIndicator, r.Pilots, r.LastSeen, r.Hours, r.MonthLocal, r.LocalPilots))));
 
         // Profiles the states don't list any more are left out.
         Overview = PrecompressedJson.Create(new HuntingOverview(version, updatedAt, [
@@ -41,9 +41,12 @@ public sealed class HuntingSnapshot
         IReadOnlyList<HuntingPlaceProfile> Place(IEnumerable<HuntingPlaceProfile?> rows) =>
             [.. rows.OfType<HuntingPlaceProfile>().OrderByDescending(r => r.Score).ThenBy(r => r.Profile)];
 
-        HuntingPlaceProfile? Row(string profile, double score, double week, double month, double indicator, int pilots, DateTimeOffset lastSeen, double[] hours) =>
+        HuntingPlaceProfile? Row(
+            string profile, double score, double week, double month, double indicator, int pilots, DateTimeOffset lastSeen, double[] hours,
+            double monthLocal, int localPilots) =>
             names.TryGetValue(profile, out var name)
-                ? new HuntingPlaceProfile(profile, name, Round(score), Round(week), Round(month), Round(indicator), pilots, lastSeen, [.. hours.Select(Round)])
+                ? new HuntingPlaceProfile(profile, name, Round(score), Round(week), Round(month), Round(indicator), pilots, lastSeen, [.. hours.Select(Round)],
+                    Round(monthLocal), localPilots)
                 : null;
     }
 
