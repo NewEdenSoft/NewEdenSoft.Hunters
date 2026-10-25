@@ -17,6 +17,7 @@ public sealed class MapPreferences : ObservableObject
     private MapLayout _layout;
     private IReadOnlyList<string> _huntingProfiles;
     private MapBehaviour _behaviour;
+    private JumpRangeSetting _jumpRange;
 
     public MapPreferences(ISettingsStore settings)
     {
@@ -27,6 +28,20 @@ public sealed class MapPreferences : ObservableObject
         // A file edited by hand (or from an older version) may lack it or have a choice not offered.
         var behaviour = map.Behaviour ?? new MapBehaviour();
         _behaviour = MapBehaviour.MinJumpChoices.Contains(behaviour.MinJumps) ? behaviour : behaviour with { MinJumps = new MapBehaviour().MinJumps };
+        var jumpRange = map.JumpRange ?? new JumpRangeSetting();
+        _jumpRange = jumpRange.Ly is >= JumpRanges.MinLy and <= JumpRanges.MaxLy ? jumpRange : jumpRange with { Ly = new JumpRangeSetting().Ly };
+    }
+
+    /// <summary>Whether the jump range is drawn around the focused system, and how far it reaches (the Jump range widget). The range is kept within 0.5 to 20 ly.</summary>
+    public JumpRangeSetting JumpRange
+    {
+        get => _jumpRange;
+        set
+        {
+            value = value with { Ly = JumpRanges.Clamp(value.Ly) };
+            if (SetProperty(ref _jumpRange, value))
+                _settings.Update(s => s with { Map = s.Map with { JumpRange = value } });
+        }
     }
 
     /// <summary>When the focused system changes by itself, and whether a double click focuses (Settings, "Map behaviour").</summary>
@@ -90,4 +105,7 @@ public sealed partial class ChoiceViewModel(string label, IRelayCommand select) 
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
+
+    /// <summary>Shown when hovering the choice; null for none.</summary>
+    public string? ToolTip { get; init; }
 }

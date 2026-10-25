@@ -20,7 +20,7 @@ See [Selection and focus](web-client.md#map).
 
 ## Hunting and Jump range panels
 - [x] **Hunting** gets its own widget: the profile toggles and the glow hint move out of Map controls (`HuntingPanel.tsx` on the web).
-- [ ] **Jump range** gets its own widget, closed by default (`JumpRangePanel.tsx`). The items below go there instead of Map controls.
+- [x] **Jump range** gets its own widget, closed by default (`JumpRangePanel.tsx`). The items below go there instead of Map controls.
 
 ## Nearby panel
 See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reach`.
@@ -48,7 +48,7 @@ See [System panel](web-client.md#map). Needs the server's `GET /api/kills/system
 
 ## Jump range (web #49)
 See [Jump range](web-client.md#map).
-- [ ] **Jump range widget:** a toggle showing the range ("On · 8 ly"). When on, the presets and a custom value:
+- [x] **Jump range widget:** a toggle showing the range ("On · 8 ly"). When on, the presets and a custom value:
   - Presets with Jump Drive Calibration V: Black Ops 8 ly; Carrier, Dread and FAX 7; Super and Titan 6; Jump freighter and Rorqual 10. Each preset has a tooltip with its range.
   - Custom: 0.5 to 20 ly.
   - Saved with the desktop settings; off by default, 8 ly.

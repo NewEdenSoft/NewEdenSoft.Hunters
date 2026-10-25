@@ -150,7 +150,7 @@ After login the saved overlays are restored, and the main window hides to the tr
 | `IOverlayPlatform` | Click-through and overlay window styles per OS. Windows: `WS_EX_LAYERED \| WS_EX_TRANSPARENT`, `WS_EX_TOOLWINDOW`. |
 | `TrayIconService` | The tray icon and menu. |
 
-Widgets so far: the [Map](#map) and its [Map controls](#map-controls) and [Hunting](#hunting), [Characters](#characters-widget), and placeholders for Nearby activity and Fleet, whose content arrives with the features they show.
+Widgets so far: the [Map](#map) and its [Map controls](#map-controls), [Hunting](#hunting) and [Jump range](#jump-range), [Characters](#characters-widget), and placeholders for Nearby activity and Fleet, whose content arrives with the features they show.
 
 Widget ideas:
 
@@ -183,6 +183,8 @@ The **Map** widget draws known space from the server's map pack, like the [web m
 | `Widgets/Map/SystemSearchViewModel.cs` | The search box's query, results and keyboard highlight. |
 | `Widgets/Map/MapControlsWidgetViewModel.cs` | The [Map controls](#map-controls) widget. |
 | `Widgets/Map/HuntingWidgetViewModel.cs` | The [Hunting](#hunting) widget. |
+| `Widgets/Map/JumpRangeWidgetViewModel.cs` | The [Jump range](#jump-range) widget. |
+| `Map/JumpRanges.cs` | Jump range presets, limits and formatting, like the web's `jumpRange.ts`. |
 | `Map/MapPreferences.cs` | The layout setting, saved in the desktop settings (`Map.Layout`) and chosen in Map controls or on the Settings page. CCP's 2D map is the default. |
 
 `MapScene` is immutable: the UI thread builds a new one when the model, layout, filter or theme colours change, and frames are drawn on the render thread from the scene and camera captured with them. Theme colours reach the control as `DynamicResource` bindings, so a theme change rebuilds the scene.
@@ -215,6 +217,10 @@ How the [map](#map) is drawn: its **layout** (CCP's 2D map or top-down), its **c
 ## Hunting
 
 Which hunting profiles the [map](#map) shows: a toggle per profile with its mark, and a line on what the glow means (or how to start). A server without profiles says so. Like Map controls, it is a widget of its own, docked or floating, and its state is the map's (`MapWidgetViewModel.ShownProfiles`, saved in `MapPreferences.HuntingProfiles`), like the web's Hunting panel.
+
+## Jump range
+
+What a jump drive reaches from the focused system, like the web's Jump range panel. **Show** toggles it ("On · 8 ly"); **Range** has the presets with Jump Drive Calibration V (Black Ops 8 ly; Carrier, Dread and FAX 7; Super and Titan 6; Jump freighter and Rorqual 10), each with its range as a tooltip; **Custom** takes 0.5 to 20 ly. A line says what the blue means from the focused system, or to focus one first. Saved with the desktop settings (`Map.JumpRange`, through `MapPreferences.JumpRange`): off by default, 8 ly; a saved range out of limits falls back to 8 ly. Drawing the range on the map comes next (see [Desktop To-Do](desktop-todo.md)).
 
 ## Platform support
 

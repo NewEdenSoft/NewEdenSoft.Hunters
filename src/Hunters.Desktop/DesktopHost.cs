@@ -104,6 +104,8 @@ public static class DesktopHost
             "map-controls", "Map controls", "How the map is drawn: its layout, colours and legend.", 300, 240);
         services.AddWidget<HuntingWidgetViewModel, HuntingWidgetView>(
             "hunting", "Hunting", "Hunting profiles on the map: a glow where each is likely now, and badges where it is seen.", 300, 200);
+        services.AddWidget<JumpRangeWidgetViewModel, JumpRangeWidgetView>(
+            "jump-range", "Jump range", "What a jump drive reaches from the focused system: a ship class's range or your own.", 290, 260);
         services.AddWidget<CharactersWidgetViewModel, CharactersWidgetView>(
             "characters", "Characters", "Your characters: online or not, where they are and what they fly.", 300, 280);
         services.AddWidget<NearbyActivityWidgetViewModel, PlaceholderWidgetView>(
