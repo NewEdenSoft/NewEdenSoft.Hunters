@@ -9,10 +9,11 @@ namespace NewEdenSoft.Hunters.Desktop.Map;
 /// over gates and fills marker badges; <paramref name="Accent"/> draws the hover ring, the focused
 /// system's rings and name, and the markers; <paramref name="HuntGlow"/> is the glow behind systems
 /// where a shown hunting profile is likely now; <paramref name="Selection"/> draws the selected system's
-/// crosshair and name.
+/// crosshair and name; <paramref name="JumpRange"/> marks the systems in jump range.
 /// </summary>
 public sealed record MapPalette(
-    SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent, SKColor HuntGlow = default, SKColor Selection = default);
+    SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent, SKColor HuntGlow = default, SKColor Selection = default,
+    SKColor JumpRange = default);
 
 /// <summary>One character's marker; offline characters are drawn dimmed at their last known system.</summary>
 public readonly record struct MapMarker(long CharacterId, CharacterMarker Marker, bool IsOnline);
@@ -48,7 +49,8 @@ public readonly record struct MapCamera(float Scale, float OffsetX, float Offset
 /// to the bottom right of each system when zoomed in, or region names when zoomed out; last, the
 /// characters' markers, joined by a line to the upper right of their systems. The focused system
 /// gets two rings and always its name, in the accent colour; the selected system a ring with four
-/// ticks and always its name, in the text colour. Shown hunting profiles add a glow under
+/// ticks and always its name, in the text colour. With the jump range on, each system in range gets a
+/// blue glow under the hunting glow and a thin blue ring over its dot. Shown hunting profiles add a glow under
 /// the systems and, zoomed in, a row of badges below each system's name.
 /// </remarks>
 public sealed class MapScene
@@ -163,9 +165,10 @@ public sealed class MapScene
     /// <param name="focused">The focused system's index, or -1.</param>
     /// <param name="hunting">The shown hunting profiles' glow and badges, or null.</param>
     /// <param name="selection">The selected system's index, or -1.</param>
+    /// <param name="jumpRange">Per system, whether it is in jump range of the focused system; null when the range isn't shown.</param>
     public void Draw(
         SKCanvas canvas, in MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup>? markers = null, int focused = -1, HuntingLayer? hunting = null,
-        int selection = -1)
+        int selection = -1, bool[]? jumpRange = null)
     {
         // The selection is drawn only apart from the focus, which already marks the system.
         if (selection == focused)
@@ -178,9 +181,16 @@ public sealed class MapScene
         DrawMargins(canvas, camera);
         canvas.Restore();
 
+        if (jumpRange is not null)
+            DrawJumpRange(canvas, camera, jumpRange);
         if (hunting is not null)
             DrawHuntGlow(canvas, camera, hunting.Glow);
-        DrawSystems(canvas, camera, hovered);
+        DrawSystems(canvas, camera);
+        // Over the systems, so the range shows on busy (large, bright) systems too.
+        if (jumpRange is not null)
+            DrawJumpRangeRings(canvas, camera, jumpRange);
+        if (hovered >= 0)
+            DrawHover(canvas, camera, hovered);
         if (focused >= 0)
             DrawFocused(canvas, camera, focused);
         if (selection >= 0)
@@ -425,7 +435,7 @@ public sealed class MapScene
     }
 
     // Systems keep a size in pixels, so they are drawn in screen coordinates.
-    private void DrawSystems(SKCanvas canvas, in MapCamera camera, int hovered)
+    private void DrawSystems(SKCanvas canvas, in MapCamera camera)
     {
         var radius = SystemRadius(camera.Scale);
         using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
@@ -440,14 +450,67 @@ public sealed class MapScene
             paint.Color = _groupColours[group];
             canvas.DrawPath(path, paint);
         }
+    }
 
-        if (hovered >= 0)
+    private void DrawHover(SKCanvas canvas, in MapCamera camera, int hovered)
+    {
+        using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1.5f, Color = _palette.Accent };
+        canvas.DrawCircle(camera.ToScreenX(X(hovered)), camera.ToScreenY(Y(hovered)), SystemRadius(camera.Scale) * Filter.SizeOf(hovered) + 4, paint);
+    }
+
+    /// <summary>
+    /// A cool blue behind each system a jump drive can reach from the focused system: a soft disc, so a
+    /// range reads as one blue area zoomed out and as marked systems zoomed in. Under the hunting glow.
+    /// It reaches past the system's drawn size, so the activity colours' larger systems keep their blue.
+    /// </summary>
+    private void DrawJumpRange(SKCanvas canvas, in MapCamera camera, bool[] inRange)
+    {
+        var radius = SystemRadius(camera.Scale);
+        var colour = _palette.JumpRange;
+        SKColor[] stops = [colour.WithAlpha((byte)(255 * 0.8f)), colour.WithAlpha((byte)(255 * 0.45f)), colour.WithAlpha(0)];
+        float[] positions = [0, 0.5f, 1];
+        using var paint = new SKPaint { IsAntialias = true };
+        for (var i = 0; i < inRange.Length && i < _model.Count; i++)
         {
-            paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = 1.5f;
-            paint.Color = _palette.Accent;
-            canvas.DrawCircle(camera.ToScreenX(X(hovered)), camera.ToScreenY(Y(hovered)), radius * Filter.SizeOf(hovered) + 4, paint);
+            if (!inRange[i])
+                continue;
+
+            var drawn = radius * Filter.SizeOf(i);
+            var reach = Math.Max(Math.Max(drawn * 3, drawn + 8), 9);
+            var sx = camera.ToScreenX(X(i));
+            var sy = camera.ToScreenY(Y(i));
+            if (sx < -reach || sy < -reach || sx > camera.Width + reach || sy > camera.Height + reach)
+                continue;
+
+            using var shader = SKShader.CreateRadialGradient(new SKPoint(sx, sy), reach, stops, positions, SKShaderTileMode.Clamp);
+            paint.Shader = shader;
+            canvas.DrawCircle(sx, sy, reach, paint);
         }
+    }
+
+    /// <summary>
+    /// A thin blue ring just outside each system in jump range, over the systems: whatever colour and size
+    /// the filter draws a system in, the ring shows it is in range. One path for all of them.
+    /// </summary>
+    private void DrawJumpRangeRings(SKCanvas canvas, in MapCamera camera, bool[] inRange)
+    {
+        var radius = SystemRadius(camera.Scale);
+        using var path = new SKPath();
+        for (var i = 0; i < inRange.Length && i < _model.Count; i++)
+        {
+            if (!inRange[i])
+                continue;
+
+            var r = radius * Filter.SizeOf(i) + 2;
+            var sx = camera.ToScreenX(X(i));
+            var sy = camera.ToScreenY(Y(i));
+            if (sx < -r || sy < -r || sx > camera.Width + r || sy > camera.Height + r)
+                continue;
+            path.AddCircle(sx, sy, r);
+        }
+
+        using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1.5f, Color = _palette.JumpRange };
+        canvas.DrawPath(path, paint);
     }
 
     /// <summary>Two rings around the focused system; its dot too if the filter hides it.</summary>

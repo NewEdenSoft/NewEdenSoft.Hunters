@@ -8,7 +8,8 @@ namespace NewEdenSoft.Hunters.Desktop.Tests.Map;
 public sealed class MapSceneTests
 {
     private static readonly MapPalette Palette = new(
-        SKColors.Black, SKColors.Gray, SKColors.White, SKColors.Silver, SKColors.White, SKColors.Orange, Selection: SKColors.Lime);
+        SKColors.Black, SKColors.Gray, SKColors.White, SKColors.Silver, SKColors.White, SKColors.Orange, Selection: SKColors.Lime,
+        JumpRange: SKColors.Blue);
 
     private readonly ThemeCatalog _catalog = ThemeCatalog.LoadEmbedded();
     private readonly MapModel _model = MapModel.Build(MapTestData.Pack());
@@ -159,6 +160,35 @@ public sealed class MapSceneTests
         Assert.True(Sample(-1, jita).Green > 160);
         // The focus marks it already.
         Assert.Equal(SKColors.Navy, Sample(jita, jita));
+    }
+
+    [Fact]
+    public void Systems_in_jump_range_get_a_blue_ring_and_glow()
+    {
+        var scene = Scene(MapFilters.Security(_model, _catalog));
+        var camera = new MapCamera(Scale: 40, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
+        var inRange = new bool[_model.Count];
+        inRange[_model.IndexOf[12]] = true;
+        // Niyabainen at (200, 190); its only gate goes up to Jita, so its left side is clear.
+        var radius = MapScene.SystemRadius(40);
+        var ringX = (int)MathF.Round(200 - radius - 2);
+        var glowX = (int)MathF.Round(200 - radius - 6);
+
+        SKColor Sample(bool[]? jumpRange, int x)
+        {
+            using var surface = SKSurface.Create(new SKImageInfo(400, 300));
+            surface.Canvas.Clear(SKColors.Black);
+            scene.Draw(surface.Canvas, camera, hovered: -1, jumpRange: jumpRange);
+            using var image = surface.Snapshot();
+            using var pixels = image.PeekPixels();
+            return pixels.GetPixelColor(x, 190);
+        }
+
+        Assert.Equal(SKColors.Black, Sample(null, ringX));
+        Assert.Equal(SKColors.Black, Sample(null, glowX));
+        // Blue only: the ring mostly covers its pixel, the glow fades out towards its edge.
+        Assert.True(Sample(inRange, ringX) is { Red: 0, Green: 0, Blue: > 150 });
+        Assert.True(Sample(inRange, glowX) is { Red: 0, Green: 0, Blue: > 0 });
     }
 
     [Fact]

@@ -63,6 +63,8 @@
                   FocusedSystemId="{Binding FocusedSystemId}"
                   SelectedSystemId="{Binding SelectedSystemId}"
                   Hunting="{Binding Hunting}"
+                  JumpRange="{Binding JumpRange}"
+                  JumpRangeColor="{DynamicResource Hud.JumpRangeColor}"
                   HuntGlowColor="{DynamicResource Hud.HuntGlowColor}"
                   HaloColor="{DynamicResource Hud.BgColor}"
                   GateColor="{DynamicResource Hud.LineStrongColor}"

@@ -52,9 +52,9 @@ See [Jump range](web-client.md#map).
   - Presets with Jump Drive Calibration V: Black Ops 8 ly; Carrier, Dread and FAX 7; Super and Titan 6; Jump freighter and Rorqual 10. Each preset has a tooltip with its range.
   - Custom: 0.5 to 20 ly.
   - Saved with the desktop settings; off by default, 8 ly.
-- [ ] **Which systems:** within the range in 3D (`MapModel.LyBetween`) and a cyno target: display security below 0.5, not Pochven (region 10000070), not Zarzakh (30100000). Port `jumpRangeOf` and `isCynoTarget` from `map/jumpRange.ts`, with its tests.
-- [ ] **Drawing** in `jump-range` (`#3fa9ff`, a fixed token in `design/themes.json`, to add to the desktop theme resources):
+- [x] **Which systems:** within the range in 3D (`MapModel.LyBetween`) and a cyno target: display security below 0.5, not Pochven (region 10000070), not Zarzakh (30100000). Port `jumpRangeOf` and `isCynoTarget` from `map/jumpRange.ts`, with its tests.
+- [x] **Drawing** in `jump-range` (`#3fa9ff`, a fixed token in `design/themes.json`, to add to the desktop theme resources):
   - a soft radial glow under each system in range: reach `max(drawn radius × 3, drawn radius + 8, 9)`, alpha 0.8 at the centre, 0.45 halfway, 0 at the edge, drawn under the hunting glow
   - a 1.5 px ring at the drawn radius + 2, drawn over the systems and under the hover ring, so busy systems with an activity colour still read as in range
 - [ ] **Hover:** with the range on, the distance from the focus ("14.6 ly from Tama") and **in range**, **out of range** or **no cyno**.
-- [ ] **Without a focus** nothing is drawn, and the controls say to focus a system.
+- [x] **Without a focus** nothing is drawn, and the controls say to focus a system.
