@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Globalization;
+using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Intel.Sde;
 
 namespace NewEdenSoft.Hunters.Intel.Hunting;
@@ -14,7 +15,7 @@ public enum RuleKind
     /// <summary>A pilot flying one of the types, dying.</summary>
     Ship,
 
-    /// <summary>A pilot with one of the types fitted, dying.</summary>
+    /// <summary>A pilot with one of the types fitted (at least <see cref="ProfileRule.MinFitted"/> of them together), dying.</summary>
     Module,
 
     /// <summary>One of the types dying, with no pilot (a deployable such as a CRAB beacon).</summary>
@@ -51,6 +52,10 @@ public enum VictimSide
 /// <param name="Indicator">Indirect evidence: a sign the target was there, not the target on the killmail.</param>
 /// <param name="VictimGroups">For <see cref="RuleKind.Weapon"/>: only kills of these victims (SDE groups) count.</param>
 /// <param name="Side">For <see cref="RuleKind.Weapon"/>: whose victims count.</param>
+/// <param name="MinFitted">
+/// For <see cref="RuleKind.Module"/>: how many of the types, mixed, must be fitted together (five smart
+/// bombs make a smartbomber, one is a utility slot).
+/// </param>
 public sealed record ProfileRule(
     RuleKind Kind,
     int[]? Groups = null,
@@ -59,7 +64,8 @@ public sealed record ProfileRule(
     double Weight = 1,
     bool Indicator = false,
     int[]? VictimGroups = null,
-    VictimSide Side = VictimSide.Any);
+    VictimSide Side = VictimSide.Any,
+    int MinFitted = 1);
 
 /// <param name="Id">Stable id, stored with each sighting and used by the API.</param>
 /// <param name="KeepsFights">
@@ -86,6 +92,9 @@ public static class HuntingProfiles
 
     public const int Ishtar = 12005;
 
+    /// <summary>Smart bombs a dying ship needs fitted to count as a smartbomber.</summary>
+    public const int SmartbomberMinFitted = 5;
+
     /// <summary>Its group holds both kinds of CRAB beacon (the CONCORD and the CONCORD-Carrier one).</summary>
     public const string CrabBeacon = "CONCORD Rogue Analysis Beacon";
 
@@ -103,12 +112,13 @@ public static class HuntingProfiles
         new("fax", "Force Auxiliaries", [new(RuleKind.Ship, Groups: [ForceAuxiliary])]),
         new("marauders", "Marauders", [new(RuleKind.Ship, Groups: [Marauder])]),
         new("ishtars", "Ishtars", [new(RuleKind.Ship, Types: [Ishtar])]),
-        // Area weapons: smart bombs, and the Vorton projectors of EDENCOM ships (Thunderchild groups). A
-        // victim with one fitted, or an attacker's area weapon killing one of its own corporation or
-        // alliance: friendly fire in a group that bombs together.
+        // A victim with at least five smart bombs fitted (any mix): a ship built to bomb, not one carrying a
+        // utility smart bomb. Or an attacker's area weapon (a smart bomb, or the Vorton projector of an
+        // EDENCOM ship) killing one of its own corporation or alliance: friendly fire in a group that bombs
+        // together.
         new("smartbombers", "Smartbombers",
         [
-            new(RuleKind.Module, Groups: [SmartBomb, VortonProjector]),
+            new(RuleKind.Module, Groups: [SmartBomb], MinFitted: SmartbomberMinFitted),
             new(RuleKind.Weapon, Groups: [SmartBomb, VortonProjector], Side: VictimSide.Own),
         ]),
         new("crab", "CRAB beacons", [new(RuleKind.Victim, GroupOfType: CrabBeacon)]),
@@ -121,7 +131,15 @@ public static class HuntingProfiles
 
 /// <summary>A rule with its types resolved against the SDE; <paramref name="Victims"/> null means any victim.</summary>
 public sealed record ResolvedRule(
-    RuleKind Kind, FrozenSet<int> Types, double Weight, bool Indicator, FrozenSet<int>? Victims = null, VictimSide Side = VictimSide.Any);
+    RuleKind Kind, FrozenSet<int> Types, double Weight, bool Indicator, FrozenSet<int>? Victims = null, VictimSide Side = VictimSide.Any,
+    int MinFitted = 1)
+{
+    /// <summary>
+    /// Matching needs to know how many of each type were fitted, not only which: a kill without the counts
+    /// (<see cref="Kill.VictimFittedCounts"/>) can only be shown to match by enough distinct types.
+    /// </summary>
+    public bool NeedsCounts => Kind == RuleKind.Module && MinFitted > 1;
+}
 
 /// <summary>A profile ready to match kills, and the definition its sightings are stored under.</summary>
 public sealed record ResolvedProfile(HuntingProfile Profile, IReadOnlyList<ResolvedRule> Rules, string Definition)
@@ -171,13 +189,15 @@ public sealed record ResolvedProfile(HuntingProfile Profile, IReadOnlyList<Resol
                 victims = catalog.Types.Values.Where(t => victimGroups.Contains(t.GroupId)).Select(t => t.Id).ToFrozenSet();
             }
 
-            rules.Add(new ResolvedRule(rule.Kind, types.ToFrozenSet(), rule.Weight, rule.Indicator, victims, rule.Side));
+            rules.Add(new ResolvedRule(rule.Kind, types.ToFrozenSet(), rule.Weight, rule.Indicator, victims, rule.Side, rule.MinFitted));
         }
 
-        // What the sightings depend on: each rule's kind, weight, exact types, victims and side, whether
-        // fights are kept (it changes which sightings are marked as fleet), and how NPC losses count.
+        // What the sightings depend on: each rule's kind, weight, exact types, how many must be fitted,
+        // victims and side, whether fights are kept (it changes which sightings are marked as fleet), and
+        // how NPC losses count.
         var definition = string.Join(';', rules.Select(r =>
                 $"{r.Kind}{(r.Indicator ? "?" : "")}@{r.Weight.ToString(CultureInfo.InvariantCulture)}:{string.Join(',', r.Types.Order())}"
+                + (r.MinFitted > 1 ? $"x{r.MinFitted}" : "")
                 + (r.Victims is { } v ? $">{string.Join(',', v.Order())}" : "")
                 + (r.Side == VictimSide.Any ? "" : $">{r.Side.ToString().ToLowerInvariant()} side")))
             + (profile.KeepsFights ? ";keeps fights" : "")

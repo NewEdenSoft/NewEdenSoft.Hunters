@@ -60,6 +60,9 @@ public static class IntelHost
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AutomaticDecompression = System.Net.DecompressionMethods.All });
         services.AddSingleton<KillFeedService>();
         services.AddHostedService(sp => sp.GetRequiredService<KillFeedService>());
+        services.AddSingleton<IKillmailSource, EsiKillmailSource>();
+        services.AddSingleton<KillRefetchService>();
+        services.AddHostedService(sp => sp.GetRequiredService<KillRefetchService>());
         return services;
     }
 

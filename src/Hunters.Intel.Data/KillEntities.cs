@@ -43,6 +43,13 @@ public sealed class Kill
     /// <summary>The distinct types fitted in its low, mid and high slots, rigs and subsystems; cargo is left out.</summary>
     public int[] VictimFittedTypeIds { get; set; } = [];
 
+    /// <summary>
+    /// How many of each of <see cref="VictimFittedTypeIds"/> were fitted (one entry each; five smart bombs
+    /// of one type is 5). Empty for kills stored before the counts were kept, until they are fetched again
+    /// from ESI; 0 for a type when ESI no longer has the killmail.
+    /// </summary>
+    public int[] VictimFittedCounts { get; set; } = [];
+
     /// <summary>The number of attackers (the arrays below have one entry each).</summary>
     public int AttackerCount { get; set; }
 

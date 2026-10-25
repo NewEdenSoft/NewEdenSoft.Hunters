@@ -76,6 +76,23 @@ public sealed class KillsOptions
 
     /// <summary>zKillboard keeps files for about a day; a saved position older than this is skipped to the newest.</summary>
     public TimeSpan ResumeWithin { get; set; } = TimeSpan.FromHours(20);
+
+    public KillRefetchOptions Refetch { get; set; } = new();
+}
+
+/// <summary>Fetching stored kills again from ESI for what they didn't keep (<see cref="Kills.KillRefetchService"/>).</summary>
+public sealed class KillRefetchOptions
+{
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>ESI calls a second: slow, so a backlog drains over hours and leaves ESI's limits alone.</summary>
+    public double PerSecond { get; set; } = 1;
+
+    /// <summary>Kills picked at once (newest first) between progress logs.</summary>
+    public int BatchSize { get; set; } = 100;
+
+    /// <summary>How often to look for kills to fetch once none are left.</summary>
+    public TimeSpan IdleInterval { get; set; } = TimeSpan.FromHours(1);
 }
 
 /// <summary>Hunting profiles: which sightings are kept out of the counts as fleet fights.</summary>
