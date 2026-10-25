@@ -8,6 +8,7 @@ using NewEdenSoft.Hunters.Contracts.Activity;
 using NewEdenSoft.Hunters.Contracts.Auth;
 using NewEdenSoft.Hunters.Contracts.Discovery;
 using NewEdenSoft.Hunters.Contracts.Hunting;
+using NewEdenSoft.Hunters.Contracts.Intel;
 using NewEdenSoft.Hunters.Contracts.Map;
 
 namespace NewEdenSoft.Hunters.Client.Sessions;
@@ -100,6 +101,15 @@ public sealed class HuntersSession : ICharacterTokenProvider
     /// <summary>The server's hunting profiles: the kinds of target it finds.</summary>
     public Task<IReadOnlyList<HuntingProfileInfo>> GetHuntingProfilesAsync(CancellationToken cancellationToken = default) =>
         SendAsync<IReadOnlyList<HuntingProfileInfo>>(HttpMethod.Get, HuntingPaths.Profiles, cancellationToken: cancellationToken);
+
+    /// <summary>
+    /// What is in reach of a system: every system within <paramref name="jumps"/> gate jumps and/or every
+    /// cyno target within <paramref name="ly"/> light years, with its intel, sorted by <paramref name="profile"/>'s
+    /// "likely now" or else by <paramref name="sort"/> (<see cref="ReachSorts"/>).
+    /// </summary>
+    public Task<IntelReach> GetReachAsync(
+        int from, int? jumps, double? ly, string? profile, int limit, string sort, CancellationToken cancellationToken = default) =>
+        SendAsync<IntelReach>(HttpMethod.Get, IntelPaths.Reach(from, jumps, ly, profile, limit, sort), cancellationToken: cancellationToken);
 
     /// <summary>Where every hunting profile is seen. Revalidated like <see cref="GetActivityAsync"/>.</summary>
     public Task<Revalidated<HuntingOverview>> GetHuntingOverviewAsync(Revalidated<HuntingOverview>? previous, CancellationToken cancellationToken = default) =>

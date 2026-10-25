@@ -150,11 +150,10 @@ After login the saved overlays are restored, and the main window hides to the tr
 | `IOverlayPlatform` | Click-through and overlay window styles per OS. Windows: `WS_EX_LAYERED \| WS_EX_TRANSPARENT`, `WS_EX_TOOLWINDOW`. |
 | `TrayIconService` | The tray icon and menu. |
 
-Widgets so far: the [Map](#map) and its [Map controls](#map-controls), [Hunting](#hunting) and [Jump range](#jump-range), [Characters](#characters-widget), and placeholders for Nearby activity and Fleet, whose content arrives with the features they show.
+Widgets so far: the [Map](#map) and its [Map controls](#map-controls), [Hunting](#hunting) and [Jump range](#jump-range), [Nearby](#nearby), [Characters](#characters-widget), and a placeholder for Fleet, whose content arrives with the features they show.
 
 Widget ideas:
 
-- Nearby activity list
 - Fleet members
 - Route strip
 - Kill ticker
@@ -184,6 +183,7 @@ The **Map** widget draws known space from the server's map pack, like the [web m
 | `Widgets/Map/MapControlsWidgetViewModel.cs` | The [Map controls](#map-controls) widget. |
 | `Widgets/Map/HuntingWidgetViewModel.cs` | The [Hunting](#hunting) widget. |
 | `Widgets/Map/JumpRangeWidgetViewModel.cs` | The [Jump range](#jump-range) widget. |
+| `Widgets/Map/NearbyWidgetViewModel.cs` | The [Nearby](#nearby) widget. |
 | `Map/JumpRanges.cs` | Jump range presets, limits and formatting, like the web's `jumpRange.ts`. |
 | `Map/MapPreferences.cs` | The layout setting, saved in the desktop settings (`Map.Layout`) and chosen in Map controls or on the Settings page. CCP's 2D map is the default. |
 
@@ -221,6 +221,10 @@ Which hunting profiles the [map](#map) shows: a toggle per profile with its mark
 ## Jump range
 
 What a jump drive reaches from the focused system, like the web's Jump range panel. **Show** toggles it ("On · 8 ly"); **Range** has the presets with Jump Drive Calibration V (Black Ops 8 ly; Carrier, Dread and FAX 7; Super and Titan 6; Jump freighter and Rorqual 10), each with its range as a tooltip; **Custom** takes 0.5 to 20 ly. A line says what the blue means from the focused system, or to focus one first. Saved with the desktop settings (`Map.JumpRange`, through `MapPreferences.JumpRange`): off by default, 8 ly; a saved range out of limits falls back to 8 ly. With the range on and a system focused, the map marks each system a jump drive can land in from the focus: within the range in 3D (`MapModel.LyBetween`) and a cyno target (shown security below 0.5, not Pochven, not Zarzakh; `JumpRanges.InRange` and `IsCynoTarget`, like the web's `jumpRangeOf` and `isCynoTarget`). Each gets a soft blue glow (`jump-range` in `design/themes.json`, `Hud.JumpRangeColor`) under the hunting glow, reaching `max(drawn radius × 3, drawn radius + 8, 9)`, and a 1.5 px blue ring at the drawn radius + 2 over the systems and under the hover ring, so busy systems in an activity colour still read as in range. Without a focus nothing is drawn. Hovering a system then also tells its distance from the focus ("14.6 ly from Tama") and **in range** (in the jump range blue), **out of range** or **no cyno** (`MapJumpRangeInfo`).
+
+## Nearby
+
+What is in reach of the focused system, from the server's `GET /api/intel/reach` (`HuntersSession.GetReachAsync`), like the web's Nearby panel. Asked for while the widget is on screen, each time the focus changes. For now it lists every system within 5 gate jumps, NPC kills rising first, with its name, security and gate jumps (*no gates* when none lead there). Without a focus it says to focus a system. The settings, hiding quiet systems, the cards and refreshing come next (see [Desktop To-Do](desktop-todo.md)).
 
 ## Platform support
 
