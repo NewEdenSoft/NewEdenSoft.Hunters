@@ -1,16 +1,15 @@
 using System.ComponentModel;
 using Avalonia.Media;
-using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewEdenSoft.Hunters.Desktop.Map;
-using NewEdenSoft.Hunters.Desktop.Theming;
 
 namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 
 /// <summary>
 /// How the map is drawn: its layout, its colour filter (with the minimum NPC kills for rising and
-/// falling), the filter's legend, and the hunting profiles shown. A widget of its own, so the map keeps its space (an overlay over
+/// falling) and the filter's legend. A widget of its own, so the map keeps its space (an overlay over
 /// the game stays clear) and the controls can sit wherever suits: docked, or as an overlay of their own.
+/// The hunting profiles shown are in the Hunting widget.
 /// </summary>
 public sealed class MapControlsWidgetViewModel : WidgetViewModelBase
 {
@@ -49,16 +48,6 @@ public sealed class MapControlsWidgetViewModel : WidgetViewModelBase
     public IReadOnlyList<MapLegendItemViewModel> Legend =>
         _map.Filter?.Legend.Select(item => new MapLegendItemViewModel(item.Label, new SolidColorBrush(item.Colour))).ToList() ?? [];
 
-    /// <summary>The server's hunting profiles, each a toggle; empty when it has none.</summary>
-    public IReadOnlyList<HuntingChoiceViewModel> HuntingChoices =>
-        [.. _map.HuntingProfiles.Select(p => new HuntingChoiceViewModel(
-            p.Name, _map.StyleOf(p.Id), _map.ShownProfiles.Contains(p.Id), new RelayCommand(() => _map.ToggleHuntingProfile(p.Id))))];
-
-    public bool HasHuntingChoices => _map.HuntingProfiles.Count > 0;
-
-    /// <summary>Some profile is shown: what the glow means is explained.</summary>
-    public bool ShowsHuntingNote => _map.ShownProfiles.Count > 0;
-
     /// <summary>The map is loaded; until then the legend is empty.</summary>
     public bool IsLoaded => _map.IsLoaded;
 
@@ -83,12 +72,6 @@ public sealed class MapControlsWidgetViewModel : WidgetViewModelBase
             case nameof(MapWidgetViewModel.HasActivity):
                 OnPropertyChanged(nameof(ShownFilterChoices));
                 break;
-            case nameof(MapWidgetViewModel.HuntingProfiles):
-            case nameof(MapWidgetViewModel.ShownProfiles):
-                OnPropertyChanged(nameof(HuntingChoices));
-                OnPropertyChanged(nameof(HasHuntingChoices));
-                OnPropertyChanged(nameof(ShowsHuntingNote));
-                break;
             case nameof(MapWidgetViewModel.IsLoaded):
                 OnPropertyChanged(nameof(IsLoaded));
                 break;
@@ -97,15 +80,3 @@ public sealed class MapControlsWidgetViewModel : WidgetViewModelBase
 }
 
 public sealed record MapLegendItemViewModel(string Label, IBrush Brush);
-
-/// <summary>A hunting profile's toggle: its mark and name, highlighted while shown.</summary>
-public sealed class HuntingChoiceViewModel(string name, ProfileStyle style, bool isSelected, IRelayCommand toggle) : ObservableObject
-{
-    public string Name => name;
-
-    public ProfileStyle Style => style;
-
-    public bool IsSelected => isSelected;
-
-    public IRelayCommand ToggleCommand => toggle;
-}

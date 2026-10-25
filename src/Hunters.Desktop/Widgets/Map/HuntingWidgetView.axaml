@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
+             xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+             x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.HuntingWidgetView"
+             x:DataType="mw:HuntingWidgetViewModel">
+  <ScrollViewer>
+  <StackPanel Spacing="12" Margin="12">
+    <TextBlock Classes="muted" FontSize="13" TextWrapping="Wrap" IsVisible="{Binding !HasChoices}"
+               Text="This server has no hunting profiles yet." />
+    <StackPanel Spacing="12" IsVisible="{Binding HasChoices}">
+      <ItemsControl ItemsSource="{Binding Choices}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="4" LineSpacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="mw:HuntingChoiceViewModel">
+            <Button Classes="hud toggle" Classes.primary="{Binding IsSelected}" Classes.ghost="{Binding !IsSelected}"
+                    Command="{Binding ToggleCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <c:ProfileMark Profile="{Binding Style}" FontSize="11" />
+                <TextBlock Text="{Binding Name, Converter={x:Static w:UpperCaseConverter.Instance}}" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="{Binding Hint}" />
+    </StackPanel>
+  </StackPanel>
+  </ScrollViewer>
+</UserControl>
