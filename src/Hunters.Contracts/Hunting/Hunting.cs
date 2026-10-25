@@ -36,6 +36,10 @@ public sealed record HuntingPlace(int Id, long Version, DateTimeOffset UpdatedAt
 /// counts 1.5 times.
 /// </param>
 /// <param name="LocalPilots">The part of <paramref name="Pilots"/> seen as locals.</param>
+/// <param name="Regulars">
+/// For a system, the pilots with a routine there (tight windows first, then the most days); empty for a
+/// region.
+/// </param>
 public sealed record HuntingPlaceProfile(
     string Profile,
     string Name,
@@ -47,7 +51,26 @@ public sealed record HuntingPlaceProfile(
     DateTimeOffset LastSeen,
     IReadOnlyList<double> Hours,
     double MonthLocal = 0,
-    int LocalPilots = 0);
+    int LocalPilots = 0,
+    IReadOnlyList<HuntingRegular>? Regulars = null);
+
+/// <summary>
+/// A pilot seen in a system on different days at about the same time of day, over the last 30 days: a
+/// routine, likely to be back in that window.
+/// </summary>
+/// <param name="Days">Different days (UTC) seen there.</param>
+/// <param name="DaysInWindow">The days seen inside the window.</param>
+/// <param name="WindowStart">The window's first hour of the day (UTC); it may run past midnight.</param>
+/// <param name="WindowHours">4 for a play session's window, 6 for the extended one.</param>
+/// <param name="Local">Seen as a local (in its own alliance's sovereignty) at least once.</param>
+public sealed record HuntingRegular(
+    long PilotId,
+    int Days,
+    int DaysInWindow,
+    int WindowStart,
+    int WindowHours,
+    DateTimeOffset LastSeen,
+    bool Local);
 
 public static class HuntingPaths
 {

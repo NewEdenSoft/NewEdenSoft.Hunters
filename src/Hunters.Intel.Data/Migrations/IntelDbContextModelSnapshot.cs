@@ -159,6 +159,41 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.ToTable("HuntingRegionStats", "intel");
                 });
 
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.HuntingSystemRegular", b =>
+                {
+                    b.Property<string>("Profile")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("SystemId")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("PilotId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Days")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DaysInWindow")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("LastSeen")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Local")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("WindowHours")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WindowStart")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Profile", "SystemId", "PilotId");
+
+                    b.ToTable("HuntingRegulars", "intel");
+                });
+
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.HuntingSystemStats", b =>
                 {
                     b.Property<string>("Profile")

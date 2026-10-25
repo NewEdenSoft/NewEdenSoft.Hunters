@@ -146,6 +146,37 @@ public sealed class HuntingSystemStats
     public double[] Hours { get; set; } = [];
 }
 
+/// <summary>
+/// A pilot seen in a system on different days at about the same time of day (docs/map-and-activity.md,
+/// "Regulars"): someone with a routine there, likely back at that time. From the sightings of the last 30
+/// days that count; recomputed with the aggregates.
+/// </summary>
+public sealed class HuntingSystemRegular
+{
+    public string Profile { get; set; } = "";
+
+    public int SystemId { get; set; }
+
+    public long PilotId { get; set; }
+
+    /// <summary>Different days (UTC) the pilot was seen there.</summary>
+    public int Days { get; set; }
+
+    /// <summary>The days with a sighting inside the window, at least two.</summary>
+    public int DaysInWindow { get; set; }
+
+    /// <summary>The window's first hour of the day (UTC); it may run past midnight.</summary>
+    public int WindowStart { get; set; }
+
+    /// <summary>The window's length: the tight one (4 hours, a play session) when it holds, else the extended one (6).</summary>
+    public int WindowHours { get; set; }
+
+    public DateTimeOffset LastSeen { get; set; }
+
+    /// <summary>Seen as a local (<see cref="Sighting.Local"/>) at least once.</summary>
+    public bool Local { get; set; }
+}
+
 /// <summary>The same as <see cref="HuntingSystemStats"/>, for a region's systems together.</summary>
 public sealed class HuntingRegionStats
 {

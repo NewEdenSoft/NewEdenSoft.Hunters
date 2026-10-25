@@ -46,6 +46,24 @@ export interface HuntingPlaceProfile {
   monthLocal: number
   /** The part of `pilots` seen as locals. */
   localPilots: number
+  /** For a system, the pilots with a routine there (tight windows first); empty for a region. */
+  regulars: HuntingRegular[]
+}
+
+/** A pilot seen in a system on different days at about the same time of day, over the last 30 days. */
+export interface HuntingRegular {
+  pilotId: number
+  /** Different days (UTC) seen there. */
+  days: number
+  /** The days seen inside the window. */
+  daysInWindow: number
+  /** The window's first hour of the day (UTC); it may run past midnight. */
+  windowStart: number
+  /** 4 for a play session's window, 6 for the extended one. */
+  windowHours: number
+  lastSeen: string
+  /** Seen as a local (in its own alliance's sovereignty) at least once. */
+  local: boolean
 }
 
 /** The profiles seen in one system, highest score first; empty when none were. */

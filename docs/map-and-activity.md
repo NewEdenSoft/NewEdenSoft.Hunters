@@ -178,6 +178,15 @@ The intel service's `SovereigntyService` (`src/Hunters.Intel/Sovereignty`) reads
 - **When:** at startup, then whenever new sightings arrive (the kill reader and the profile service signal it), at most every `Hunters:Hunting:UpdateInterval` (5 minutes), and at least hourly so the windows and the decay move on.
 - **Readers:** each recompute bumps the `hunting` row of `intel.Versions`, in the same transaction.
 
+#### Regulars
+
+A pilot seen in a system on **different days at about the same time of day** has a routine there and is likely back in that window. Regulars are recomputed with the aggregates, in the same transaction, into `intel.HuntingRegulars` (per profile, system and pilot). They come from the sightings of the last 30 days that have a pilot and are not fleet fights.
+
+- **Windows:** each of the 24 start hours (UTC) is tried for a **session window** of `Hunters:Hunting:RegularWindowHours` (4, a typical play session) and an **extended** one of `RegularExtendedWindowHours` (6). Both may run past midnight.
+- **Regular:** a pilot is a regular when a window holds sightings on at least `RegularMinDays` (2) different days. Two sightings on one day are not a routine.
+- **Which window:** the session window wins when it holds; otherwise the extended one. Among those, the one with the most days wins, then one starting at an hour the pilot was seen (the window reads "from when they show up"), then the earliest.
+- **Columns:** `Days` (different days seen), `DaysInWindow`, `WindowStart`, `WindowHours`, `LastSeen`, and `Local` (seen as a local at least once).
+
 ### Serving hunting
 
 The API server's `HuntingService` (`src/Hunters.Server/Features/Hunting`) follows the `hunting` version like activity (every `Hunters:Activity:PollInterval`) and loads the stats tables and profile names into memory in one repeatable-read snapshot: a few thousand small rows, about 1–2 MB. Until the intel service has computed its first aggregates, the endpoints answer 503 (`hunting_unavailable`) and the discovery document doesn't list the `hunting` feature. All need a session (D19).
@@ -186,8 +195,8 @@ The API server's `HuntingService` (`src/Hunters.Server/Features/Hunting`) follow
 |---|---|
 | `GET /api/hunting/profiles` | the profiles: `id`, `name` |
 | `GET /api/hunting/overview` | every profile, **sparse**: only systems with sightings, highest score first, as columns: `systemIds`, `score`, `week`, `month`, `lastSeen`, and `hours` (24 per system). Built once per version and served precompressed. For colouring the map by a profile. |
-| `GET /api/hunting/systems/{id}` | the profiles seen in a system, highest score first, each with `score`, `week`, `month`, `monthIndicator` (indirect evidence), `pilots`, `monthLocal` and `localPilots` (locals), `lastSeen` and `hours`. Empty when none were; 404 for systems not on the map. |
-| `GET /api/hunting/regions/{id}` | the same for a region |
+| `GET /api/hunting/systems/{id}` | the profiles seen in a system, highest score first, each with `score`, `week`, `month`, `monthIndicator` (indirect evidence), `pilots`, `monthLocal` and `localPilots` (locals), `lastSeen`, `hours`, and `regulars`: up to 10 per profile, session windows first, then the most days in the window (`pilotId`, `days`, `daysInWindow`, `windowStart`, `windowHours`, `lastSeen`, `local`). Empty when none were; 404 for systems not on the map. |
+| `GET /api/hunting/regions/{id}` | the same for a region, without regulars (an empty list) |
 
 Responses carry an ETag from the version (304 when it still matches) and `max-age` of a minute. "Likely now" and "peak now" for a profile are worked out by the client from `hours` and the current hour: the share of the current hour, or the current hour's weight ÷ the busiest hour's.
 

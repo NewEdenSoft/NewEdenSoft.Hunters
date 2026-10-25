@@ -48,6 +48,8 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
 
     public DbSet<HuntingRegionStats> HuntingRegionStats => Set<HuntingRegionStats>();
 
+    public DbSet<HuntingSystemRegular> HuntingRegulars => Set<HuntingSystemRegular>();
+
     /// <summary>Keeps this context's migration history in its own schema, apart from the API server's.</summary>
     public static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>
         npgsql.MigrationsHistoryTable("__EFMigrationsHistory", Schema);
@@ -135,6 +137,11 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
         {
             e.HasKey(s => new { s.Profile, s.RegionId });
             e.Property(s => s.Profile).HasMaxLength(32);
+        });
+        model.Entity<HuntingSystemRegular>(e =>
+        {
+            e.HasKey(r => new { r.Profile, r.SystemId, r.PilotId });
+            e.Property(r => r.Profile).HasMaxLength(32);
         });
     }
 
