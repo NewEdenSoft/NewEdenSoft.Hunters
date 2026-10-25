@@ -144,6 +144,12 @@ public sealed class HuntingSystemStats
 
     /// <summary>Weighted sightings per hour of the day (UTC), 24 entries, over all kept sightings: when it is there.</summary>
     public double[] Hours { get; set; } = [];
+
+    /// <summary>
+    /// Per hour of the day (UTC), 24 entries: the strength of the regulars (<see cref="HuntingSystemRegular"/>)
+    /// whose window covers it. High at an hour when someone reliably is there: a target worth landing on now.
+    /// </summary>
+    public double[] Reliable { get; set; } = [];
 }
 
 /// <summary>
@@ -175,6 +181,12 @@ public sealed class HuntingSystemRegular
 
     /// <summary>Seen as a local (<see cref="Sighting.Local"/>) at least once.</summary>
     public bool Local { get; set; }
+
+    /// <summary>
+    /// How reliable the routine is: the days in the window, each fading with the score's half-life (14
+    /// days) from its latest sighting there, at half for an extended window.
+    /// </summary>
+    public double Strength { get; set; }
 }
 
 /// <summary>The same as <see cref="HuntingSystemStats"/>, for a region's systems together.</summary>

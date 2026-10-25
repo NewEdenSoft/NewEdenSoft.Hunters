@@ -186,6 +186,9 @@ A pilot seen in a system on **different days at about the same time of day** has
 - **Regular:** a pilot is a regular when a window holds sightings on at least `RegularMinDays` (2) different days. Two sightings on one day are not a routine.
 - **Which window:** the session window wins when it holds; otherwise the extended one. Among those, the one with the most days wins, then one starting at an hour the pilot was seen (the window reads "from when they show up"), then the earliest.
 - **Columns:** `Days` (different days seen), `DaysInWindow`, `WindowStart`, `WindowHours`, `LastSeen`, and `Local` (seen as a local at least once).
+- **Strength:** how reliable the routine is. It is the days in the window, each fading with the score's half-life (14 days) from its latest sighting there. A regular that only the extended window holds counts `RegularExtendedWeight` (0.5), weaker evidence than a session. Six days this week is a strong routine; two days a month ago hardly one.
+
+**Reliable now:** every system row of `intel.HuntingSystemStats` gets a `Reliable` curve: per hour of the day (UTC), the strength of its regulars whose window covers that hour (zeros without regulars). A system is a reliable target at an hour when someone is reliably there then, which is what the map lights up for the current hour.
 
 ### Serving hunting
 
@@ -194,9 +197,9 @@ The API server's `HuntingService` (`src/Hunters.Server/Features/Hunting`) follow
 | Endpoint | Returns |
 |---|---|
 | `GET /api/hunting/profiles` | the profiles: `id`, `name` |
-| `GET /api/hunting/overview` | every profile, **sparse**: only systems with sightings, highest score first, as columns: `systemIds`, `score`, `week`, `month`, `lastSeen`, and `hours` (24 per system). Built once per version and served precompressed. For colouring the map by a profile. |
-| `GET /api/hunting/systems/{id}` | the profiles seen in a system, highest score first, each with `score`, `week`, `month`, `monthIndicator` (indirect evidence), `pilots`, `monthLocal` and `localPilots` (locals), `lastSeen`, `hours`, and `regulars`: up to 10 per profile, session windows first, then the most days in the window (`pilotId`, `days`, `daysInWindow`, `windowStart`, `windowHours`, `lastSeen`, `local`). Empty when none were; 404 for systems not on the map. |
-| `GET /api/hunting/regions/{id}` | the same for a region, without regulars (an empty list) |
+| `GET /api/hunting/overview` | every profile, **sparse**: only systems with sightings, highest score first, as columns: `systemIds`, `score`, `week`, `month`, `lastSeen`, `hours` (24 per system), and `reliable` (24 per system, empty for systems never recomputed with it). Built once per version and served precompressed. For colouring the map by a profile. |
+| `GET /api/hunting/systems/{id}` | the profiles seen in a system, highest score first, each with `score`, `week`, `month`, `monthIndicator` (indirect evidence), `pilots`, `monthLocal` and `localPilots` (locals), `lastSeen`, `hours`, `reliable` (24 by hour), and `regulars`: up to 10 per profile, session windows first, then the strongest (`pilotId`, `days`, `daysInWindow`, `windowStart`, `windowHours`, `lastSeen`, `local`, `strength`). Empty when none were; 404 for systems not on the map. |
+| `GET /api/hunting/regions/{id}` | the same for a region, without regulars or `reliable` (empty lists) |
 
 Responses carry an ETag from the version (304 when it still matches) and `max-age` of a minute. "Likely now" and "peak now" for a profile are worked out by the client from `hours` and the current hour: the share of the current hour, or the current hour's weight ÷ the busiest hour's.
 

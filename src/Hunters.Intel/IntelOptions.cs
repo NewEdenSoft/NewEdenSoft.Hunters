@@ -120,6 +120,9 @@ public sealed class HuntingOptions
 
     /// <summary>Different days inside the window that make a pilot a regular.</summary>
     public int RegularMinDays { get; set; } = 2;
+
+    /// <summary>A regular only the extended window holds counts this much: weaker evidence than a session's.</summary>
+    public double RegularExtendedWeight { get; set; } = 0.5;
 }
 
 public sealed class EsiOptions

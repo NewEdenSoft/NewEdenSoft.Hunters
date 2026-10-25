@@ -89,6 +89,41 @@ public sealed class HuntingAggregatorTests(IntelDatabase database) : IAsyncLifet
             ],
             regulars.Select(r => (r.Profile, r.PilotId, r.Days, r.DaysInWindow, r.WindowStart, r.WindowHours, r.LastSeen, r.Local)));
         Assert.All(regulars, r => Assert.Equal(FakeSde.Jita, r.SystemId));
+
+        // Strength: each day in the window, fading from its latest sighting there; the extended window at half.
+        var night = Fade(Now - At(22, 22)) + Fade(Now - At(20, 23)) + Fade(Now - At(18, 1));
+        var afternoon = 0.5 * (Fade(Now - At(20, 14)) + Fade(Now - At(21, 19)));
+        var morning = Fade(Now - At(21, 10)) + Fade(Now - At(22, 11));
+        Assert.Equal([night, afternoon, morning], regulars.Select(r => r.Strength), new DoubleComparer(9));
+
+        // Reliable: per hour of the day, the regulars whose window covers it.
+        var carriers = await db.HuntingSystemStats.SingleAsync(s => s.Profile == "carriers" && s.SystemId == FakeSde.Jita);
+        var expected = new double[24];
+        foreach (var hour in new[] { 22, 23, 0, 1 })
+            expected[hour] = night;
+        for (var hour = 14; hour < 20; hour++)
+            expected[hour] = afternoon;
+        Assert.Equal(expected, carriers.Reliable, new DoubleComparer(9));
+        var ishtars = await db.HuntingSystemStats.SingleAsync(s => s.Profile == "ishtars");
+        Assert.Equal([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, morning, morning, morning, morning, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ishtars.Reliable, new DoubleComparer(9));
+    }
+
+    [Fact]
+    public async Task A_system_without_regulars_is_reliable_at_no_hour()
+    {
+        await SeedAsync(Seen("carriers", Now.AddDays(-1), pilot: 1));
+
+        await UpdateAsync();
+
+        await using var db = Db();
+        Assert.Equal(new double[24], (await db.HuntingSystemStats.SingleAsync()).Reliable);
+    }
+
+    private sealed class DoubleComparer(int precision) : IEqualityComparer<double>
+    {
+        public bool Equals(double x, double y) => Math.Round(x - y, precision) == 0;
+
+        public int GetHashCode(double obj) => 0;
     }
 
     [Fact]

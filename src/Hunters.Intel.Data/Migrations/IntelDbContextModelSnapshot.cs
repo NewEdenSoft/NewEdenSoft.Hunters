@@ -183,6 +183,9 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.Property<bool>("Local")
                         .HasColumnType("boolean");
 
+                    b.Property<double>("Strength")
+                        .HasColumnType("double precision");
+
                     b.Property<int>("WindowHours")
                         .HasColumnType("integer");
 
@@ -224,6 +227,10 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
 
                     b.Property<int>("Pilots")
                         .HasColumnType("integer");
+
+                    b.PrimitiveCollection<double[]>("Reliable")
+                        .IsRequired()
+                        .HasColumnType("double precision[]");
 
                     b.Property<double>("Score")
                         .HasColumnType("double precision");

@@ -11,6 +11,14 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<double[]>(
+                name: "Reliable",
+                schema: "intel",
+                table: "HuntingSystemStats",
+                type: "double precision[]",
+                nullable: false,
+                defaultValue: new double[0]);
+
             migrationBuilder.CreateTable(
                 name: "HuntingRegulars",
                 schema: "intel",
@@ -24,7 +32,8 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     WindowStart = table.Column<int>(type: "integer", nullable: false),
                     WindowHours = table.Column<int>(type: "integer", nullable: false),
                     LastSeen = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    Local = table.Column<bool>(type: "boolean", nullable: false)
+                    Local = table.Column<bool>(type: "boolean", nullable: false),
+                    Strength = table.Column<double>(type: "double precision", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -38,6 +47,11 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
             migrationBuilder.DropTable(
                 name: "HuntingRegulars",
                 schema: "intel");
+
+            migrationBuilder.DropColumn(
+                name: "Reliable",
+                schema: "intel",
+                table: "HuntingSystemStats");
         }
     }
 }

@@ -24,13 +24,13 @@ public sealed class HuntingSnapshot
 
         var regularsOf = (regulars ?? []).GroupBy(r => (r.Profile, r.SystemId)).ToDictionary(g => g.Key, g => (IReadOnlyList<HuntingRegular>)
         [
-            .. g.OrderBy(r => r.WindowHours).ThenByDescending(r => r.DaysInWindow).ThenByDescending(r => r.LastSeen).ThenBy(r => r.PilotId)
+            .. g.OrderBy(r => r.WindowHours).ThenByDescending(r => r.Strength).ThenBy(r => r.PilotId)
                 .Take(RegularsListed)
-                .Select(r => new HuntingRegular(r.PilotId, r.Days, r.DaysInWindow, r.WindowStart, r.WindowHours, r.LastSeen, r.Local)),
+                .Select(r => new HuntingRegular(r.PilotId, r.Days, r.DaysInWindow, r.WindowStart, r.WindowHours, r.LastSeen, r.Local, Round(r.Strength))),
         ]);
         Systems = systems.GroupBy(s => s.SystemId).ToDictionary(g => g.Key, g => Place(g.Select(s =>
-            Row(s.Profile, s.Score, s.Week, s.Month, s.MonthIndicator, s.Pilots, s.LastSeen, s.Hours, s.MonthLocal, s.LocalPilots, regularsOf.GetValueOrDefault((s.Profile, s.SystemId)) ?? []))));
-        Regions = regions.GroupBy(r => r.RegionId).ToDictionary(g => g.Key, g => Place(g.Select(r => Row(r.Profile, r.Score, r.Week, r.Month, r.MonthIndicator, r.Pilots, r.LastSeen, r.Hours, r.MonthLocal, r.LocalPilots, []))));
+            Row(s.Profile, s.Score, s.Week, s.Month, s.MonthIndicator, s.Pilots, s.LastSeen, s.Hours, s.MonthLocal, s.LocalPilots, regularsOf.GetValueOrDefault((s.Profile, s.SystemId)) ?? [], s.Reliable))));
+        Regions = regions.GroupBy(r => r.RegionId).ToDictionary(g => g.Key, g => Place(g.Select(r => Row(r.Profile, r.Score, r.Week, r.Month, r.MonthIndicator, r.Pilots, r.LastSeen, r.Hours, r.MonthLocal, r.LocalPilots, [], []))));
 
         // Profiles the states don't list any more are left out.
         Overview = PrecompressedJson.Create(new HuntingOverview(version, updatedAt, [
@@ -44,7 +44,8 @@ public sealed class HuntingSnapshot
                     [.. rows.Select(s => Round(s.Week))],
                     [.. rows.Select(s => Round(s.Month))],
                     [.. rows.Select(s => s.LastSeen)],
-                    [.. rows.Select(s => (IReadOnlyList<double>)[.. s.Hours.Select(Round)])]);
+                    [.. rows.Select(s => (IReadOnlyList<double>)[.. s.Hours.Select(Round)])],
+                    [.. rows.Select(s => (IReadOnlyList<double>)[.. s.Reliable.Select(Round)])]);
             }),
         ]));
 
@@ -53,10 +54,10 @@ public sealed class HuntingSnapshot
 
         HuntingPlaceProfile? Row(
             string profile, double score, double week, double month, double indicator, int pilots, DateTimeOffset lastSeen, double[] hours,
-            double monthLocal, int localPilots, IReadOnlyList<HuntingRegular> regulars) =>
+            double monthLocal, int localPilots, IReadOnlyList<HuntingRegular> regulars, double[] reliable) =>
             names.TryGetValue(profile, out var name)
                 ? new HuntingPlaceProfile(profile, name, Round(score), Round(week), Round(month), Round(indicator), pilots, lastSeen, [.. hours.Select(Round)],
-                    Round(monthLocal), localPilots, regulars)
+                    Round(monthLocal), localPilots, regulars, [.. reliable.Select(Round)])
                 : null;
     }
 
