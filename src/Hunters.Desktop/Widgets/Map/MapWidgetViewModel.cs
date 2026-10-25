@@ -129,6 +129,9 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
             if (e.PropertyName == nameof(MapPreferences.Layout))
                 OnPropertyChanged(nameof(Layout));
+
+            if (e.PropertyName == nameof(MapPreferences.JumpRange))
+                RebuildJumpRange();
         };
     }
 
@@ -144,6 +147,23 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FocusedSystem), nameof(IsSelectionFocused))]
     public partial int? FocusedSystemId { get; private set; }
+
+    /// <summary>
+    /// Per system, whether a jump drive reaches it from the focused system (<see cref="JumpRanges.InRange"/>):
+    /// drawn in blue. Null while the jump range is off or nothing is focused.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool[]? JumpRange { get; private set; }
+
+    partial void OnFocusedSystemIdChanged(int? value) => RebuildJumpRange();
+
+    private void RebuildJumpRange()
+    {
+        var setting = _preferences.JumpRange;
+        JumpRange = setting.Enabled && Model is { } model && FocusedSystemId is { } id && model.IndexOf.TryGetValue(id, out var origin)
+            ? JumpRanges.InRange(model, origin, setting.Ly)
+            : null;
+    }
 
     /// <summary>The focused system's name, security and region, shown in the search box; null when none is focused.</summary>
     public MapSystemInfo? FocusedSystem =>
@@ -473,6 +493,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         Search.SetModel(value);
         OnPropertyChanged(nameof(FocusedSystem));
         OnPropertyChanged(nameof(SelectedSystem));
+        RebuildJumpRange();
         RebuildHunting();
     }
 
