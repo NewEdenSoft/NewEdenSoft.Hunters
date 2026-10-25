@@ -355,6 +355,9 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             Characters = here.Count == 0 ? null : string.Join(", ", here),
             NpcKills = MapFilters.ActivityFor(model, Activity) is { } activity ? MapNpcKillsInfo.Create(activity.NpcKills, i) : null,
             Profiles = _profilesAt?.GetValueOrDefault(i),
+            JumpRange = JumpRange is { } inRange && FocusedSystemId is { } focused && model.IndexOf.TryGetValue(focused, out var origin) && origin != i
+                ? MapJumpRangeInfo.Create(model, origin, i, inRange)
+                : null,
         };
     }
 
@@ -645,6 +648,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 /// <param name="Characters">The account's tracked characters in the system, or null.</param>
 /// <param name="NpcKills">NPC kills in the last hour and how they compare; null without activity data.</param>
 /// <param name="Profiles">The shown hunting profiles seen in the system, likely now first; null when none.</param>
+/// <param name="JumpRange">How far the system is from the focused one, with the jump range on; null otherwise.</param>
 public sealed record MapSystemInfo(
     int Index,
     string Name,
@@ -653,7 +657,25 @@ public sealed record MapSystemInfo(
     string Region,
     string? Characters,
     MapNpcKillsInfo? NpcKills = null,
-    IReadOnlyList<PlaceProfile>? Profiles = null);
+    IReadOnlyList<PlaceProfile>? Profiles = null,
+    MapJumpRangeInfo? JumpRange = null);
+
+/// <summary>
+/// The hover panel's jump range line: the distance from the focused system ("14.6 ly from Tama"), and
+/// whether a jump drive lands there: in range, out of range, or no cyno (high-sec, Pochven, Zarzakh).
+/// </summary>
+public sealed record MapJumpRangeInfo(string Distance, string Origin, string Status, bool IsInRange)
+{
+    public string FromText => $"from {Origin}";
+
+    /// <param name="inRange">Per system, whether it is in jump range of <paramref name="origin"/> (<see cref="JumpRanges.InRange"/>).</param>
+    public static MapJumpRangeInfo Create(MapModel model, int origin, int index, bool[] inRange)
+    {
+        var ly = Math.Round(model.LyBetween(origin, index), 2);
+        var status = inRange[index] ? "in range" : !JumpRanges.IsCynoTarget(model, index) ? "no cyno" : "out of range";
+        return new MapJumpRangeInfo(JumpRanges.FormatLy(ly), model.Names[origin], status, inRange[index]);
+    }
+}
 
 /// <summary>
 /// The hover panel's NPC line: kills in the last hour, the change from the hour before, the usual for

@@ -56,5 +56,5 @@ See [Jump range](web-client.md#map).
 - [x] **Drawing** in `jump-range` (`#3fa9ff`, a fixed token in `design/themes.json`, to add to the desktop theme resources):
   - a soft radial glow under each system in range: reach `max(drawn radius × 3, drawn radius + 8, 9)`, alpha 0.8 at the centre, 0.45 halfway, 0 at the edge, drawn under the hunting glow
   - a 1.5 px ring at the drawn radius + 2, drawn over the systems and under the hover ring, so busy systems with an activity colour still read as in range
-- [ ] **Hover:** with the range on, the distance from the focus ("14.6 ly from Tama") and **in range**, **out of range** or **no cyno**.
+- [x] **Hover:** with the range on, the distance from the focus ("14.6 ly from Tama") and **in range**, **out of range** or **no cyno**.
 - [x] **Without a focus** nothing is drawn, and the controls say to focus a system.
