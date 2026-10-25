@@ -42,6 +42,8 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
 
     public DbSet<HuntingRebuildRequest> HuntingRebuildRequests => Set<HuntingRebuildRequest>();
 
+    public DbSet<SystemSovereignty> SystemSovereignty => Set<SystemSovereignty>();
+
     public DbSet<HuntingSystemStats> HuntingSystemStats => Set<HuntingSystemStats>();
 
     public DbSet<HuntingRegionStats> HuntingRegionStats => Set<HuntingRegionStats>();
@@ -112,6 +114,12 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
             e.Property(p => p.Profile).HasMaxLength(32);
             e.Property(p => p.Name).HasMaxLength(64);
         });
+        model.Entity<SystemSovereignty>(e =>
+        {
+            e.HasKey(s => s.SystemId);
+            e.Property(s => s.SystemId).ValueGeneratedNever();
+        });
+
         // Few rows (one per admin request); the open ones are found by CompletedAt.
         model.Entity<HuntingRebuildRequest>(e =>
         {

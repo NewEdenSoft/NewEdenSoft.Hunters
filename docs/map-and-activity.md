@@ -126,6 +126,11 @@ A hunting profile is a kind of target: where it is seen, and when, is built up f
 
 - **Pilots** are seen as the victim, or, for a weapon rule, as the attacker; attackers without a character (NPCs) are not.
 - **Losses to NPCs count double** (`HuntingProfiles.NpcLossWeight`): a pilot killed by NPCs only (zKillboard's `npc`) died ratting there, the strongest sign it comes back. Pilotless victims (CRAB beacons) count as they are.
+- **Locals count 1.5 times** (`HuntingProfiles.LocalWeight`, stacking with an NPC loss), and their sightings are flagged `Local`: whoever is seen belongs to the alliance that holds the system's sovereignty ([Sovereignty](#sovereignty)).
+  - **Whoever is seen:** the victim, a CRAB beacon's owner (the victim on the killmail), or the attacker for a weapon rule.
+  - **Held at the time of the kill:** a kill from before the claim's `ClaimedSince` is not local, since who held the system then is not known.
+  - **Rebuilds:** a backfill uses the current map with that rule, so older sightings are only local when the same alliance still holds the system.
+  - **First start:** the profiles wait for the first map (from the database, or ESI on the very first start) before they are built.
 - **Rule kinds:** a dying pilot's **ship**; a **module** fitted on the dying ship, optionally only when at least a number of the rule's types are fitted together (smart bombs: five). Without the counts, each distinct type counts once, the fewest there could have been; a pilotless **victim** type (a deployable); an attacker's **weapon**, optionally only on given victims (smart bombs on capsules) and only on its **own side** (the victim in the attacker's corporation or alliance) or the **other side**. A kill whose attackers' corporations aren't known is not the attacker's own side.
 - **Indicators** are indirect evidence with a weight below 1. Anchoring a CRAB beacon is mostly a capital ratting habit, so a beacon killed shows a capital ratted there even when no capital is on any killmail. Indicator sightings have no pilot, are flagged as indicators, and add their weight, so direct and indirect evidence combine but can still be told apart.
 - **Resolving:** each rule's groups, types and type names are resolved against the SDE catalogue to a set of type ids, which is all matching looks at. What can't be found is logged as a warning and left out.
@@ -147,6 +152,14 @@ Every kill the feed stores is matched as it arrives, into **`intel.Sightings`**:
 - **Pickup:** the profile service looks for open requests every 30 seconds. It clears the stored definition of the profiles they name (all, for a request naming none), so the same backfill rebuilds them. Several open requests are carried out together.
 - **Done or retried:** a request is marked completed once the rebuild succeeds. A failure backs off and tries again, with the last error noted on the request. Sightings expire with their kills. The states also hold each profile's display name, which readers list the profiles from.
 
+### Sovereignty
+
+The intel service's `SovereigntyService` (`src/Hunters.Intel/Sovereignty`) reads ESI's `GET /sovereignty/systems` and keeps the systems an **alliance** holds in `intel.SystemSovereignty`: the alliance, the corporation holding the claim, and `ClaimedSince`. Systems held by an NPC faction, or by nobody, have no row.
+
+- **When:** at startup the stored map is published at once, so matching doesn't wait for ESI. ESI's list then replaces it whenever ESI has a new one (its `Expires`, hourly).
+- **Failures:** they back off like the other collectors and keep the last map.
+- **Use:** it tells a local from a passer-by in the [hunting profiles](#hunting-profiles).
+
 ### Hunting aggregates
 
 `HuntingAggregator` turns the sightings into **where** and **when** per profile, in `intel.HuntingSystemStats` (per profile and system) and `intel.HuntingRegionStats` (per profile and region, through the SDE catalogue; systems it doesn't know count only for themselves). Fleet sightings don't count; indicators count at their weight.
@@ -158,6 +171,7 @@ Every kill the feed stores is matched as it arrives, into **`intel.Sightings`**:
 | `Score` | every kept sighting, its weight halving every `Hunters:Hunting:ScoreHalfLife` (14 days): recent habits count most |
 | `LastSeen` | the latest sighting that counts |
 | `Pilots` | different pilots in the last 30 days |
+| `MonthLocal`, `LocalPilots` | the parts of `Month` and `Pilots` from locals |
 | `Hours` | weighted sightings per hour of the day (UTC), 24 entries, over all kept sightings |
 
 - **How:** sightings are few (about one kill in five has one), so the tables are recomputed from them in SQL, one statement per table, rather than kept up incrementally. That's always right, including after a backfill or when a battle marks earlier sightings as fleet. At 90 days (about 650,000 sightings) a recompute takes about 1.5 seconds, all in Postgres.
@@ -172,7 +186,7 @@ The API server's `HuntingService` (`src/Hunters.Server/Features/Hunting`) follow
 |---|---|
 | `GET /api/hunting/profiles` | the profiles: `id`, `name` |
 | `GET /api/hunting/overview` | every profile, **sparse**: only systems with sightings, highest score first, as columns: `systemIds`, `score`, `week`, `month`, `lastSeen`, and `hours` (24 per system). Built once per version and served precompressed. For colouring the map by a profile. |
-| `GET /api/hunting/systems/{id}` | the profiles seen in a system, highest score first, each with `score`, `week`, `month`, `monthIndicator` (indirect evidence), `pilots`, `lastSeen` and `hours`. Empty when none were; 404 for systems not on the map. |
+| `GET /api/hunting/systems/{id}` | the profiles seen in a system, highest score first, each with `score`, `week`, `month`, `monthIndicator` (indirect evidence), `pilots`, `monthLocal` and `localPilots` (locals), `lastSeen` and `hours`. Empty when none were; 404 for systems not on the map. |
 | `GET /api/hunting/regions/{id}` | the same for a region |
 
 Responses carry an ETag from the version (304 when it still matches) and `max-age` of a minute. "Likely now" and "peak now" for a profile are worked out by the client from `hours` and the current hour: the share of the current hour, or the current hour's weight ÷ the busiest hour's.

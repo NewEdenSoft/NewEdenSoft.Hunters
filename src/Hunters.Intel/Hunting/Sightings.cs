@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NewEdenSoft.Hunters.Intel.Data;
+using NewEdenSoft.Hunters.Intel.Sovereignty;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -11,18 +12,25 @@ public static class SightingMatcher
     /// <summary>
     /// The sightings on one kill: per profile, the victim by its ship or fitted modules, pilotless victims
     /// such as CRAB beacons, and attackers by their weapon where a rule asks for it. A victim killed by
-    /// NPCs only counts <see cref="HuntingProfiles.NpcLossWeight"/> times. A pilot or victim matched by
+    /// NPCs only counts <see cref="HuntingProfiles.NpcLossWeight"/> times, and one seen in its own
+    /// alliance's sovereignty <see cref="HuntingProfiles.LocalWeight"/> times. A pilot or victim matched by
     /// several rules is seen once, with the strongest evidence.
     /// </summary>
     /// <param name="fleetAttackers">More attackers than this marks the kill's sightings as a fleet fight.</param>
-    public static List<Sighting> Match(Kill kill, IEnumerable<ResolvedProfile> profiles, int fleetAttackers)
+    /// <param name="sovereignty">Who holds which system; without it, nobody is local.</param>
+    public static List<Sighting> Match(Kill kill, IEnumerable<ResolvedProfile> profiles, int fleetAttackers, SovereigntyMap? sovereignty = null)
     {
         var found = new Dictionary<(string Profile, long Pilot), Sighting>();
+        sovereignty ??= SovereigntyMap.Empty;
 
-        void See(ResolvedProfile profile, ResolvedRule rule, long pilot, SightingRole role, int type)
+        // The alliance of whoever is seen: the victim (a beacon's owner, for a pilotless one), or an attacker.
+        void See(ResolvedProfile profile, ResolvedRule rule, long pilot, SightingRole role, int type, long? alliance)
         {
             var key = (profile.Id, pilot);
+            var local = sovereignty.IsLocal(kill.SystemId, alliance, kill.Time);
             var weight = role == SightingRole.Victim && pilot != 0 && kill.Npc ? rule.Weight * HuntingProfiles.NpcLossWeight : rule.Weight;
+            if (local)
+                weight *= HuntingProfiles.LocalWeight;
             if (found.TryGetValue(key, out var seen) && (seen.Weight > weight || seen.Weight == weight && !seen.Indicator))
                 return;
             found[key] = new Sighting
@@ -39,6 +47,7 @@ public static class SightingMatcher
                 Indicator = rule.Indicator,
                 IsFleet = kill.AttackerCount > fleetAttackers,
                 AttackerCount = kill.AttackerCount,
+                Local = local,
             };
         }
 
@@ -50,12 +59,12 @@ public static class SightingMatcher
                 {
                     case RuleKind.Ship:
                         if (rule.Types.Contains(kill.VictimShipTypeId))
-                            See(profile, rule, kill.VictimCharacterId ?? 0, SightingRole.Victim, kill.VictimShipTypeId);
+                            See(profile, rule, kill.VictimCharacterId ?? 0, SightingRole.Victim, kill.VictimShipTypeId, kill.VictimAllianceId);
                         break;
 
                     case RuleKind.Module:
                         if (Fitted(kill, rule) is var fitted and not 0)
-                            See(profile, rule, kill.VictimCharacterId ?? 0, SightingRole.Victim, fitted);
+                            See(profile, rule, kill.VictimCharacterId ?? 0, SightingRole.Victim, fitted, kill.VictimAllianceId);
                         break;
 
                     case RuleKind.Weapon:
@@ -64,7 +73,8 @@ public static class SightingMatcher
                         for (var i = 0; i < kill.AttackerCharacterIds.Length; i++)
                         {
                             if (kill.AttackerCharacterIds[i] != 0 && rule.Types.Contains(kill.AttackerWeaponTypeIds[i]) && IsOnSide(kill, i, rule.Side))
-                                See(profile, rule, kill.AttackerCharacterIds[i], SightingRole.Attacker, kill.AttackerWeaponTypeIds[i]);
+                                See(profile, rule, kill.AttackerCharacterIds[i], SightingRole.Attacker, kill.AttackerWeaponTypeIds[i],
+                                    i < kill.AttackerAllianceIds.Length ? kill.AttackerAllianceIds[i] : 0);
                         }
 
                         break;
@@ -72,7 +82,7 @@ public static class SightingMatcher
                     case RuleKind.Victim:
                         // The beacon's owner is not the pilot seen: the evidence is the beacon itself.
                         if (rule.Types.Contains(kill.VictimShipTypeId))
-                            See(profile, rule, 0, SightingRole.Victim, kill.VictimShipTypeId);
+                            See(profile, rule, 0, SightingRole.Victim, kill.VictimShipTypeId, kill.VictimAllianceId);
                         break;
                 }
             }
@@ -130,8 +140,8 @@ public static class SightingStore
             return Task.FromResult(0);
 
         return db.Database.ExecuteSqlRawAsync("""
-            INSERT INTO intel."Sightings" ("Profile", "KillmailId", "SystemId", "Time", "Hour", "PilotId", "Role", "TypeId", "Weight", "Indicator", "IsFleet", "AttackerCount")
-            SELECT * FROM unnest(@profile, @kill, @system, @time, @hour, @pilot, @role, @type, @weight, @indicator, @fleet, @attackers)
+            INSERT INTO intel."Sightings" ("Profile", "KillmailId", "SystemId", "Time", "Hour", "PilotId", "Role", "TypeId", "Weight", "Indicator", "IsFleet", "AttackerCount", "Local")
+            SELECT * FROM unnest(@profile, @kill, @system, @time, @hour, @pilot, @role, @type, @weight, @indicator, @fleet, @attackers, @local)
             ON CONFLICT DO NOTHING
             """,
             [
@@ -147,6 +157,7 @@ public static class SightingStore
                 Array("indicator", NpgsqlDbType.Boolean, sightings.Select(s => s.Indicator)),
                 Array("fleet", NpgsqlDbType.Boolean, sightings.Select(s => s.IsFleet)),
                 Array("attackers", NpgsqlDbType.Integer, sightings.Select(s => s.AttackerCount)),
+                Array("local", NpgsqlDbType.Boolean, sightings.Select(s => s.Local)),
             ],
             cancellationToken);
     }

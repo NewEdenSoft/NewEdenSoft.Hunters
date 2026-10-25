@@ -52,6 +52,12 @@ public sealed class Sighting
 
     /// <summary>The kill's attackers, for the fleet rule.</summary>
     public int AttackerCount { get; set; }
+
+    /// <summary>
+    /// Seen in its own alliance's sovereignty, held at the time of the kill: a local, not a passer-by.
+    /// Counts <c>HuntingProfiles.LocalWeight</c> times.
+    /// </summary>
+    public bool Local { get; set; }
 }
 
 /// <summary>
@@ -130,6 +136,12 @@ public sealed class HuntingSystemStats
     /// <summary>Different pilots seen in the last 30 days.</summary>
     public int Pilots { get; set; }
 
+    /// <summary>The part of <see cref="Month"/> from locals (<see cref="Sighting.Local"/>).</summary>
+    public double MonthLocal { get; set; }
+
+    /// <summary>The part of <see cref="Pilots"/> seen as locals.</summary>
+    public int LocalPilots { get; set; }
+
     /// <summary>Weighted sightings per hour of the day (UTC), 24 entries, over all kept sightings: when it is there.</summary>
     public double[] Hours { get; set; } = [];
 }
@@ -152,6 +164,10 @@ public sealed class HuntingRegionStats
     public DateTimeOffset LastSeen { get; set; }
 
     public int Pilots { get; set; }
+
+    public double MonthLocal { get; set; }
+
+    public int LocalPilots { get; set; }
 
     public double[] Hours { get; set; } = [];
 }

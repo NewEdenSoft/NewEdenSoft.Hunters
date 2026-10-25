@@ -42,6 +42,10 @@ export interface HuntingPlaceProfile {
   lastSeen: string
   /** 24 weighted sightings by hour of the day (UTC). */
   hours: number[]
+  /** The part of `month` from locals: seen in their own alliance's sovereignty (counting 1.5 times). */
+  monthLocal: number
+  /** The part of `pilots` seen as locals. */
+  localPilots: number
 }
 
 /** The profiles seen in one system, highest score first; empty when none were. */

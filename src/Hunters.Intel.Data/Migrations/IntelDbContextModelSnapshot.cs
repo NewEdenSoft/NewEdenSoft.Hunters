@@ -133,10 +133,16 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.Property<DateTimeOffset>("LastSeen")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("LocalPilots")
+                        .HasColumnType("integer");
+
                     b.Property<double>("Month")
                         .HasColumnType("double precision");
 
                     b.Property<double>("MonthIndicator")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("MonthLocal")
                         .HasColumnType("double precision");
 
                     b.Property<int>("Pilots")
@@ -169,10 +175,16 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.Property<DateTimeOffset>("LastSeen")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("LocalPilots")
+                        .HasColumnType("integer");
+
                     b.Property<double>("Month")
                         .HasColumnType("double precision");
 
                     b.Property<double>("MonthIndicator")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("MonthLocal")
                         .HasColumnType("double precision");
 
                     b.Property<int>("Pilots")
@@ -359,6 +371,9 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.Property<long>("KillmailId")
                         .HasColumnType("bigint");
 
+                    b.Property<bool>("Local")
+                        .HasColumnType("boolean");
+
                     b.Property<long>("PilotId")
                         .HasColumnType("bigint");
 
@@ -499,6 +514,28 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.HasKey("PeriodEnd");
 
                     b.ToTable("SystemKills", "intel");
+                });
+
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.SystemSovereignty", b =>
+                {
+                    b.Property<int>("SystemId")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("AllianceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ClaimedSince")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("CorporationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SystemId");
+
+                    b.ToTable("SystemSovereignty", "intel");
                 });
 
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.RegionActivityCurrent", b =>

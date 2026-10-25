@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using NewEdenSoft.Hunters.Intel.Activity;
 using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Intel.Hunting;
+using NewEdenSoft.Hunters.Intel.Sovereignty;
 
 namespace NewEdenSoft.Hunters.Intel.Kills;
 
@@ -84,6 +85,7 @@ public static class KillFittings
 public sealed partial class KillRefetchService(
     IKillmailSource killmails,
     HuntingProfileStore profiles,
+    SovereigntyStore sovereignty,
     HuntingAggregatorService aggregates,
     IServiceScopeFactory scopes,
     IOptions<IntelOptions> options,
@@ -207,7 +209,7 @@ public sealed partial class KillRefetchService(
 
         var settings = options.Value.Hunting;
         var needing = hunting.Where(p => p.Rules.Any(r => r.NeedsCounts)).ToList();
-        if (await SightingStore.InsertAsync(db, SightingMatcher.Match(kill, needing, settings.FleetAttackers), cancellationToken) == 0)
+        if (await SightingStore.InsertAsync(db, SightingMatcher.Match(kill, needing, settings.FleetAttackers, sovereignty.Current), cancellationToken) == 0)
             return;
 
         string[] keeping = [.. hunting.Where(p => p.Profile.KeepsFights).Select(p => p.Id)];

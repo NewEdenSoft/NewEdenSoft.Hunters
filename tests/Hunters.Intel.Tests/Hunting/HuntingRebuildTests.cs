@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Intel.Hunting;
 using NewEdenSoft.Hunters.Intel.Sde;
+using NewEdenSoft.Hunters.Intel.Sovereignty;
 
 namespace NewEdenSoft.Hunters.Intel.Tests.Hunting;
 
@@ -30,6 +31,7 @@ public sealed class HuntingRebuildTests(IntelDatabase database) : IAsyncLifetime
         await db.SaveChangesAsync();
 
         await _services.GetRequiredService<SdeCatalogService>().LoadAsync(CancellationToken.None);
+        _services.GetRequiredService<SovereigntyStore>().Publish(SovereigntyMap.Empty);
         Assert.Equal(TimeSpan.FromSeconds(30), await Service.StepAsync(CancellationToken.None));
     }
 

@@ -32,7 +32,9 @@ public sealed class HuntingAggregatorTests(IntelDatabase database) : IAsyncLifet
 
     private IntelDbContext Db() => _services.CreateScope().ServiceProvider.GetRequiredService<IntelDbContext>();
 
-    private Sighting Seen(string profile, DateTimeOffset time, long pilot = 0, double weight = 1, bool indicator = false, bool fleet = false, int system = FakeSde.Jita) => new()
+    private Sighting Seen(
+        string profile, DateTimeOffset time, long pilot = 0, double weight = 1, bool indicator = false, bool fleet = false, int system = FakeSde.Jita,
+        bool local = false) => new()
     {
         Profile = profile,
         KillmailId = ++_kill,
@@ -43,6 +45,7 @@ public sealed class HuntingAggregatorTests(IntelDatabase database) : IAsyncLifet
         Weight = weight,
         Indicator = indicator,
         IsFleet = fleet,
+        Local = local,
     };
 
     private async Task SeedAsync(params Sighting[] sightings)
@@ -55,6 +58,24 @@ public sealed class HuntingAggregatorTests(IntelDatabase database) : IAsyncLifet
     private Task UpdateAsync() => _services.GetRequiredService<HuntingAggregator>().UpdateAsync(CancellationToken.None);
 
     private static double Fade(TimeSpan age) => Math.Pow(0.5, age.TotalDays / 14);
+
+    [Fact]
+    public async Task Locals_are_counted_apart_within_the_month()
+    {
+        await SeedAsync(
+            Seen("ishtars", Now.AddDays(-1), pilot: 1, weight: 1.5, local: true),
+            Seen("ishtars", Now.AddDays(-2), pilot: 1, weight: 1.5, local: true),
+            Seen("ishtars", Now.AddDays(-3), pilot: 2),
+            Seen("ishtars", Now.AddDays(-40), pilot: 3, weight: 1.5, local: true)); // Older than the month.
+
+        await UpdateAsync();
+
+        await using var db = Db();
+        var jita = await db.HuntingSystemStats.SingleAsync();
+        Assert.Equal((4.0, 3.0, 2, 1), (jita.Month, jita.MonthLocal, jita.Pilots, jita.LocalPilots));
+        var forge = await db.HuntingRegionStats.SingleAsync();
+        Assert.Equal((3.0, 1), (forge.MonthLocal, forge.LocalPilots));
+    }
 
     [Fact]
     public async Task A_system_has_its_windows_score_pilots_and_hours_of_the_day()
