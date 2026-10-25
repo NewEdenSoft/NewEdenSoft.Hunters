@@ -44,6 +44,9 @@ public sealed record MapSettings
 
     /// <summary>The jump range around the focused system: off by default, 8 ly.</summary>
     public JumpRangeSetting JumpRange { get; init; } = new();
+
+    /// <summary>What the Nearby widget looks for around the focused system.</summary>
+    public NearbySetting Nearby { get; init; } = new();
 }
 
 /// <summary>Where and how one widget is shown.</summary>

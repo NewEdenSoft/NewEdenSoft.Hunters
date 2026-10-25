@@ -46,6 +46,17 @@ public sealed class MapPreferencesTests : IDisposable
     }
 
     [Fact]
+    public void Nearby_setting_is_saved_with_gate_jumps_off()
+    {
+        var preferences = new MapPreferences(NewStore());
+        Assert.Equal(new NearbySetting(Jumps: 5, ByJumpRange: false, Sort: "activity", ShowQuiet: false), preferences.Nearby);
+
+        preferences.Nearby = new NearbySetting(Jumps: null, ByJumpRange: true, Sort: "carriers");
+
+        Assert.Equal(new NearbySetting(Jumps: null, ByJumpRange: true, Sort: "carriers"), new MapPreferences(NewStore()).Nearby);
+    }
+
+    [Fact]
     public void A_saved_jump_range_out_of_limits_falls_back_to_8_ly()
     {
         NewStore().Update(s => s with { Map = s.Map with { JumpRange = new JumpRangeSetting(Enabled: true, Ly: 50) } });
