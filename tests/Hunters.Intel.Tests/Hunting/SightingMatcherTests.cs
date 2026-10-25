@@ -25,7 +25,7 @@ public sealed class SightingMatcherTests
     /// <summary>A kill in Jita; the victim is in <see cref="Corp"/>, and every attacker in <paramref name="attackerCorp"/>.</summary>
     internal static Kill Kill(
         int victimShip, long? victim = null, int[]? fitted = null, (long Pilot, int Ship, int Weapon)[]? attackers = null,
-        bool npc = false, long attackerCorp = OtherCorp, long victimAlliance = 0, long attackerAlliance = 0) => new()
+        bool npc = false, long attackerCorp = OtherCorp, long victimAlliance = 0, long attackerAlliance = 0, int[]? counts = null) => new()
     {
         KillmailId = 1,
         Time = Time,
@@ -36,6 +36,7 @@ public sealed class SightingMatcherTests
         VictimAllianceId = victimAlliance == 0 ? null : victimAlliance,
         VictimShipTypeId = victimShip,
         VictimFittedTypeIds = fitted ?? [],
+        VictimFittedCounts = counts ?? [.. (fitted ?? []).Select(_ => 1)],
         AttackerCount = attackers?.Length ?? 0,
         AttackerCharacterIds = [.. (attackers ?? []).Select(a => a.Pilot)],
         AttackerCorporationIds = [.. (attackers ?? []).Select(a => a.Pilot == 0 ? 0 : attackerCorp)],
@@ -105,9 +106,9 @@ public sealed class SightingMatcherTests
         var profiles = await ProfilesAsync();
         (long, int, int)[] bombers = [(Other, FakeSde.Rifter, FakeSde.Smartbomb), (Third, FakeSde.Thunderchild, FakeSde.Vorton)];
 
-        // A ship with a smart bomb fitted dying: a smartbomber. Area weapons on another corporation: not.
+        // A ship with five smart bombs fitted dying: a smartbomber. Area weapons on another corporation: not.
         Assert.Equal(["smartbombers 90000001 Victim 3993 1"],
-            SightingMatcher.Match(Kill(FakeSde.Rifter, victim: Pilot, fitted: [FakeSde.Smartbomb], attackers: bombers), profiles, 25).Select(Describe));
+            SightingMatcher.Match(Kill(FakeSde.Rifter, victim: Pilot, fitted: [FakeSde.Smartbomb], counts: [5], attackers: bombers), profiles, 25).Select(Describe));
 
         // Area weapons hitting their own corporation, or their own alliance: a group bombing together.
         Assert.Equal(["smartbombers 90000002 Attacker 3993 1", "smartbombers 90000003 Attacker 54748 1"],
@@ -119,6 +120,33 @@ public sealed class SightingMatcherTests
         unknown.AttackerCorporationIds = [];
         unknown.AttackerAllianceIds = [];
         Assert.Empty(SightingMatcher.Match(unknown, profiles, 25));
+    }
+
+    [Fact]
+    public async Task A_smartbomber_has_at_least_five_smart_bombs_fitted_in_any_mix()
+    {
+        var profiles = await ProfilesAsync();
+        bool Smartbomber(int[] fitted, int[]? counts) =>
+            SightingMatcher.Match(Kill(FakeSde.Rifter, victim: Pilot, fitted: fitted, counts: counts), profiles, 25).Any(s => s.Profile == "smartbombers");
+
+        // One smart bomb is a utility slot; four are not enough either.
+        Assert.False(Smartbomber([FakeSde.Smartbomb], [1]));
+        Assert.False(Smartbomber([FakeSde.Smartbomb], [4]));
+        // Five of one type, or mixed sizes and damage types.
+        Assert.True(Smartbomber([FakeSde.Smartbomb], [5]));
+        Assert.True(Smartbomber([FakeSde.EmpSmartbomb, FakeSde.Smartbomb], [3, 2]));
+        // Other modules alongside don't count towards the five.
+        Assert.False(Smartbomber([FakeSde.Smartbomb, 2873], [4, 3]));
+        // Vorton projectors are not smart bombs.
+        Assert.False(Smartbomber([FakeSde.Vorton], [5]));
+
+        // Without the counts (a kill stored before they were kept), each distinct type counts once: one
+        // type could be one smart bomb or five, but five distinct types prove five.
+        Assert.False(Smartbomber([FakeSde.Smartbomb], counts: []));
+        Assert.True(Smartbomber(
+            [FakeSde.SmallSmartbomb, FakeSde.ProtonSmartbomb, FakeSde.EmpSmartbomb, FakeSde.PlasmaSmartbomb, FakeSde.Smartbomb], counts: []));
+        // A killmail ESI no longer has: zeros, the same as unknown.
+        Assert.False(Smartbomber([FakeSde.Smartbomb], [0]));
     }
 
     [Fact]
@@ -179,7 +207,8 @@ public sealed class SightingMatcherTests
         // The camp rule: smart bombs, on capsules only, keeping fights.
         var camps = profiles.Single(p => p.Id == "smartbomb-camps");
         Assert.Equal([FakeSde.Capsule], camps.Rules[0].Victims!);
-        Assert.Equal("Weapon@1:3993>670>other side;keeps fights;npc losses x2", camps.Definition);
-        Assert.Equal("Module@1:3993,54748;Weapon@1:3993,54748>own side;npc losses x2", profiles.Single(p => p.Id == "smartbombers").Definition);
+        Assert.Equal("Weapon@1:3937,3945,3961,3977,3993>670>other side;keeps fights;npc losses x2", camps.Definition);
+        Assert.Equal("Module@1:3937,3945,3961,3977,3993x5;Weapon@1:3937,3945,3961,3977,3993,54748>own side;npc losses x2",
+            profiles.Single(p => p.Id == "smartbombers").Definition);
     }
 }

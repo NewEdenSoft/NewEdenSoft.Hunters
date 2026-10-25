@@ -84,30 +84,49 @@ public sealed record KillFeedFile(
     /// <summary>Item flags of fitted modules: low, mid and high slots, rigs and subsystems.</summary>
     private static bool Fitted(int flag) => flag is >= 11 and <= 34 or >= 92 and <= 99 or >= 125 and <= 132;
 
-    /// <summary>The slim row stored for this kill.</summary>
-    public Kill ToKill() => new()
+    /// <summary>
+    /// The distinct fitted types, in order, and how many of each: a module in each of five slots is 5.
+    /// Charges loaded in a module share its slot and are counted too.
+    /// </summary>
+    public static (int[] Types, int[] Counts) Fittings(IEnumerable<FeedItem> items)
     {
-        KillmailId = KillmailId,
-        Hash = Hash,
-        Sequence = SequenceId,
-        Time = Esi.KillmailTime,
-        SystemId = Esi.SolarSystemId,
-        Npc = Zkb.Npc,
-        Solo = Zkb.Solo,
-        TotalValue = Zkb.TotalValue,
-        VictimCharacterId = Esi.Victim.CharacterId,
-        VictimCorporationId = Esi.Victim.CorporationId,
-        VictimAllianceId = Esi.Victim.AllianceId,
-        VictimShipTypeId = Esi.Victim.ShipTypeId,
-        VictimFittedTypeIds = [.. (Esi.Victim.Items ?? []).Where(i => Fitted(i.Flag)).Select(i => i.ItemTypeId).Distinct().Order()],
-        AttackerCount = Esi.Attackers.Count,
-        AttackerCharacterIds = [.. Esi.Attackers.Select(a => a.CharacterId ?? 0)],
-        AttackerCorporationIds = [.. Esi.Attackers.Select(a => a.CorporationId ?? 0)],
-        AttackerAllianceIds = [.. Esi.Attackers.Select(a => a.AllianceId ?? 0)],
-        AttackerShipTypeIds = [.. Esi.Attackers.Select(a => a.ShipTypeId ?? 0)],
-        AttackerWeaponTypeIds = [.. Esi.Attackers.Select(a => a.WeaponTypeId ?? 0)],
-        FinalBlow = Esi.Attackers.Select((a, i) => a.FinalBlow ? i : -1).FirstOrDefault(i => i >= 0, -1),
-    };
+        var fitted = items.Where(i => Fitted(i.Flag))
+            .GroupBy(i => i.ItemTypeId)
+            .OrderBy(g => g.Key)
+            .Select(g => (Type: g.Key, Count: g.Sum(i => (int)Math.Max(1, i.QuantityDestroyed + i.QuantityDropped))))
+            .ToList();
+        return ([.. fitted.Select(f => f.Type)], [.. fitted.Select(f => f.Count)]);
+    }
+
+    /// <summary>The slim row stored for this kill.</summary>
+    public Kill ToKill()
+    {
+        var (fittedTypes, fittedCounts) = Fittings(Esi.Victim.Items ?? []);
+        return new Kill
+        {
+            KillmailId = KillmailId,
+            Hash = Hash,
+            Sequence = SequenceId,
+            Time = Esi.KillmailTime,
+            SystemId = Esi.SolarSystemId,
+            Npc = Zkb.Npc,
+            Solo = Zkb.Solo,
+            TotalValue = Zkb.TotalValue,
+            VictimCharacterId = Esi.Victim.CharacterId,
+            VictimCorporationId = Esi.Victim.CorporationId,
+            VictimAllianceId = Esi.Victim.AllianceId,
+            VictimShipTypeId = Esi.Victim.ShipTypeId,
+            VictimFittedTypeIds = fittedTypes,
+            VictimFittedCounts = fittedCounts,
+            AttackerCount = Esi.Attackers.Count,
+            AttackerCharacterIds = [.. Esi.Attackers.Select(a => a.CharacterId ?? 0)],
+            AttackerCorporationIds = [.. Esi.Attackers.Select(a => a.CorporationId ?? 0)],
+            AttackerAllianceIds = [.. Esi.Attackers.Select(a => a.AllianceId ?? 0)],
+            AttackerShipTypeIds = [.. Esi.Attackers.Select(a => a.ShipTypeId ?? 0)],
+            AttackerWeaponTypeIds = [.. Esi.Attackers.Select(a => a.WeaponTypeId ?? 0)],
+            FinalBlow = Esi.Attackers.Select((a, i) => a.FinalBlow ? i : -1).FirstOrDefault(i => i >= 0, -1),
+        };
+    }
 }
 
 public sealed record FeedKillmail(
@@ -125,7 +144,9 @@ public sealed record FeedVictim(
 
 public sealed record FeedItem(
     [property: JsonPropertyName("item_type_id")] int ItemTypeId,
-    [property: JsonPropertyName("flag")] int Flag);
+    [property: JsonPropertyName("flag")] int Flag,
+    [property: JsonPropertyName("quantity_destroyed")] long QuantityDestroyed = 0,
+    [property: JsonPropertyName("quantity_dropped")] long QuantityDropped = 0);
 
 public sealed record FeedAttacker(
     [property: JsonPropertyName("character_id")] long? CharacterId,

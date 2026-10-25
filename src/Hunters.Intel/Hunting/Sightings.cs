@@ -54,7 +54,7 @@ public static class SightingMatcher
                         break;
 
                     case RuleKind.Module:
-                        if (kill.VictimFittedTypeIds.FirstOrDefault(rule.Types.Contains) is var fitted and not 0)
+                        if (Fitted(kill, rule) is var fitted and not 0)
                             See(profile, rule, kill.VictimCharacterId ?? 0, SightingRole.Victim, fitted);
                         break;
 
@@ -79,6 +79,28 @@ public static class SightingMatcher
         }
 
         return [.. found.Values];
+    }
+
+    /// <summary>
+    /// The first of the rule's types fitted on the victim when at least <see cref="ResolvedRule.MinFitted"/>
+    /// of them are, mixed; 0 when not. Without the counts (a kill stored before they were kept, or one ESI
+    /// no longer has), each distinct type counts once: the fewest there could have been.
+    /// </summary>
+    private static int Fitted(Kill kill, ResolvedRule rule)
+    {
+        var first = 0;
+        var count = 0;
+        for (var i = 0; i < kill.VictimFittedTypeIds.Length; i++)
+        {
+            var type = kill.VictimFittedTypeIds[i];
+            if (!rule.Types.Contains(type))
+                continue;
+            if (first == 0)
+                first = type;
+            count += i < kill.VictimFittedCounts.Length ? Math.Max(1, kill.VictimFittedCounts[i]) : 1;
+        }
+
+        return count >= rule.MinFitted ? first : 0;
     }
 
     /// <summary>

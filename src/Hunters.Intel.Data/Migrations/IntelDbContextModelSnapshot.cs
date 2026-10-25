@@ -234,6 +234,10 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.Property<long?>("VictimCorporationId")
                         .HasColumnType("bigint");
 
+                    b.PrimitiveCollection<int[]>("VictimFittedCounts")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
                     b.PrimitiveCollection<int[]>("VictimFittedTypeIds")
                         .IsRequired()
                         .HasColumnType("integer[]");

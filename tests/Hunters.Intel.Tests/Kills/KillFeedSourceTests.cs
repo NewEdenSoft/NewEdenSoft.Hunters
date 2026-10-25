@@ -119,6 +119,7 @@ public sealed class KillFeedSourceTests
         Assert.Equal((false, false, 239824780.47), (kill.Npc, kill.Solo, kill.TotalValue));
         Assert.Equal(((long?)2115996421, (long?)98540583, (long?)99003581, 60244), (kill.VictimCharacterId, kill.VictimCorporationId, kill.VictimAllianceId, kill.VictimShipTypeId));
         Assert.Empty(kill.VictimFittedTypeIds); // Only cargo.
+        Assert.Empty(kill.VictimFittedCounts);
 
         // A Wyvern (supercarrier) and a Hel.
         Assert.Equal(2, kill.AttackerCount);
@@ -137,6 +138,8 @@ public sealed class KillFeedSourceTests
         Assert.True(kill.Npc);
         Assert.Null(kill.VictimAllianceId);
         Assert.Equal([4025, 4573, 4871, 5849, 6811, 12052, 16391, 23089, 30999, 31047], kill.VictimFittedTypeIds);
+        // One per slot (5849 in three low slots), charges loaded in a module counted with it (6811 in five launchers).
+        Assert.Equal([1, 1, 1, 3, 5, 1, 2, 5, 1, 2], kill.VictimFittedCounts);
         Assert.Equal([0L, 3019609L, 0L], kill.AttackerCharacterIds);
         Assert.Equal([48092, 47953, 30428], kill.AttackerShipTypeIds);
         Assert.Equal([0, 34580, 0], kill.AttackerWeaponTypeIds);

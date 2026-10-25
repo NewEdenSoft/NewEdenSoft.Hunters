@@ -17,6 +17,9 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
 
     public const int VortonGroup = 4060, Vorton = 54748, Thunderchild = 54733;
 
+    /// <summary>Smart bombs of other sizes and damage types, for mixed fits.</summary>
+    public const int EmpSmartbomb = 3961, PlasmaSmartbomb = 3977, ProtonSmartbomb = 3945, SmallSmartbomb = 3937;
+
     public long Build { get; set; } = 3_000_001;
 
     public Exception? Failure { get; set; }
@@ -54,6 +57,10 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
                 new SdeType(Rifter, "Rifter", 25, true),
                 new SdeType(Capsule, "Capsule", 29, true),
                 new SdeType(Smartbomb, "Large Graviton Smartbomb II", SmartBombGroup, true),
+                new SdeType(EmpSmartbomb, "Large EMP Smartbomb II", SmartBombGroup, true),
+                new SdeType(PlasmaSmartbomb, "Large Plasma Smartbomb II", SmartBombGroup, true),
+                new SdeType(ProtonSmartbomb, "Large Proton Smartbomb II", SmartBombGroup, true),
+                new SdeType(SmallSmartbomb, "Small Graviton Smartbomb I", SmartBombGroup, true),
                 new SdeType(Vorton, "Large Vorton Projector II", VortonGroup, true),
                 new SdeType(Thunderchild, "Thunderchild", 27, true),
                 new SdeType(CrabBeacon, "CONCORD Rogue Analysis Beacon", CrabGroup, true),
