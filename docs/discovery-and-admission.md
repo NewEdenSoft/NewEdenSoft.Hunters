@@ -72,5 +72,7 @@ Admin character IDs are set in configuration (`Hunters__Admins__0=…`; blank en
 | `GET` | `/api/admin/accounts` | List accounts |
 | `POST` | `/api/admin/accounts/{id}/disable`, `/enable` | Disable an account (also ends its sessions and blocks login) or re-enable it |
 | `DELETE` | `/api/admin/accounts/{id}/sessions` | End all sessions of an account |
+| `POST` | `/api/admin/hunting/rebuild` | Ask the intel service to rebuild hunting profiles from the stored kills: `{ "profiles": ["smartbombers"] }`, or no profiles for all. 202 with the request; 400 (`hunting_profile_unknown`) for a profile it doesn't list. See [Hunting profiles](map-and-activity.md#hunting-profiles). |
+| `GET` | `/api/admin/hunting/rebuild` | The latest 20 rebuild requests, newest first: when each was asked, taken up and completed, and the last error while it is retried |
 
 An admin page in the web app is planned for later.

@@ -140,7 +140,12 @@ Every kill the feed stores is matched as it arrives, into **`intel.Sightings`**:
 - a kill with more than `Hunters:Hunting:FleetAttackers` (25) attackers marks its sightings `IsFleet`
 - `Hunters:Hunting:BattleKills` (20) player kills in the system within `Hunters:Hunting:BattleWindow` (15 minutes) either side of a sighting marks it `IsFleet`. Checked around each new player kill, so the earlier sightings of a growing fight are marked too.
 
-**Backfill:** `intel.HuntingProfileStates` keeps the resolved definition each profile's sightings were built with. At startup and on each new SDE catalogue, a profile whose definition changed (a rule edited, or a new SDE build adding a carrier hull) or that is new has its sightings deleted and rebuilt from the stored kills; a profile that was removed loses its sightings. Sightings expire with their kills. The states also hold each profile's display name, which readers list the profiles from.
+**Backfill:** `intel.HuntingProfileStates` keeps the resolved definition each profile's sightings were built with. At startup and on each new SDE catalogue, a profile whose definition changed (a rule edited, or a new SDE build adding a carrier hull) or that is new has its sightings deleted and rebuilt from the stored kills; a profile that was removed loses its sightings.
+
+**Manual rebuild:** an admin can ask for a rebuild without a restart (`POST /api/admin/hunting/rebuild`; see [Admins](discovery-and-admission.md#admins)).
+- **The request:** the API server adds a row to `intel.HuntingRebuildRequests`. That is its one write to the intel schema.
+- **Pickup:** the profile service looks for open requests every 30 seconds. It clears the stored definition of the profiles they name (all, for a request naming none), so the same backfill rebuilds them. Several open requests are carried out together.
+- **Done or retried:** a request is marked completed once the rebuild succeeds. A failure backs off and tries again, with the last error noted on the request. Sightings expire with their kills. The states also hold each profile's display name, which readers list the profiles from.
 
 ### Hunting aggregates
 

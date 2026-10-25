@@ -82,6 +82,41 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.ToTable("HuntingProfileStates", "intel");
                 });
 
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.HuntingRebuildRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.PrimitiveCollection<string[]>("Profiles")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompletedAt");
+
+                    b.ToTable("HuntingRebuildRequests", "intel");
+                });
+
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.HuntingRegionStats", b =>
                 {
                     b.Property<string>("Profile")

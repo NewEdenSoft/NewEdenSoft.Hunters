@@ -6,7 +6,8 @@ namespace NewEdenSoft.Hunters.Intel.Data;
 
 /// <summary>
 /// The intel data (docs/decisions.md, D22), in its own <c>intel</c> schema of the Hunters database.
-/// The intel service writes it and owns its migrations; the API server only reads it.
+/// The intel service writes it and owns its migrations; the API server only reads it, apart from adding
+/// <see cref="HuntingRebuildRequest"/>s for admins.
 /// </summary>
 public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : DbContext(options)
 {
@@ -38,6 +39,8 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
     public DbSet<Sighting> Sightings => Set<Sighting>();
 
     public DbSet<HuntingProfileState> HuntingProfileStates => Set<HuntingProfileState>();
+
+    public DbSet<HuntingRebuildRequest> HuntingRebuildRequests => Set<HuntingRebuildRequest>();
 
     public DbSet<HuntingSystemStats> HuntingSystemStats => Set<HuntingSystemStats>();
 
@@ -108,6 +111,12 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
             e.HasKey(p => p.Profile);
             e.Property(p => p.Profile).HasMaxLength(32);
             e.Property(p => p.Name).HasMaxLength(64);
+        });
+        // Few rows (one per admin request); the open ones are found by CompletedAt.
+        model.Entity<HuntingRebuildRequest>(e =>
+        {
+            e.Property(r => r.Error).HasMaxLength(1000);
+            e.HasIndex(r => r.CompletedAt);
         });
         model.Entity<HuntingSystemStats>(e =>
         {
