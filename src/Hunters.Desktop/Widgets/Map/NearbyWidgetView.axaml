@@ -43,8 +43,13 @@
                IsVisible="{Binding !HasError}" />
     <TextBlock Foreground="{DynamicResource Hud.DangerBrush}" FontSize="13" TextWrapping="Wrap" Text="{Binding StatusText}"
                IsVisible="{Binding HasError}" />
-    <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="{Binding Summary}"
-               IsVisible="{Binding Summary, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    <WrapPanel IsVisible="{Binding Summary, Converter={x:Static ObjectConverters.IsNotNull}}" ItemSpacing="8">
+      <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="{Binding Summary}" VerticalAlignment="Center" />
+      <Button Classes="hud toggle ghost" FontSize="11" Padding="6,1" VerticalAlignment="Center"
+              Content="{Binding QuietText}" Command="{Binding ToggleQuietCommand}"
+              IsVisible="{Binding QuietText, Converter={x:Static ObjectConverters.IsNotNull}}"
+              ToolTip.Tip="Systems without kills in the last day or hunting profiles seen" />
+    </WrapPanel>
     <ItemsControl ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}">
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="mw:NearbyRowViewModel">

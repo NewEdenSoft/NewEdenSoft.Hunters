@@ -15,7 +15,8 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// Nearby panel (<c>NearbyPanel.tsx</c>): within gate jumps and/or the Jump range widget's light years,
 /// sorted by the rise in NPC kills, the most NPC kills, or a hunting profile's "likely now"
 /// (<see cref="MapPreferences.Nearby"/>). Asked for while the widget is on screen, each time the focus
-/// or the setting changes.
+/// or the setting changes. Systems where nothing happens (<see cref="Nearby.IsActive"/>) are hidden
+/// unless asked for.
 /// </summary>
 public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
 {
@@ -30,6 +31,9 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
 
     /// <summary>Set while the sort list is rebuilt, so the list's own selection changes aren't taken as the user's.</summary>
     private bool _syncingSort;
+
+    /// <summary>The last answer's rows, quiet ones too, and the origin's name; null without one.</summary>
+    private (IReadOnlyList<NearbyRowViewModel> Rows, string Origin, string Order)? _answer;
 
     public NearbyWidgetViewModel(AccountPageViewModel account, MapWidgetViewModel map, MapPreferences preferences, ThemeCatalog catalog)
     {
@@ -53,6 +57,7 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
             SyncControls();
             SyncSortOptions();
             Refresh();
+            ShowAnswer();
         };
     }
 
@@ -91,9 +96,16 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     [ObservableProperty]
     public partial bool HasError { get; private set; }
 
-    /// <summary>"12 systems near Tama, NPC kills rising first."</summary>
+    /// <summary>"12 active near Tama, NPC kills rising first."</summary>
     [ObservableProperty]
     public partial string? Summary { get; private set; }
+
+    /// <summary>"8 quiet hidden", or "hide 8 quiet" while they are shown; null when none are quiet.</summary>
+    [ObservableProperty]
+    public partial string? QuietText { get; private set; }
+
+    [RelayCommand]
+    private void ToggleQuiet() => _preferences.Nearby = _preferences.Nearby with { ShowQuiet = !_preferences.Nearby.ShowQuiet };
 
     [RelayCommand]
     private void ToggleJumpRange() => _preferences.Nearby = _preferences.Nearby with { ByJumpRange = !ByJumpRange };
@@ -179,10 +191,27 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     {
         _loading?.Cancel();
         _loadedFor = null;
+        _answer = null;
         Rows = [];
         Summary = null;
+        QuietText = null;
         HasError = false;
         StatusText = status;
+    }
+
+    /// <summary>The last answer's rows, without the quiet ones unless they are asked for.</summary>
+    private void ShowAnswer()
+    {
+        if (_answer is not { } answer)
+            return;
+
+        var active = answer.Rows.Count(r => r.IsActive);
+        var quiet = answer.Rows.Count - active;
+        var showQuiet = _preferences.Nearby.ShowQuiet;
+        Rows = showQuiet ? answer.Rows : [.. answer.Rows.Where(r => r.IsActive)];
+        Summary = $"{active} active near {answer.Origin}, {answer.Order}.";
+        QuietText = quiet == 0 ? null : showQuiet ? $"hide {quiet} quiet" : $"{quiet} quiet hidden";
+        StatusText = Rows.Count == 0 ? "Nothing happening in reach." : null;
     }
 
     private async Task LoadAsync(HuntersSession session, MapModel model, NearbyRequest request)
@@ -199,19 +228,20 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         {
             var reach = await session.GetReachAsync(request.From, request.Jumps, request.Ly, request.Profile, request.Limit, request.Sort, cancel.Token);
             var (byJumps, byLy) = (request.Jumps is not null, request.Ly is not null);
-            Rows = [.. reach.Systems
+            IReadOnlyList<NearbyRowViewModel> rows = [.. reach.Systems
                 .Where(s => s.SystemId != reach.From && model.IndexOf.ContainsKey(s.SystemId))
                 .Select(s => new NearbyRowViewModel(
                     s.SystemId,
                     model.Names[model.IndexOf[s.SystemId]],
                     SecurityStatus.Format(s.Security),
                     new SolidColorBrush(ThemeService.ToColor(_catalog.SecurityColor(s.Security))),
-                    Nearby.DistanceText(s.Jumps, s.Ly, byJumps, byLy)))];
+                    Nearby.DistanceText(s.Jumps, s.Ly, byJumps, byLy),
+                    Nearby.IsActive(s.Activity, s.Profiles.Count)))];
             var order = request.Profile is { } profile
                 ? $"{_map.HuntingProfiles.FirstOrDefault(p => p.Id == profile)?.Name ?? profile} likely now first"
                 : request.Sort == ReachSorts.NpcKills ? "most NPC kills first" : "NPC kills rising first";
-            Summary = $"{Rows.Count} systems near {name}, {order}.";
-            StatusText = null;
+            _answer = (rows, name, order);
+            ShowAnswer();
         }
         catch (OperationCanceledException)
         {
@@ -220,8 +250,10 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         catch (HuntersApiException e)
         {
             _loadedFor = null;
+            _answer = null;
             Rows = [];
             Summary = null;
+            QuietText = null;
             StatusText = e.Message;
             HasError = true;
         }
@@ -234,7 +266,8 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
 }
 
 /// <summary>One system in reach: its name, security and how far it is.</summary>
-public sealed record NearbyRowViewModel(int SystemId, string Name, string Security, IBrush SecurityBrush, string Distance);
+/// <param name="IsActive">Something happens there (<see cref="Nearby.IsActive"/>); quiet systems are hidden unless asked for.</param>
+public sealed record NearbyRowViewModel(int SystemId, string Name, string Security, IBrush SecurityBrush, string Distance, bool IsActive);
 
 /// <summary>One way to sort the Nearby rows: <see cref="Nearby.SortActivity"/>, <see cref="Nearby.SortNpcKills"/> or a profile's id.</summary>
 public sealed record NearbySortOption(string Id, string Label)
