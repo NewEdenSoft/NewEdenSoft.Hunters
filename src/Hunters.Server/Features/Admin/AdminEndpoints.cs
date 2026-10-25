@@ -1,15 +1,21 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using NewEdenSoft.Hunters.Contracts.Admin;
+using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Server.Features.Accounts;
 using NewEdenSoft.Hunters.Server.Features.Auth;
 using NewEdenSoft.Hunters.Server.Infrastructure.Persistence;
 
 namespace NewEdenSoft.Hunters.Server.Features.Admin;
 
-/// <summary>Server administration: access keys and accounts. Admins are configured by character id.</summary>
+/// <summary>Server administration: access keys, accounts, and hunting profile rebuilds. Admins are configured by character id.</summary>
 public static class AdminEndpoints
 {
+    public const string UnknownProfileCode = "hunting_profile_unknown";
+
+    /// <summary>How many of the latest rebuild requests are listed.</summary>
+    private const int RebuildsListed = 20;
+
     public static IEndpointRouteBuilder MapAdmin(this IEndpointRouteBuilder endpoints)
     {
         var admin = endpoints.MapGroup("")
@@ -72,8 +78,32 @@ public static class AdminEndpoints
         admin.MapDelete(AdminPaths.Accounts + "/{id:guid}/sessions", async (Guid id, SessionService sessions, CancellationToken ct) =>
             Results.Ok(new { revoked = await sessions.RevokeAllAsync(id, ct) }));
 
+        // Rebuilding hunting profiles is the intel service's work: the request is left in the intel
+        // schema for it to pick up (docs/map-and-activity.md, "Hunting profiles").
+        admin.MapPost(AdminPaths.HuntingRebuild, async (RebuildHuntingRequest request, HttpContext http, IntelDbContext intel, TimeProvider time, CancellationToken ct) =>
+        {
+            string[] profiles = [.. (request.Profiles ?? []).Select(p => p.Trim()).Where(p => p.Length > 0).Distinct()];
+            var known = await intel.HuntingProfileStates.Select(s => s.Profile).ToListAsync(ct);
+            if (profiles.Except(known).ToList() is [_, ..] unknown)
+            {
+                return Results.Problem(title: $"No such hunting profile: {string.Join(", ", unknown)}.", statusCode: StatusCodes.Status400BadRequest,
+                    extensions: new Dictionary<string, object?> { ["code"] = UnknownProfileCode });
+            }
+
+            var entity = new HuntingRebuildRequest { Profiles = profiles, RequestedBy = http.User.GetSession()!.AccountId, RequestedAt = time.GetUtcNow() };
+            intel.HuntingRebuildRequests.Add(entity);
+            await intel.SaveChangesAsync(ct);
+            return Results.Accepted(AdminPaths.HuntingRebuild, ToInfo(entity));
+        });
+
+        admin.MapGet(AdminPaths.HuntingRebuild, async (IntelDbContext intel, CancellationToken ct) =>
+            (await intel.HuntingRebuildRequests.AsNoTracking().OrderByDescending(r => r.Id).Take(RebuildsListed).ToListAsync(ct)).Select(ToInfo).ToList());
+
         return endpoints;
     }
+
+    private static HuntingRebuildInfo ToInfo(HuntingRebuildRequest r) =>
+        new(r.Id, r.Profiles, r.RequestedAt, r.StartedAt, r.CompletedAt, r.Error);
 
     private static async ValueTask<object?> RequireAdminAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {

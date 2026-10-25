@@ -72,6 +72,33 @@ public sealed class HuntingProfileState
 }
 
 /// <summary>
+/// An admin's request to rebuild hunting profiles' sightings from the stored kills, as when a definition
+/// changes. The API server adds it (its one write to the <c>intel</c> schema); the intel service picks
+/// it up, rebuilds, and marks it done.
+/// </summary>
+public sealed class HuntingRebuildRequest
+{
+    public long Id { get; set; }
+
+    /// <summary>The profile ids to rebuild; empty for all of them.</summary>
+    public string[] Profiles { get; set; } = [];
+
+    /// <summary>The admin's account.</summary>
+    public Guid RequestedBy { get; set; }
+
+    public DateTimeOffset RequestedAt { get; set; }
+
+    /// <summary>When the intel service took it up; null while waiting.</summary>
+    public DateTimeOffset? StartedAt { get; set; }
+
+    /// <summary>When it finished, rebuilt or failed; null until then.</summary>
+    public DateTimeOffset? CompletedAt { get; set; }
+
+    /// <summary>Why it failed; null when it didn't.</summary>
+    public string? Error { get; set; }
+}
+
+/// <summary>
 /// Where a hunting profile's target is found (docs/map-and-activity.md, "Hunting aggregates"): its
 /// sightings in a system, fleet fights left out, indicators at their weight. Recomputed from the
 /// sightings when they change and hourly, so the windows and the decay stay current.
