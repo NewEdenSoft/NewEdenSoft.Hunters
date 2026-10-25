@@ -21,6 +21,9 @@
     <Style Selector="TextBlock.same">
       <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
     </Style>
+    <Style Selector="TextBlock.jumprange">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.JumpRangeBrush}" />
+    </Style>
     <!-- Search results in the HUD's colours rather than Fluent's -->
     <Style Selector="ListBox#SearchResults ListBoxItem">
       <Setter Property="Padding" Value="10,4" />
@@ -82,6 +85,14 @@
             <TextBlock Classes="mono" FontWeight="SemiBold" FontSize="13" Text="{Binding Security}" Foreground="{Binding SecurityBrush}" />
             <TextBlock Classes="muted" FontSize="13" Text="{Binding Region}" />
           </StackPanel>
+          <!-- With the jump range on: how far from the focused system, and whether a jump drive lands here -->
+          <Panel IsVisible="{Binding JumpRange, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <StackPanel Orientation="Horizontal" Spacing="8" DataContext="{Binding JumpRange}" x:DataType="mw:MapJumpRangeInfo">
+            <TextBlock Classes="mono" FontSize="13" FontWeight="SemiBold" Text="{Binding Distance}" />
+            <TextBlock Classes="muted" FontSize="13" Text="{Binding FromText}" />
+            <TextBlock FontSize="13" Text="{Binding Status}" Classes.jumprange="{Binding IsInRange}" Classes.same="{Binding !IsInRange}" />
+          </StackPanel>
+          </Panel>
           <!-- NPC kills in the last hour, the change from the hour before, the usual, and the peak -->
           <Panel IsVisible="{Binding NpcKills, Converter={x:Static ObjectConverters.IsNotNull}}">
           <StackPanel Orientation="Horizontal" Spacing="8" DataContext="{Binding NpcKills}" x:DataType="mw:MapNpcKillsInfo">

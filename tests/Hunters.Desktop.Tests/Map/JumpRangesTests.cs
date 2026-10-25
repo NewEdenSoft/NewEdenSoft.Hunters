@@ -1,5 +1,6 @@
 using NewEdenSoft.Hunters.Contracts.Map;
 using NewEdenSoft.Hunters.Desktop.Map;
+using NewEdenSoft.Hunters.Desktop.Widgets.Map;
 
 namespace NewEdenSoft.Hunters.Desktop.Tests.Map;
 
@@ -42,6 +43,16 @@ public sealed class JumpRangesTests
         Assert.False(JumpRanges.IsCynoTarget(Model, Model.IndexOf[7]));
         Assert.False(JumpRanges.IsCynoTarget(Model, Model.IndexOf[30100000]));
         Assert.False(JumpRanges.InRange(Model, 1, 10)[1]);
+    }
+
+    [Fact]
+    public void The_hover_line_tells_the_distance_and_whether_a_jump_drive_lands_there()
+    {
+        var inRange = JumpRanges.InRange(Model, 0, 8);
+
+        Assert.Equal(new MapJumpRangeInfo("7.21 ly", "S1", "in range", true), MapJumpRangeInfo.Create(Model, 0, Model.IndexOf[6], inRange));
+        Assert.Equal(new MapJumpRangeInfo("9 ly", "S1", "out of range", false), MapJumpRangeInfo.Create(Model, 0, Model.IndexOf[5], inRange));
+        Assert.Equal(new MapJumpRangeInfo("5 ly", "S1", "no cyno", false), MapJumpRangeInfo.Create(Model, 0, Model.IndexOf[3], inRange));
     }
 
     [Fact]
