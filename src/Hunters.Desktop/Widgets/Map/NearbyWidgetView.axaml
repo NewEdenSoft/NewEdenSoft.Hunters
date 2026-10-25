@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
+             x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.NearbyWidgetView"
+             x:DataType="mw:NearbyWidgetViewModel">
+  <ScrollViewer>
+  <StackPanel Spacing="8" Margin="12">
+    <TextBlock Classes="muted" FontSize="13" TextWrapping="Wrap" Text="{Binding StatusText}"
+               IsVisible="{Binding !HasError}" />
+    <TextBlock Foreground="{DynamicResource Hud.DangerBrush}" FontSize="13" TextWrapping="Wrap" Text="{Binding StatusText}"
+               IsVisible="{Binding HasError}" />
+    <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="{Binding Summary}"
+               IsVisible="{Binding Summary, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    <ItemsControl ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="mw:NearbyRowViewModel">
+          <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
+            <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}" FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="mono" FontSize="12" FontWeight="SemiBold" Margin="8,0,0,0"
+                       Text="{Binding Security}" Foreground="{Binding SecurityBrush}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2" Classes="mono muted" FontSize="12" Margin="10,0,0,0" MinWidth="44" TextAlignment="Right"
+                       Text="{Binding Distance}" VerticalAlignment="Center" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -102,14 +102,14 @@ public static class DesktopHost
             MainWindowViewModel.MapWidgetId, "Map", "Known space. Drag to pan, scroll to zoom, right-click a system for its menu; / searches.", 520, 400, fillsPage: true);
         services.AddWidget<MapControlsWidgetViewModel, MapControlsWidgetView>(
             "map-controls", "Map controls", "How the map is drawn: its layout, colours and legend.", 300, 240);
+        services.AddWidget<NearbyWidgetViewModel, NearbyWidgetView>(
+            "nearby", "Nearby", "What is in reach of the focused system, and where something happens.", 320, 320);
         services.AddWidget<HuntingWidgetViewModel, HuntingWidgetView>(
             "hunting", "Hunting", "Hunting profiles on the map: a glow where each is likely now, and badges where it is seen.", 300, 200);
         services.AddWidget<JumpRangeWidgetViewModel, JumpRangeWidgetView>(
             "jump-range", "Jump range", "What a jump drive reaches from the focused system: a ship class's range or your own.", 290, 260);
         services.AddWidget<CharactersWidgetViewModel, CharactersWidgetView>(
             "characters", "Characters", "Your characters: online or not, where they are and what they fly.", 300, 280);
-        services.AddWidget<NearbyActivityWidgetViewModel, PlaceholderWidgetView>(
-            "nearby-activity", "Nearby activity", "Systems near your characters with recent kills and jumps.", 320, 260);
         services.AddWidget<FleetWidgetViewModel, PlaceholderWidgetView>(
             "fleet", "Fleet", "Your fleet session: members, locations and broadcast destinations.", 320, 220);
 
