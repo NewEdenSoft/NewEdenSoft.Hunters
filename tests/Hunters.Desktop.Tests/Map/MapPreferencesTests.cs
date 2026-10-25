@@ -30,4 +30,26 @@ public sealed class MapPreferencesTests : IDisposable
 
         Assert.Equal(new MapBehaviour(LongMove: false, MinJumps: 5), new MapPreferences(NewStore()).Behaviour);
     }
+
+    [Fact]
+    public void Jump_range_is_off_at_8_ly_by_default_kept_within_its_limits_and_saved()
+    {
+        var preferences = new MapPreferences(NewStore());
+        Assert.Equal(new JumpRangeSetting(Enabled: false, Ly: 8), preferences.JumpRange);
+
+        preferences.JumpRange = new JumpRangeSetting(Enabled: true, Ly: 25);
+        Assert.Equal(20, preferences.JumpRange.Ly);
+        preferences.JumpRange = preferences.JumpRange with { Ly = 0.1 };
+        Assert.Equal(0.5, preferences.JumpRange.Ly);
+
+        Assert.Equal(new JumpRangeSetting(Enabled: true, Ly: 0.5), new MapPreferences(NewStore()).JumpRange);
+    }
+
+    [Fact]
+    public void A_saved_jump_range_out_of_limits_falls_back_to_8_ly()
+    {
+        NewStore().Update(s => s with { Map = s.Map with { JumpRange = new JumpRangeSetting(Enabled: true, Ly: 50) } });
+
+        Assert.Equal(new JumpRangeSetting(Enabled: true, Ly: 8), new MapPreferences(NewStore()).JumpRange);
+    }
 }

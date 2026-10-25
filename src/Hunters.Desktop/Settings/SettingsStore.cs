@@ -41,6 +41,9 @@ public sealed record MapSettings
 
     /// <summary>When the focused system changes by itself, and whether a double click focuses.</summary>
     public MapBehaviour Behaviour { get; init; } = new();
+
+    /// <summary>The jump range around the focused system: off by default, 8 ly.</summary>
+    public JumpRangeSetting JumpRange { get; init; } = new();
 }
 
 /// <summary>Where and how one widget is shown.</summary>
