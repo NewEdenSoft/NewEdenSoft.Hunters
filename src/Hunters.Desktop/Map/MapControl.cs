@@ -6,6 +6,7 @@ using Avalonia.Platform;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using NewEdenSoft.Hunters.Desktop.Characters;
+using NewEdenSoft.Hunters.Desktop.Platform;
 using SkiaSharp;
 
 namespace NewEdenSoft.Hunters.Desktop.Map;
@@ -22,7 +23,8 @@ public sealed record MapCharacterMarker(long CharacterId, string Name, int Solar
 /// <summary>
 /// Draws the map with Skia (docs/decisions.md, D21) and handles pan (drag), zoom (wheel), hover,
 /// clicks on character markers and systems (and double clicks on systems), a system's menu (right
-/// click), and animated focus on a system.
+/// click), and animated focus on a system. With a focus, it shows the gate route from there to the
+/// hovered system, else to <see cref="RouteToSystemId"/>, with bars moving along it.
 /// The drawing itself is in <see cref="MapScene"/>; this control owns the camera and the input, and
 /// rebuilds the scene when the model, layout, filter or theme colours change. It has no background
 /// of its own, so the map shows over its parent (a panel, or an overlay at the user's opacity).
@@ -57,6 +59,17 @@ public sealed class MapControl : Control
     /// <summary>Per system, whether it is in jump range of the focused system: a blue glow and ring. Null to show none.</summary>
     public static readonly StyledProperty<bool[]?> JumpRangeProperty =
         AvaloniaProperty.Register<MapControl, bool[]?>(nameof(JumpRange));
+
+    /// <summary>
+    /// Where the gate route from the focused system goes while no system on the map is hovered (a hovered
+    /// one takes over); null for none.
+    /// </summary>
+    public static readonly StyledProperty<int?> RouteToSystemIdProperty =
+        AvaloniaProperty.Register<MapControl, int?>(nameof(RouteToSystemId));
+
+    /// <summary>The highlighted gate route.</summary>
+    public static readonly StyledProperty<Color> RouteColorProperty =
+        AvaloniaProperty.Register<MapControl, Color>(nameof(RouteColor), Colors.DeepSkyBlue);
 
     /// <summary>The glow and ring of systems in jump range.</summary>
     public static readonly StyledProperty<Color> JumpRangeColorProperty =
@@ -120,6 +133,17 @@ public sealed class MapControl : Control
     private FocusAnimation? _animation;
     private IReadOnlyList<MapMarkerGroup> _markerGroups = [];
 
+    /// <summary>The gate route shown (system indexes, focus first), and between which systems it was worked out.</summary>
+    private int[]? _route;
+    private (int From, int To) _routeFor = (-1, -1);
+
+    /// <summary>When the route was shown, for its moving bars; they stand still while the user wants less motion.</summary>
+    private long _routeStart;
+    private bool _routeStill;
+
+    /// <summary>Animation frames are being asked for, to move the route's bars.</summary>
+    private bool _routeTicking;
+
     /// <summary>The last click on a system and its timestamp (ms), to tell a double click.</summary>
     private (int Index, ulong At)? _lastClick;
 
@@ -169,6 +193,18 @@ public sealed class MapControl : Control
     {
         get => GetValue(HuntingProperty);
         set => SetValue(HuntingProperty, value);
+    }
+
+    public int? RouteToSystemId
+    {
+        get => GetValue(RouteToSystemIdProperty);
+        set => SetValue(RouteToSystemIdProperty, value);
+    }
+
+    public Color RouteColor
+    {
+        get => GetValue(RouteColorProperty);
+        set => SetValue(RouteColorProperty, value);
     }
 
     public bool[]? JumpRange
@@ -312,7 +348,8 @@ public sealed class MapControl : Control
             CentreOn(_scene.X(index), _scene.Y(index), focus.ZoomIn ? ClampScale(Math.Max(_scale, FocusScale)) : _scale);
         }
 
-        context.Custom(new DrawOperation(new Rect(Bounds.Size), _scene, Camera(), _hovered, _markerGroups, FocusedIndex, SelectedIndex, Hunting, JumpRange));
+        var route = _route is { } systems ? new MapRoute(systems, RouteTravelled()) : null;
+        context.Custom(new DrawOperation(new Rect(Bounds.Size), _scene, Camera(), _hovered, _markerGroups, FocusedIndex, SelectedIndex, Hunting, JumpRange, route));
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -331,13 +368,14 @@ public sealed class MapControl : Control
             GroupMarkers();
         }
         else if (change.Property == FocusedSystemIdProperty || change.Property == SelectedSystemIdProperty || change.Property == HuntingProperty ||
-                 change.Property == JumpRangeProperty)
+                 change.Property == JumpRangeProperty || change.Property == RouteToSystemIdProperty)
         {
+            UpdateRoute();
             InvalidateVisual();
         }
         else if (change.Property == FilterProperty || change.Property == HaloColorProperty || change.Property == GateColorProperty ||
                  change.Property == TextColorProperty || change.Property == MutedTextColorProperty || change.Property == HoverColorProperty ||
-                 change.Property == HuntGlowColorProperty || change.Property == JumpRangeColorProperty)
+                 change.Property == HuntGlowColorProperty || change.Property == JumpRangeColorProperty || change.Property == RouteColorProperty)
         {
             RebuildScene();
         }
@@ -536,8 +574,63 @@ public sealed class MapControl : Control
             ? new MapScene(model, Layout, filter, Palette(), Fonts.Value)
             : null;
         _hovered = -1;
+        _routeFor = (-1, -1);
+        UpdateRoute();
         HoverChanged?.Invoke(this, null);
         InvalidateVisual();
+    }
+
+    /// <summary>
+    /// The gate route from the focused system to the hovered one, else to <see cref="RouteToSystemId"/>;
+    /// worked out again only when either end changes. While one is shown, frames are asked for to move its bars.
+    /// </summary>
+    private void UpdateRoute()
+    {
+        var from = FocusedIndex;
+        var to = from < 0 ? -1 : _hovered >= 0 ? _hovered : IndexOf(RouteToSystemId);
+        if ((from, to) == _routeFor)
+            return;
+
+        _routeFor = (from, to);
+        _route = _scene is not null && from >= 0 && to >= 0 && GateRoutes.Route(_scene.Model, from, to) is { Length: > 1 } route ? route : null;
+        if (_route is null)
+            return;
+
+        _routeStart = System.Diagnostics.Stopwatch.GetTimestamp();
+        _routeStill = ReducedMotion.IsPreferred();
+        StartRouteFrames();
+    }
+
+    /// <summary>How far the route's bars have moved, in pixels.</summary>
+    private float RouteTravelled() =>
+        _routeStill ? 0 : (float)(System.Diagnostics.Stopwatch.GetElapsedTime(_routeStart).TotalSeconds * MapScene.RouteSpeed);
+
+    private void StartRouteFrames()
+    {
+        if (_routeTicking || _routeStill || TopLevel.GetTopLevel(this) is not { } top)
+            return;
+        _routeTicking = true;
+        top.RequestAnimationFrame(OnRouteFrame);
+    }
+
+    /// <summary>Redraws while a route is shown, so its bars move; stops when none is.</summary>
+    private void OnRouteFrame(TimeSpan time)
+    {
+        if (_route is null || _routeStill || TopLevel.GetTopLevel(this) is not { } top)
+        {
+            _routeTicking = false;
+            return;
+        }
+
+        InvalidateVisual();
+        top.RequestAnimationFrame(OnRouteFrame);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (_route is not null)
+            StartRouteFrames();
     }
 
     /// <summary>Markers by system index, in the order given; characters in systems not on the map are left out.</summary>
@@ -555,7 +648,7 @@ public sealed class MapControl : Control
 
     private MapPalette Palette() => new(
         ToSkia(HaloColor), ToSkia(GateColor), ToSkia(TextColor), ToSkia(MutedTextColor), ToSkia(TextColor), ToSkia(HoverColor), ToSkia(HuntGlowColor),
-        ToSkia(TextColor), ToSkia(JumpRangeColor));
+        ToSkia(TextColor), ToSkia(JumpRangeColor), ToSkia(RouteColor));
 
     private void UpdateHover(Point at) => SetHovered(SystemAt(at));
 
@@ -564,6 +657,7 @@ public sealed class MapControl : Control
         if (index != _hovered)
         {
             _hovered = index;
+            UpdateRoute();
             InvalidateVisual();
         }
 
@@ -589,7 +683,7 @@ public sealed class MapControl : Control
 
     /// <summary>Draws one frame on Avalonia's render thread, from a scene and camera captured on the UI thread.</summary>
     private sealed class DrawOperation(Rect bounds, MapScene scene, MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup> markers, int focused,
-        int selection, HuntingLayer? hunting, bool[]? jumpRange) : ICustomDrawOperation
+        int selection, HuntingLayer? hunting, bool[]? jumpRange, MapRoute? route) : ICustomDrawOperation
     {
         public Rect Bounds => bounds;
 
@@ -610,7 +704,7 @@ public sealed class MapControl : Control
             var canvas = lease.SkCanvas;
             canvas.Save();
             canvas.ClipRect(new SKRect(0, 0, (float)bounds.Width, (float)bounds.Height));
-            scene.Draw(canvas, camera, hovered, markers, focused, hunting, selection, jumpRange);
+            scene.Draw(canvas, camera, hovered, markers, focused, hunting, selection, jumpRange, route);
             canvas.Restore();
         }
     }

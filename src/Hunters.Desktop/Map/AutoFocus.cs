@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-
 namespace NewEdenSoft.Hunters.Desktop.Map;
 
 /// <summary>Why a move focuses its new system.</summary>
@@ -12,8 +10,6 @@ public enum AutoFocusReason
 /// <summary>Whether a character's move should focus its new system, like the web's <c>map/autoFocus.ts</c>.</summary>
 public static class AutoFocus
 {
-    private static readonly ConditionalWeakTable<MapModel, int[][]> Neighbours = new();
-
     /// <summary>
     /// Whether a character's move from one system to another should focus the new one. Coming from a
     /// system that isn't on the map (unknown space) into one that is: <see cref="AutoFocusReason.KnownSpace"/>.
@@ -38,7 +34,7 @@ public static class AutoFocus
         if (from == to)
             return true;
 
-        var adjacent = Neighbours.GetValue(model, BuildNeighbours);
+        var adjacent = GateRoutes.NeighboursOf(model);
         var seen = new HashSet<int> { from };
         var frontier = new List<int> { from };
         for (var depth = 1; depth <= limit && frontier.Count > 0; depth++)
@@ -59,18 +55,5 @@ public static class AutoFocus
         }
 
         return false;
-    }
-
-    /// <summary>Each system's gate neighbours (by index), built once per model.</summary>
-    private static int[][] BuildNeighbours(MapModel model)
-    {
-        var lists = Enumerable.Range(0, model.Count).Select(_ => new List<int>()).ToArray();
-        for (var g = 0; g < model.Gates.Length; g += 2)
-        {
-            lists[model.Gates[g]].Add(model.Gates[g + 1]);
-            lists[model.Gates[g + 1]].Add(model.Gates[g]);
-        }
-
-        return [.. lists.Select(l => l.ToArray())];
     }
 }

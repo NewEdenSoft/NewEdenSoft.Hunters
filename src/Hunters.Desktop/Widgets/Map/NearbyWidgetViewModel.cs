@@ -150,6 +150,22 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
             _map.FindSystem(index);
     }
 
+    /// <summary>A card is hovered (by the pointer or the keyboard), or no longer: the map shows the gate route to it meanwhile.</summary>
+    public void HoverCard(NearbyCardViewModel card, bool on)
+    {
+        if (on)
+            _map.NearbyHoveredSystemId = card.SystemId;
+        else if (_map.NearbyHoveredSystemId == card.SystemId)
+            _map.NearbyHoveredSystemId = null;
+    }
+
+    /// <summary>The cards changed: a hovered one that is no longer listed (another focus, a new answer) stops counting.</summary>
+    partial void OnRowsChanged(IReadOnlyList<NearbyCardViewModel> value)
+    {
+        if (_map.NearbyHoveredSystemId is { } id && value.All(c => c.SystemId != id))
+            _map.NearbyHoveredSystemId = null;
+    }
+
     /// <summary>A card's Focus: look around that system instead.</summary>
     [RelayCommand]
     private void FocusCard(NearbyCardViewModel card)

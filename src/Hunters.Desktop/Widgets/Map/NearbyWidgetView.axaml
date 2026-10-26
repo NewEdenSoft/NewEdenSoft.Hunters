@@ -142,6 +142,7 @@
         <DataTemplate x:DataType="mw:NearbyCardViewModel">
           <!-- The card is clickable (code-behind); focusable, so Enter selects it too -->
           <Border Classes="card" Focusable="True" Cursor="Hand" Tapped="OnCardTapped" KeyDown="OnCardKeyDown"
+                  PointerEntered="OnCardEntered" PointerExited="OnCardExited" GotFocus="OnCardEntered" LostFocus="OnCardExited"
                   AutomationProperties.Name="{Binding Name}">
             <Classes.selected>
               <MultiBinding Converter="{x:Static w:EqualConverter.Instance}">

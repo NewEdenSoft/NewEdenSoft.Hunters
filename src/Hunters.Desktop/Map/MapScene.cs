@@ -13,7 +13,10 @@ namespace NewEdenSoft.Hunters.Desktop.Map;
 /// </summary>
 public sealed record MapPalette(
     SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent, SKColor HuntGlow = default, SKColor Selection = default,
-    SKColor JumpRange = default);
+    SKColor JumpRange = default, SKColor Route = default);
+
+/// <summary>A gate route to highlight (system indexes, origin first), and how far its bars have moved (pixels).</summary>
+public sealed record MapRoute(int[] Systems, float Travelled = 0);
 
 /// <summary>One character's marker; offline characters are drawn dimmed at their last known system.</summary>
 public readonly record struct MapMarker(long CharacterId, CharacterMarker Marker, bool IsOnline);
@@ -82,6 +85,9 @@ public sealed class MapScene
     private const float LabelCell = 6;
 
     /// <summary>Marker badges: size, space between them, and how far the leader line reaches up and right from the system.</summary>
+    /// <summary>The highlighted route's bars: their thickness, length and gap (pixels), and how fast they move (pixels a second).</summary>
+    public const float RouteWidth = 3, RouteBar = 8, RouteGap = 6, RouteSpeed = 28;
+
     private const float MarkerSize = 18, MarkerGap = 3, MarkerLead = 12, MarkerCut = 4, MarkerFontSize = 11;
 
     /// <summary>Hunting badges show from this zoom (pixels per light year); further out, the glow alone does.</summary>
@@ -168,7 +174,7 @@ public sealed class MapScene
     /// <param name="jumpRange">Per system, whether it is in jump range of the focused system; null when the range isn't shown.</param>
     public void Draw(
         SKCanvas canvas, in MapCamera camera, int hovered, IReadOnlyList<MapMarkerGroup>? markers = null, int focused = -1, HuntingLayer? hunting = null,
-        int selection = -1, bool[]? jumpRange = null)
+        int selection = -1, bool[]? jumpRange = null, MapRoute? route = null)
     {
         // The selection is drawn only apart from the focus, which already marks the system.
         if (selection == focused)
@@ -185,6 +191,9 @@ public sealed class MapScene
             DrawJumpRange(canvas, camera, jumpRange);
         if (hunting is not null)
             DrawHuntGlow(canvas, camera, hunting.Glow);
+        // Under the systems, so the route runs into them like the gates do.
+        if (route is { Systems.Length: > 1 })
+            DrawRoute(canvas, camera, route);
         DrawSystems(canvas, camera);
         // Over the systems, so the range shows on busy (large, bright) systems too.
         if (jumpRange is not null)
@@ -456,6 +465,45 @@ public sealed class MapScene
     {
         using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1.5f, Color = _palette.Accent };
         canvas.DrawCircle(camera.ToScreenX(X(hovered)), camera.ToScreenY(Y(hovered)), SystemRadius(camera.Scale) * Filter.SizeOf(hovered) + 4, paint);
+    }
+
+    /// <summary>
+    /// The route's gates: a soft wide stroke under a row of bars, in screen space so they keep their size.
+    /// The bars have moved <see cref="MapRoute.Travelled"/> pixels from the origin towards the destination.
+    /// </summary>
+    private void DrawRoute(SKCanvas canvas, in MapCamera camera, MapRoute route)
+    {
+        using var path = new SKPath();
+        for (var k = 0; k < route.Systems.Length; k++)
+        {
+            var i = route.Systems[k];
+            var point = new SKPoint(camera.ToScreenX(X(i)), camera.ToScreenY(Y(i)));
+            if (k == 0)
+                path.MoveTo(point);
+            else
+                path.LineTo(point);
+        }
+
+        using var paint = new SKPaint
+        {
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            Color = _palette.Route.WithAlpha((byte)(255 * 0.25f)),
+            StrokeWidth = RouteWidth * 3,
+            StrokeCap = SKStrokeCap.Round,
+            StrokeJoin = SKStrokeJoin.Round,
+        };
+        canvas.DrawPath(path, paint);
+
+        // A phase that falls behind the pattern moves the bars along the path, the way it was drawn: from the origin.
+        const float period = RouteBar + RouteGap;
+        var phase = period - route.Travelled % period;
+        using var bars = SKPathEffect.CreateDash([RouteBar, RouteGap], phase);
+        paint.Color = _palette.Route;
+        paint.StrokeWidth = RouteWidth;
+        paint.StrokeCap = SKStrokeCap.Butt;
+        paint.PathEffect = bars;
+        canvas.DrawPath(path, paint);
     }
 
     /// <summary>
