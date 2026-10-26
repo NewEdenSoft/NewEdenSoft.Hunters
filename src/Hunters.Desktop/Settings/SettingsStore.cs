@@ -5,9 +5,15 @@ using NewEdenSoft.Hunters.Desktop.Map;
 
 namespace NewEdenSoft.Hunters.Desktop.Settings;
 
-/// <summary>Per-user desktop preferences. Secrets never go here; they belong in the OS credential store.</summary>
+/// <summary>
+/// Per-user desktop preferences. Sessions and tokens never go here (docs/decisions.md, D20); the only
+/// secret is a saved server's access key, as plain text, when the user saves one.
+/// </summary>
 public sealed record DesktopSettings
 {
+    /// <summary>The servers saved on the login screen, last saved first.</summary>
+    public IReadOnlyList<SavedServer> Servers { get; init; } = [];
+
     public string? ThemeId { get; init; }
 
     /// <summary>Start hidden in the system tray instead of opening the main window.</summary>

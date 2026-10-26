@@ -69,6 +69,7 @@ public static class DesktopHost
         services.AddHttpClient(PortraitCache.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
         services.AddSingleton<PortraitCache>();
         services.AddSingleton<CharacterPreferences>();
+        services.AddSingleton<SavedServers>();
 
         // ESI: the desktop's own calls for its characters (docs/decisions.md, D11)
         services.AddEveEsi(o =>

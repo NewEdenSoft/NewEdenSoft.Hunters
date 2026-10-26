@@ -12,9 +12,9 @@ The app runs inside the .NET Generic Host (`DesktopHost`): dependency injection,
 
 ## Server profiles
 
-- Users add servers by URL. The client reads the [discovery document](discovery-and-admission.md), checks compatibility, and asks the user to confirm trust.
-- Several profiles can be saved; one is active at a time initially.
-- Profiles store the server address and its name, never a session. See [Sessions are memory only](#sessions-are-memory-only).
+- **Saved servers.** On the login screen, **Save server** saves the address and, when one is entered, the access key on this computer (`SavedServers`, `Servers` in `desktop-settings.json`). Nothing is saved until it is pressed. Saving a server again replaces it; the last saved comes first and is filled in at start. Saved servers are listed above the address ("· key" when a key is saved): a click fills in its address and key, ✕ forgets it.
+- The access key is kept as **plain text** in the settings file, by choice: it only lets a character create an account, never logs anyone in, and can be revoked or limited by the server's admins. Sessions are never saved. See [Sessions are memory only](#sessions-are-memory-only).
+- Planned: reading the [discovery document](discovery-and-admission.md) when a server is added, checking compatibility, and asking the user to confirm trust.
 
 ## Login
 
@@ -30,7 +30,7 @@ The desktop keeps its app session in memory and never writes it to disk or the O
 
 - **Signed out**: the main window shows only the login screen (server address, access key, log in). No navigation rail, no widgets, no overlays. The tray menu has only *Open Hunters* and *Quit Hunters*.
 - **Signed in**: the full app (navigation rail, widget pages, Account, Settings) and the saved overlays are restored.
-- **At startup**: the app always opens on the login screen, with the last server's address filled in, even if *Start in the system tray* is on. Saved overlays and *Start in the system tray* apply after login.
+- **At startup**: the app always opens on the login screen, with the last saved server's address and access key filled in, even if *Start in the system tray* is on. Saved overlays and *Start in the system tray* apply after login.
 - **Session ends** (log out, revoked by the server, or rejected by admission): overlays close, background work stops and the app returns to the login screen.
 
 Until this is built, the Account page is just another page and the rest of the app works without a session.
