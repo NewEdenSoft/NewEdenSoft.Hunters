@@ -134,13 +134,15 @@ public sealed partial class HuntingProfileService(
 
         var (kills, sightings) = changed.Count > 0 ? await BackfillAsync(db, changed, cancellationToken) : (0, 0);
 
-        // Every profile's name (readers list the profiles from here), and the definition of the rebuilt ones.
+        // Every profile's name and explanation (readers list the profiles from here), and the definition of the rebuilt ones.
         foreach (var profile in profiles)
         {
             var state = states.GetValueOrDefault(profile.Id);
             if (state is null)
                 db.HuntingProfileStates.Add(state = new HuntingProfileState { Profile = profile.Id });
             state.Name = profile.Profile.Name;
+            state.Description = profile.Profile.Description;
+            state.Evidence = [.. profile.Profile.Evidence ?? []];
             if (changed.Contains(profile))
             {
                 state.Definition = profile.Definition;

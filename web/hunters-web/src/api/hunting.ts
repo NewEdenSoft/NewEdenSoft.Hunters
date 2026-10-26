@@ -7,6 +7,10 @@ import { api } from './http'
 export interface HuntingProfileInfo {
   id: string
   name: string
+  /** What the target is, in a sentence; empty when the server has none. */
+  description: string
+  /** What counts as seeing it, one line per way: the profile's rules in players' words. */
+  evidence: string[]
 }
 
 /** One profile's systems with sightings, highest score first, as columns: entry `i` belongs to `systemIds[i]`. */

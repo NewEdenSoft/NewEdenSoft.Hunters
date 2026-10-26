@@ -77,7 +77,13 @@ public sealed record ProfileRule(
 /// Bursts of kills are this profile's target (a gate camp), so the battle rule doesn't mark its sightings
 /// as fleet fights. Kills with very many attackers still are.
 /// </param>
-public sealed record HuntingProfile(string Id, string Name, IReadOnlyList<ProfileRule> Rules, bool KeepsFights = false);
+/// <param name="Description">What the target is, in a sentence, for the clients' info page.</param>
+/// <param name="Evidence">
+/// What counts as seeing it, one line per way, in players' words: the rules explained. Kept next to the
+/// rules so a change to one is a change to the other.
+/// </param>
+public sealed record HuntingProfile(
+    string Id, string Name, IReadOnlyList<ProfileRule> Rules, bool KeepsFights = false, string Description = "", IReadOnlyList<string>? Evidence = null);
 
 /// <summary>
 /// The built-in hunting profiles (docs/map-and-activity.md, "Hunting profiles"). Changing one here (or a
@@ -115,14 +121,28 @@ public static class HuntingProfiles
     /// </summary>
     private static readonly ProfileRule CrabIndicator = new(RuleKind.Victim, GroupOfType: CrabBeacon, Weight: 0.75, Indicator: true);
 
+    private const string CrabEvidence = "Indirect, counting 0.75: a CRAB beacon killed there. Anchoring one is mostly a capital ratting habit.";
+
     public static readonly IReadOnlyList<HuntingProfile> All =
     [
-        new("carriers", "Carriers", [new(RuleKind.Ship, Groups: [Carrier]), CrabIndicator]),
-        new("supers", "Supercarriers and Titans", [new(RuleKind.Ship, Groups: [Supercarrier, Titan]), CrabIndicator]),
-        new("dreads", "Dreadnoughts", [new(RuleKind.Ship, Groups: [Dreadnought, LancerDreadnought])]),
-        new("fax", "Force Auxiliaries", [new(RuleKind.Ship, Groups: [ForceAuxiliary])]),
-        new("marauders", "Marauders", [new(RuleKind.Ship, Groups: [Marauder])]),
-        new("ishtars", "Ishtars", [new(RuleKind.Ship, Types: [Ishtar])]),
+        new("carriers", "Carriers", [new(RuleKind.Ship, Groups: [Carrier]), CrabIndicator],
+            Description: "Carrier pilots, mostly ratting with fighters in their home systems.",
+            Evidence: ["A Carrier dies there.", CrabEvidence]),
+        new("supers", "Supercarriers and Titans", [new(RuleKind.Ship, Groups: [Supercarrier, Titan]), CrabIndicator],
+            Description: "Supercarriers and Titans, which live in their home space and rarely leave it.",
+            Evidence: ["A Supercarrier or Titan dies there.", CrabEvidence]),
+        new("dreads", "Dreadnoughts", [new(RuleKind.Ship, Groups: [Dreadnought, LancerDreadnought])],
+            Description: "Dreadnoughts, ratting or crabbing where they live.",
+            Evidence: ["A Dreadnought or Lancer Dreadnought dies there."]),
+        new("fax", "Force Auxiliaries", [new(RuleKind.Ship, Groups: [ForceAuxiliary])],
+            Description: "Force Auxiliaries: logistics capitals, usually where other capitals live.",
+            Evidence: ["A Force Auxiliary dies there."]),
+        new("marauders", "Marauders", [new(RuleKind.Ship, Groups: [Marauder])],
+            Description: "Marauders: battleships running anomalies, missions and escalations.",
+            Evidence: ["A Marauder dies there."]),
+        new("ishtars", "Ishtars", [new(RuleKind.Ship, Types: [Ishtar])],
+            Description: "Ishtars: the common drone ratting cruiser.",
+            Evidence: ["An Ishtar dies there."]),
         // A victim with at least five smart bombs fitted (any mix): a ship built to bomb, not one carrying a
         // utility smart bomb. Or an attacker's area weapon (a smart bomb, or the Vorton projector of an
         // EDENCOM ship) killing one of its own corporation or alliance: friendly fire in a group that bombs
@@ -133,12 +153,27 @@ public static class HuntingProfiles
             new(RuleKind.Module, Groups: [SmartBomb], MinFitted: SmartbomberMinFitted),
             new(RuleKind.Weapon, Groups: [SmartBomb, VortonProjector], Side: VictimSide.Own),
             new(RuleKind.Weapon, Groups: [SmartBomb, VortonProjector], AppearanceOnly: true),
-        ]),
-        new("crab", "CRAB beacons", [new(RuleKind.Victim, GroupOfType: CrabBeacon)]),
+        ],
+            Description: "Smartbomb battleships clearing ratting sites, often next to their own alts.",
+            Evidence:
+            [
+                $"A ship with at least {SmartbomberMinFitted} smart bombs fitted (any mix of sizes and damage types) dies there. One is a utility slot, not a smartbomber.",
+                "A smart bomb or Vorton projector kills someone of its own corporation or alliance: friendly fire in a group that bombs together.",
+                "A known smartbomber on the attacker list of an alt's loss in another corporation: counts towards its regulars, not the score.",
+            ]),
+        new("crab", "CRAB beacons", [new(RuleKind.Victim, GroupOfType: CrabBeacon)],
+            Description: "CONCORD Rogue Analysis Beacons, anchored to run CRAB sites, mostly by capital ratters.",
+            Evidence: ["A CRAB beacon (either kind) is killed there."]),
         // Strangers' pods popped by smart bombs: PvP smartbombing, typically a camp on a low-sec pipe gate.
         // A group's own pods caught in its bombs are friendly fire, not a camp.
         new("smartbomb-camps", "Smartbomb camps",
-            [new(RuleKind.Weapon, Groups: [SmartBomb], VictimGroups: [Capsule], Side: VictimSide.Other)], KeepsFights: true),
+            [new(RuleKind.Weapon, Groups: [SmartBomb], VictimGroups: [Capsule], Side: VictimSide.Other)], KeepsFights: true,
+            Description: "Smartbomb gate camps, typically on a low-sec pipe gate: a danger to pass, and a target to catch.",
+            Evidence:
+            [
+                "A smart bomb's last hit kills the capsule of another corporation and alliance. A group's own pods caught in its bombs are friendly fire.",
+                "Bursts of kills are what a camp does, so they are not left out as fleet fights (more than 25 attackers still are).",
+            ]),
     ];
 }
 

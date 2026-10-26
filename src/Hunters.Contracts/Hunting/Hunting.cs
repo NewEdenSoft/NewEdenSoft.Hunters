@@ -2,7 +2,9 @@ namespace NewEdenSoft.Hunters.Contracts.Hunting;
 
 /// <summary>A hunting profile: a kind of target (docs/map-and-activity.md, "Hunting profiles").</summary>
 /// <param name="Id">Stable id, for example <c>carriers</c>.</param>
-public sealed record HuntingProfileInfo(string Id, string Name);
+/// <param name="Description">What the target is, in a sentence; empty when the intel service has none.</param>
+/// <param name="Evidence">What counts as seeing it, one line per way: the profile's rules in players' words.</param>
+public sealed record HuntingProfileInfo(string Id, string Name, string Description = "", IReadOnlyList<string>? Evidence = null);
 
 /// <summary>
 /// Where every profile's target is found, for colouring the map by a profile (docs/map-and-activity.md,

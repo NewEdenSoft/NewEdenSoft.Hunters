@@ -110,7 +110,7 @@ The intel service's `KillFeedService` (`src/Hunters.Intel/Kills`) reads zKillboa
 
 ### Hunting profiles
 
-A hunting profile is a kind of target: where it is seen, and when, is built up from the kills (`src/Hunters.Intel/Hunting`). **What dies in a system is what lives there:** a capital that only helped kill something may have come for that one kill and left, so ships count when they die, not when they kill. The built-in profiles (`HuntingProfiles.All`) are defined in code:
+A hunting profile is a kind of target: where it is seen, and when, is built up from the kills (`src/Hunters.Intel/Hunting`). **What dies in a system is what lives there:** a capital that only helped kill something may have come for that one kill and left, so ships count when they die, not when they kill. The built-in profiles (`HuntingProfiles.All`) are defined in code. Each also has a **description** and its **evidence** (its rules in players' words, one line per way) written next to the rules, so a change to one is a change to the other. The profile service stores them with the name in `intel.HuntingProfileStates` on every sync, and the API serves them for the clients' info page.
 
 | Profile | Seen when |
 |---|---|
@@ -201,7 +201,7 @@ The API server's `HuntingService` (`src/Hunters.Server/Features/Hunting`) follow
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/hunting/profiles` | the profiles: `id`, `name` |
+| `GET /api/hunting/profiles` | the profiles: `id`, `name`, `description` (what the target is) and `evidence` (what counts as seeing it, one line per way) |
 | `GET /api/hunting/overview` | every profile, **sparse**: only systems with sightings, highest score first, as columns: `systemIds`, `score`, `week`, `month`, `lastSeen`, `hours` (24 per system), and `reliable` (24 per system, empty for systems never recomputed with it). Built once per version and served precompressed. For colouring the map by a profile. |
 | `GET /api/hunting/systems/{id}` | the profiles seen in a system, highest score first, each with `score`, `week`, `month`, `monthIndicator` (indirect evidence), `pilots`, `monthLocal` and `localPilots` (locals), `lastSeen`, `hours`, `reliable` (24 by hour), and `regulars`: up to 10 per profile, session windows first, then the strongest (`pilotId`, `days`, `daysInWindow`, `windowStart`, `windowHours`, `lastSeen`, `local`, `strength`). Empty when none were; 404 for systems not on the map. |
 | `GET /api/hunting/regions/{id}` | the same for a region, without regulars or `reliable` (empty lists) |
