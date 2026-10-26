@@ -27,6 +27,7 @@ See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reac
 - [x] A **Nearby** widget from the focused system. Without a focus it says to focus one.
 - [x] **Settings:** gate jumps (Off, 3, 5, 10, 15; 5 by default); jump range on or off (the Jump range widget's light years); sort by NPC kills rising, NPC kills (`sort=npc-kills`) or a profile's likely now (a dropdown); show quiet systems (off). Saved with the desktop settings. Port `parseNearby`, `nearbyRequest`, `isActive`, `distanceText` and `inJumpRange` from `map/nearby.ts`, with their tests.
 - [x] **Quiet systems hidden:** no kills in the last hour or day and no profile seen. Show a "N quiet hidden" toggle. Ask for 200 rows.
+- [ ] **Gate jumps filtered locally:** always ask the server by `ly` (the Jump range widget's light years), never by `jumps`; cut the list to the gate jumps chosen on the client (port `withinJumps`), so changing them doesn't ask again. Jump range only adds the light years and the in-range mark. Update `Nearby.Request` and its tests to match.
 - [ ] **Cards** (up to 50, with the active count), each with:
   - name, security and distance (jumps, ly, or both; *no gates*), in jump-range blue when in range
   - NPC kills last hour with ▲ / ▼ and 24 h; PvP (ship and pod kills) last hour and 24 h when any
