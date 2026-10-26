@@ -1,4 +1,5 @@
 import type { MapModel } from './model'
+import { neighboursOf } from './route'
 
 /** When the focused system may change by itself, and how the map's clicks work (Settings, "Map behaviour"). */
 export interface MapBehaviour {
@@ -32,22 +33,6 @@ export function autoFocusReason(model: MapModel, from: number | null, to: number
   if (origin === undefined) return behaviour.enterKnownSpace ? 'known-space' : null
   if (!behaviour.longMove) return null
   return jumpsWithin(model, origin, target, behaviour.minJumps - 1) ? null : 'long-move'
-}
-
-const neighbours = new WeakMap<MapModel, number[][]>()
-
-/** Each system's gate neighbours (by index), built once per model. */
-function neighboursOf(model: MapModel): number[][] {
-  let list = neighbours.get(model)
-  if (!list) {
-    list = Array.from({ length: model.count }, () => [])
-    for (let g = 0; g < model.gates.length; g += 2) {
-      list[model.gates[g]].push(model.gates[g + 1])
-      list[model.gates[g + 1]].push(model.gates[g])
-    }
-    neighbours.set(model, list)
-  }
-  return list
 }
 
 /** Whether `to` is at most `limit` gate jumps from `from` (a breadth-first search that stops at the limit). */

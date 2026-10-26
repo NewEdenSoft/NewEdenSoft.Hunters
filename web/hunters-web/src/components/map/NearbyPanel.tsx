@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import type { HuntingProfileInfo } from '../../api/hunting'
 import { reachQuery, type ReachSystem } from '../../api/reach'
 import { formatLy } from '../../map/jumpRange'
@@ -20,7 +21,8 @@ import { useDestination } from './useDestination'
  * The Nearby panel: what is in reach of the focused system (`/api/intel/reach`), within gate jumps and/or
  * the Jump range panel's light years, sorted by the rise in NPC kills or by a hunting profile's "likely
  * now". One card per system with activity, with quick controls; systems where nothing happens are
- * hidden unless asked for. Clicking a card selects the system and takes the map there.
+ * hidden unless asked for. Clicking a card selects the system and takes the map there; hovering one
+ * shows the gate route there on the map.
  */
 export function NearbyPanel({
   model,
@@ -29,6 +31,7 @@ export function NearbyPanel({
   profiles,
   onSelect,
   onFocus,
+  onHover,
 }: {
   model: MapModel
   focused: number
@@ -37,6 +40,8 @@ export function NearbyPanel({
   profiles: HuntingProfileInfo[]
   onSelect: (index: number) => void
   onFocus: (index: number) => void
+  /** The system whose card is hovered or has the keyboard's focus, or -1 for none. */
+  onHover: (index: number) => void
 }) {
   const [setting, update] = useNearby()
   const [range] = useJumpRange()
@@ -56,6 +61,12 @@ export function NearbyPanel({
   const active = around.filter(isActive)
   const quiet = around.length - active.length
   const shown = (setting.showQuiet ? around : active).slice(0, NEARBY_LIMIT)
+
+  // A card can go (another focus, a new answer) without the pointer leaving it: only a listed one counts.
+  const [hovered, setHovered] = useState<number | null>(null)
+  const hoveredIndex = hovered !== null && shown.some((row) => row.systemId === hovered) ? (model.indexOf.get(hovered) ?? -1) : -1
+  useEffect(() => onHover(hoveredIndex), [hoveredIndex, onHover])
+  useEffect(() => () => onHover(-1), [onHover])
 
   return (
     <div className="grid gap-3">
@@ -146,6 +157,7 @@ export function NearbyPanel({
                     names={names}
                     onSelect={() => onSelect(index)}
                     onFocus={() => onFocus(index)}
+                    onHover={(on) => setHovered(on ? row.systemId : null)}
                   />
                 )
               })}
@@ -172,6 +184,7 @@ function NearbyCard({
   names,
   onSelect,
   onFocus,
+  onHover,
 }: {
   name: string
   row: ReachSystem
@@ -183,6 +196,8 @@ function NearbyCard({
   names: Map<string, string>
   onSelect: () => void
   onFocus: () => void
+  /** The pointer or the keyboard's focus came onto the card (true) or left it (false). */
+  onHover: (on: boolean) => void
 }) {
   const destination = useDestination(row.systemId, name)
   const npc = row.activity?.npcKills
@@ -197,6 +212,10 @@ function NearbyCard({
   return (
     <li
       onClick={onSelect}
+      onPointerEnter={() => onHover(true)}
+      onPointerLeave={() => onHover(false)}
+      onFocus={() => onHover(true)}
+      onBlur={() => onHover(false)}
       className={cn(
         'grid cursor-pointer gap-1 border bg-bg/40 px-2 py-1.5 hover:border-primary',
         selected ? 'border-primary bg-primary-soft' : 'border-line',

@@ -33,6 +33,7 @@ See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reac
   - profile badges, bright when likely now, the sorting one outlined
   - quick controls: Dest (every tracked character, outcome on the card) and Focus
 - [ ] **Clicking a card** selects the system and moves the map there; the quick controls don't.
+- [ ] **Hovering a card** draws the gate route there from the focus: its gates in the info blue under the systems, and a ball travelling it (280 ms a jump, a rest at the end, again and again; none with reduced motion). Port `gateRoute` from `map/route.ts` with its tests (`MapGeometry` may already have what it needs); redraw only while a route is shown.
 - [ ] Refreshed every two minutes; keep the old rows, dimmed, while loading.
 
 ## System panel

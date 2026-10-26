@@ -35,6 +35,7 @@ import { Panels } from '../../panels/Panels'
 import { bringToFront, SEARCH_LAYER, useSearchLayer } from '../../panels/panelStore'
 import { getMapBehaviour, mapLayouts, useJumpRange, useMapLayout, useShownHuntingProfiles } from '../../settings/mapSettings'
 import { jumpRangeOf } from '../../map/jumpRange'
+import { gateRoute } from '../../map/route'
 import { buildHuntingLayer, profilesBySystem, type HuntingLayer, type PlaceProfile } from '../../map/hunting'
 import { useUtcHour } from '../../map/useUtcHour'
 import { profileStyle } from '../../theme/themes'
@@ -238,6 +239,10 @@ function LoadedMap({
     [model, focused, rangeSetting.enabled, rangeSetting.ly],
   )
 
+  // The system hovered in the Nearby panel: the gate route there from the focused system is drawn.
+  const [routeTo, setRouteTo] = useState(-1)
+  const route = useMemo(() => (focused >= 0 && routeTo >= 0 ? gateRoute(model, focused, routeTo) : null), [model, focused, routeTo])
+
   // Escape clears the selection, unless the user is typing somewhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -291,6 +296,7 @@ function LoadedMap({
         hunting={hunting}
         profilesAt={profilesAt}
         jumpRange={jumpRange}
+        route={route}
         onClearSystem={() => setSystem(undefined)}
       />
       {/* A layer like the panels: whichever was clicked or focused last is on top. */}
@@ -350,7 +356,17 @@ function LoadedMap({
           },
           {
             definition: panel('nearby'),
-            content: <NearbyPanel model={model} focused={focused} selection={selection} profiles={huntingProfiles} onSelect={findSystem} onFocus={focusSystem} />,
+            content: (
+              <NearbyPanel
+                model={model}
+                focused={focused}
+                selection={selection}
+                profiles={huntingProfiles}
+                onSelect={findSystem}
+                onFocus={focusSystem}
+                onHover={setRouteTo}
+              />
+            ),
           },
           {
             definition: panel('hunting'),

@@ -152,6 +152,7 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
     - **Dest** sets the autopilot destination there for every tracked character, as the System panel's Destination does (`useDestination`); the outcome shows on the card, and a success clears after a few seconds
     - **◎** focuses the system, so the panel looks around it instead
 - **Clicking a card** selects the system and takes the map there, like the search, so the System panel shows it. The quick controls don't select.
+- **Hovering a card** (or giving it the keyboard's focus) draws the shortest gate route there from the focused system (`gateRoute` in `map/route.ts`, with tests). The route's gates are drawn in the info blue under the systems, and a ball travels them from the focused system, 280 ms a jump, rests at the destination and sets off again. With reduced motion there is no ball. Nothing is drawn where no gates lead. The map doesn't move. The route clears when the pointer leaves, the card goes from the list, or the panel closes. `MapRenderer.setRoute` draws frames only while a route is shown.
 - **Without a focus**, the panel says to focus a system.
 - **Data:** asked again every two minutes; the server's ETag moves with the hour and the data, so most answers are 304. The previous rows stay, dimmed, while a new answer loads.
 - **Settings:** kept in local storage under `hunters.nearby`; the pure rules are in `map/nearby.ts`, with tests.

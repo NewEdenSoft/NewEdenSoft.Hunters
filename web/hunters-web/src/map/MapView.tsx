@@ -52,6 +52,8 @@ interface MapViewProps {
   profilesAt?: Map<number, PlaceProfile[]> | null
   /** The jump range: a blue glow on the systems it reaches; the hover panel tells the distance. */
   jumpRange?: JumpRangeView | null
+  /** A gate route to highlight (system indexes, origin first), with a ball travelling it; null for none. */
+  route?: number[] | null
 }
 
 /**
@@ -77,6 +79,7 @@ export function MapView({
   hunting = null,
   profilesAt = null,
   jumpRange = null,
+  route = null,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<MapRenderer | null>(null)
@@ -85,13 +88,13 @@ export function MapView({
   const closeMenu = useCallback(() => setMenu(null), [])
 
   // The renderer lives as long as the model; everything else is applied to it without recreating it.
-  const latest = useRef({ layout, filter, markers, focus, focused, selection, hunting, jumpRange, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem })
+  const latest = useRef({ layout, filter, markers, focus, focused, selection, hunting, jumpRange, route, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem })
   useEffect(() => {
-    latest.current = { layout, filter, markers, focus, focused, selection, hunting, jumpRange, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem }
+    latest.current = { layout, filter, markers, focus, focused, selection, hunting, jumpRange, route, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem }
   })
 
   useEffect(() => {
-    const { layout, filter, markers, focus, focused, selection, hunting, jumpRange } = latest.current
+    const { layout, filter, markers, focus, focused, selection, hunting, jumpRange, route } = latest.current
     const renderer = new MapRenderer(canvasRef.current!, model, layout, filter)
     renderer.onHover = setHover
     renderer.onMarkerClick = (id) => latest.current.onMarkerClick?.(id)
@@ -104,6 +107,7 @@ export function MapView({
     renderer.setSelection(selection)
     renderer.setHunting(hunting)
     renderer.setJumpRange(jumpRange?.inRange ?? null)
+    renderer.setRoute(route)
     renderer.setMarkers(markers)
     if (focus) renderer.focusOn(focus.systemIndex, focus.zoomIn)
     rendererRef.current = renderer
@@ -140,6 +144,10 @@ export function MapView({
   useEffect(() => {
     rendererRef.current?.setJumpRange(jumpRange?.inRange ?? null)
   }, [jumpRange])
+
+  useEffect(() => {
+    rendererRef.current?.setRoute(route)
+  }, [route])
 
   useEffect(() => {
     if (focus) rendererRef.current?.focusOn(focus.systemIndex, focus.zoomIn)
