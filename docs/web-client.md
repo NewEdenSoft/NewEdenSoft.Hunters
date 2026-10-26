@@ -16,6 +16,7 @@ React + TypeScript (Vite), served by its own server (see [Deployment](deployment
 | layout | `routes/_authed.tsx` | Loads the account before every page below; a 401 redirects to `/login?redirect=…`. The [rail](#layout-rail-and-panels) on the left of every page. |
 | `/` | `routes/_authed/index.tsx` | The map, filling the window beside the rail (`staticData.fullBleed`), with panels over it. |
 | `/map` | `routes/_authed/map.tsx` | Redirects to `/`, keeping the colour filter, for old links. |
+| `/info` | `routes/_authed/info.tsx` | How Hunters works: using the map, what its marks and the panels' words mean, how profiles are scored, and each profile's description and evidence from `/api/hunting/profiles`. |
 | `/account` | `routes/_authed/account.tsx` | Account and characters. |
 | `/settings` | `routes/_authed/settings.tsx` | Theme and map layout. |
 
@@ -23,7 +24,7 @@ When a query gets a 401 while the app is open (session revoked or ended elsewher
 
 ## Layout: rail and panels
 
-The map is the app. Every signed-in page has a slim rail on the left: the map at the top and, while on the map, a toggle per panel and *Reset panels*; Account (the main character's portrait), Settings and *Log out* at the bottom. Account and Settings are ordinary pages that scroll in the centred column.
+The map is the app. Every signed-in page has a slim rail on the left: the map at the top and, while on the map, a toggle per panel and *Reset panels*; Info (a circled question mark), Account (the main character's portrait), Settings and *Log out* at the bottom. Info, Account and Settings are ordinary pages that scroll in the centred column. The Info page's scoring numbers (×2, ×1.5, 0.75, 25 attackers, 14 days, the 4- and 6-hour windows) are written in the page and follow the intel service's defaults; the profiles' own text comes from the server.
 
 Panels float over the map, the web version of the desktop's widgets (`src/panels`):
 
@@ -39,7 +40,7 @@ Panels float over the map, the web version of the desktop's widgets (`src/panels
 
 Panels snap to the map's edges (12 px in) and to the panels beside them (lined up, or 8 px apart) when dropped within 12 px. A panel fits its content until the user resizes it. When the window shrinks, panels are drawn inside it without changing what is saved, so they go back to their places when it grows again. Panels so far: **Map** (layout, colour, legend), **Nearby** (below the Map panel; see [Nearby panel](#map)), **Hunting** (the profiles shown on the map; closed until opened from the rail, then where Nearby starts), **Jump range** (closed until opened from the rail, since the range is off until chosen), **Characters** (below) and **System** (below Characters; see [System panel](#map)). Nearby activity and Fleet follow.
 
-**On a phone** (below Tailwind's `sm`, 40rem; `useIsPhone`), `Panels` shows the same panels as a **bottom sheet** (`BottomSheet.tsx`) instead: a strip of tabs along the bottom of the map, one per panel. The selected tab shows its name; the others show only their icon (with the name as a tooltip), so four or more tabs fit a phone's width. Tapping a tab opens the sheet on that panel (up to half the screen, scrolling inside); tapping the open tab closes it, and picking a character to show on the map closes it too. The rail becomes a bar along the bottom (map, Account, Settings, log out; no panel toggles), above the safe area. Touch has no hover, so a tap on the map shows the system under the finger (a tap on a marker focuses it), and the system panel stays on screen. The devtools are left out on a phone, where they would cover the bar.
+**On a phone** (below Tailwind's `sm`, 40rem; `useIsPhone`), `Panels` shows the same panels as a **bottom sheet** (`BottomSheet.tsx`) instead: a strip of tabs along the bottom of the map, one per panel. The selected tab shows its name; the others show only their icon (with the name as a tooltip), so four or more tabs fit a phone's width. Tapping a tab opens the sheet on that panel (up to half the screen, scrolling inside); tapping the open tab closes it, and picking a character to show on the map closes it too. The rail becomes a bar along the bottom (map, Info, Account, Settings, log out; no panel toggles), above the safe area. Touch has no hover, so a tap on the map shows the system under the finger (a tap on a marker focuses it), and the system panel stays on screen. The devtools are left out on a phone, where they would cover the bar.
 
 **Characters panel.** The same as the desktop's Characters widget: each character's marker, portrait, an online dot, name, system (with *Docked*) and ship, live from the tracker. Untracked characters say so, characters that need a new login are flagged in amber, and the tooltip has the full station name and the last tracking error. Main first, then by name. Clicking a row shows the character on the map; the target button at the end of the row follows it.
 
