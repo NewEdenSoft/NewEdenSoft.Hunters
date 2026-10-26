@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ActivityColumns } from '../api/activity'
 import { ProfileMark } from '../components/map/ProfileMark'
 import { SystemContextMenu } from '../components/map/SystemContextMenu'
@@ -9,6 +9,7 @@ import type { HuntingLayer, PlaceProfile } from './hunting'
 import { formatLy, isCynoTarget } from './jumpRange'
 import { MapRenderer, type MapContextMenuRequest, type MapHover, type MapMarkerGroup } from './MapRenderer'
 import { lyBetween, type MapLayout, type MapModel } from './model'
+import { gateRoute } from './route'
 import { formatSecurity } from './security'
 
 /** The jump range shown on the map: from the origin (the focused system), how far, and the systems it reaches. */
@@ -52,6 +53,11 @@ interface MapViewProps {
   profilesAt?: Map<number, PlaceProfile[]> | null
   /** The jump range: a blue glow on the systems it reaches; the hover panel tells the distance. */
   jumpRange?: JumpRangeView | null
+  /**
+   * A gate route to highlight (system indexes, origin first), with bars moving along it towards the
+   * destination; null for none. While a system on the map is hovered, the route there from the focused system shows instead.
+   */
+  route?: number[] | null
 }
 
 /**
@@ -77,6 +83,7 @@ export function MapView({
   hunting = null,
   profilesAt = null,
   jumpRange = null,
+  route = null,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<MapRenderer | null>(null)
@@ -85,13 +92,13 @@ export function MapView({
   const closeMenu = useCallback(() => setMenu(null), [])
 
   // The renderer lives as long as the model; everything else is applied to it without recreating it.
-  const latest = useRef({ layout, filter, markers, focus, focused, selection, hunting, jumpRange, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem })
+  const latest = useRef({ layout, filter, markers, focus, focused, selection, hunting, jumpRange, route, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem })
   useEffect(() => {
-    latest.current = { layout, filter, markers, focus, focused, selection, hunting, jumpRange, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem }
+    latest.current = { layout, filter, markers, focus, focused, selection, hunting, jumpRange, route, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem }
   })
 
   useEffect(() => {
-    const { layout, filter, markers, focus, focused, selection, hunting, jumpRange } = latest.current
+    const { layout, filter, markers, focus, focused, selection, hunting, jumpRange, route } = latest.current
     const renderer = new MapRenderer(canvasRef.current!, model, layout, filter)
     renderer.onHover = setHover
     renderer.onMarkerClick = (id) => latest.current.onMarkerClick?.(id)
@@ -104,6 +111,7 @@ export function MapView({
     renderer.setSelection(selection)
     renderer.setHunting(hunting)
     renderer.setJumpRange(jumpRange?.inRange ?? null)
+    renderer.setRoute(route)
     renderer.setMarkers(markers)
     if (focus) renderer.focusOn(focus.systemIndex, focus.zoomIn)
     rendererRef.current = renderer
@@ -140,6 +148,13 @@ export function MapView({
   useEffect(() => {
     rendererRef.current?.setJumpRange(jumpRange?.inRange ?? null)
   }, [jumpRange])
+
+  // A system hovered on the map shows the route there from the focused system instead.
+  const hovered = hover?.index ?? -1
+  const shownRoute = useMemo(() => (focused >= 0 && hovered >= 0 ? gateRoute(model, focused, hovered) : route), [model, focused, hovered, route])
+  useEffect(() => {
+    rendererRef.current?.setRoute(shownRoute)
+  }, [shownRoute])
 
   useEffect(() => {
     if (focus) rendererRef.current?.focusOn(focus.systemIndex, focus.zoomIn)

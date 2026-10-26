@@ -81,6 +81,11 @@ const HUNT_FAINT_ALPHA = 0.4
 /** Offline characters' markers are drawn at this opacity. */
 const OFFLINE_ALPHA = 0.45
 
+/** The highlighted route's bars: their thickness, length and gap (CSS pixels), and how fast they move (pixels a second). */
+const ROUTE_WIDTH = 3
+const ROUTE_BARS = [8, 6]
+const ROUTE_SPEED = 28
+
 /** Focusing zooms in at least this far (pixels per light year), so system names show. */
 export const FOCUS_SCALE = 60
 const FOCUS_MS = 350
@@ -169,6 +174,8 @@ interface Palette {
   huntReliable: string
   /** The blue behind systems a jump drive can reach from the focused system. */
   jumpRange: string
+  /** The gate route to a hovered Nearby system, and the bars moving along it. */
+  route: string
   /** Resolved colours of the filter's groups. */
   groups: string[]
 }
@@ -182,8 +189,8 @@ interface Palette {
  * transform; systems in view,
  * batched by security colour; then, when zoomed in, names to the bottom right of each system,
  * skipping any that would overlap; last, the characters' markers, joined by a line to the upper
- * right of their systems. Frames are drawn only when something changes. {@link focusOn} moves the
- * view to a system with a short animation.
+ * right of their systems. Frames are drawn only when something changes, or while a route's bars
+ * move ({@link setRoute}). {@link focusOn} moves the view to a system with a short animation.
  */
 export class MapRenderer {
   onHover: ((hover: MapHover | null) => void) | null = null
@@ -223,6 +230,8 @@ export class MapRenderer {
   private hunting: HuntingLayer | null = null
   /** 1 per system a jump drive can reach from the focused system, or null when the range isn't shown. */
   private jumpRange: Uint8Array | null = null
+  /** The gate route shown (system indexes, origin first), or null; with when it was shown (for the moving bars). */
+  private route: { systems: number[]; start: number } | null = null
   private huntFont = ''
   /** Resolved badge colours, by CSS colour. */
   private readonly huntColours = new Map<string, string>()
@@ -330,6 +339,15 @@ export class MapRenderer {
   /** The systems in jump range (1 each, see map/jumpRange.ts), or null to show none. Changing it only redraws. */
   setJumpRange(inRange: Uint8Array | null): void {
     this.jumpRange = inRange
+    this.requestDraw()
+  }
+
+  /**
+   * A gate route to highlight (system indexes, origin first; see map/route.ts), or null. Its gates are
+   * drawn as bars over the others, moving from the origin towards the destination while it is shown.
+   */
+  setRoute(systems: number[] | null): void {
+    this.route = systems && systems.length > 1 ? { systems, start: performance.now() } : null
     this.requestDraw()
   }
 
@@ -491,6 +509,8 @@ export class MapRenderer {
 
     if (this.jumpRange) this.drawJumpRange(radius, pad)
     if (this.hunting) this.drawHuntGlow(radius, pad)
+    // Under the systems, so the route runs into them like the gates do.
+    if (this.route) this.drawRoute(this.route)
 
     for (let group = 0; group < this.byGroup.length; group++) {
       const systems = this.byGroup[group]
@@ -538,6 +558,41 @@ export class MapRenderer {
     }
 
     if (this.markerGroups.length > 0) this.drawMarkers()
+
+    // The route's bars move: the next frame is asked for while one is shown.
+    if (this.route && !prefersReducedMotion()) this.requestDraw()
+  }
+
+  /**
+   * The route's gates: a soft wide stroke under a row of bars, in screen space so they keep their size.
+   * The bars move from the origin towards the destination at {@link ROUTE_SPEED}; with reduced motion they stand still.
+   */
+  private drawRoute(route: { systems: number[]; start: number }): void {
+    const { ctx, xy, scale, offsetX, offsetY, palette } = this
+    ctx.beginPath()
+    route.systems.forEach((i, k) => {
+      const sx = xy[i * 2] * scale + offsetX
+      const sy = xy[i * 2 + 1] * scale + offsetY
+      if (k === 0) ctx.moveTo(sx, sy)
+      else ctx.lineTo(sx, sy)
+    })
+    ctx.strokeStyle = palette.route
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.globalAlpha = 0.25
+    ctx.lineWidth = ROUTE_WIDTH * 3
+    ctx.stroke()
+    ctx.globalAlpha = 1
+    ctx.lineCap = 'butt'
+    ctx.lineWidth = ROUTE_WIDTH
+    ctx.setLineDash(ROUTE_BARS)
+    // A falling offset moves the dashes along the path, the way it was drawn: from the origin.
+    const period = ROUTE_BARS[0] + ROUTE_BARS[1]
+    ctx.lineDashOffset = prefersReducedMotion() ? 0 : -(((performance.now() - route.start) * ROUTE_SPEED) / 1000) % period
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.lineDashOffset = 0
+    ctx.lineJoin = 'miter'
   }
 
   /**
@@ -1309,6 +1364,7 @@ function resolvePalette(filter: MapFilter): Palette {
     huntGlow: resolveColor('var(--hunt-glow)'),
     huntReliable: resolveColor('var(--hunt-reliable)'),
     jumpRange: resolveColor('var(--jump-range)'),
+    route: resolveColor('var(--info)'),
     groups: filter.colours.map(resolveColor),
   }
 }
@@ -1340,4 +1396,11 @@ function resolveColor(css: string): string {
 /** An rgba() colour (as resolveColor returns) with another alpha. */
 function withAlpha(rgba: string, alpha: number): string {
   return rgba.replace(/,\s*[\d.]+\)$/, `, ${alpha.toFixed(3)})`)
+}
+
+const reducedMotion = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null
+
+/** The user asked for less motion: the route is bars stand still. */
+function prefersReducedMotion(): boolean {
+  return reducedMotion?.matches ?? false
 }

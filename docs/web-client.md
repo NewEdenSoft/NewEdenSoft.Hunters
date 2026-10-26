@@ -135,8 +135,9 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
 
 **Nearby panel.** The **Nearby** panel (`components/map/NearbyPanel.tsx`) lists what is in reach of the **focused** system, from `GET /api/intel/reach` ([Reach](map-and-activity.md#reach)):
 
-- **Gate jumps:** Off, 3, 5 (the default), 10 or 15: every system within that many jumps.
-- **Jump range:** adds every cyno target within the Jump range panel's light years, however many gate jumps away. Together they give the union; with neither, the panel asks for one.
+- **What is asked for:** always the cyno targets within the Jump range panel's light years (`ly`), never by gate jumps (`nearbyRequest`). Systems where a jump drive can't land (high-sec, Pochven, Zarzakh) aren't listed.
+- **Gate jumps:** Off, 3, 5 (the default), 10 or 15. The panel cuts the list to systems within that many jumps itself (`withinJumps`), so changing the choice asks the server nothing new.
+- **Jump range:** shows the light years and marks the cyno targets in range. With neither gate jumps nor jump range, the panel asks for one.
 - **Sort by**, from a list (one toggle per profile would fill the panel):
   - *Chance of a target*: the chance someone huntable is there now (`targetChance`), sorted in the panel, then nearest first. It combines two signals as independent chances of at least one: someone ratting, `1 − e^(−NPC kills last hour / 40)`, and a hunting profile here at this hour, `1 − e^(−Σ likely now)`. The server is asked for its busiest systems (`sort=npc-kills`). Each card shows the chance, green from 50%.
   - *NPC kills rising*: the rise since the hour before (the default)
@@ -153,6 +154,7 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
     - **Dest** sets the autopilot destination there for every tracked character, as the System panel's Destination does (`useDestination`); the outcome shows on the card, and a success clears after a few seconds
     - **◎** focuses the system, so the panel looks around it instead
 - **Clicking a card** selects the system and takes the map there, like the search, so the System panel shows it. The quick controls don't select.
+- **Route on the map:** hovering a card (or giving it the keyboard's focus), or hovering a system on the map, draws the shortest gate route there from the focused system (`gateRoute` in `map/route.ts`, with tests). Otherwise the route goes to the selected system, if any. A map hover is worked out in `MapView`, so the page doesn't render again on every hover; the panel's hover and the selection come in as its `route`. The route is drawn under the systems in the info blue: a soft wide stroke with bars (8 px, 6 px apart) on top. The bars move from the focused system towards the destination at 28 px a second. With reduced motion they stand still. Nothing is drawn where no gates lead. The map doesn't move. A hover's route goes back to the selection's (or none) when the pointer leaves, the card goes from the list, or the panel closes. `MapRenderer.setRoute` draws frames only while a route is shown.
 - **Without a focus**, the panel says to focus a system.
 - **Data:** asked again every two minutes; the server's ETag moves with the hour and the data, so most answers are 304. The previous rows stay, dimmed, while a new answer loads.
 - **Settings:** kept in local storage under `hunters.nearby`; the pure rules are in `map/nearby.ts`, with tests.
