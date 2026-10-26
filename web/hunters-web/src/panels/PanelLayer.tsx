@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { blockBrowserMenu } from './browserMenu'
 import type { PanelId } from './definitions'
 import type { Rect, Size } from './geometry'
 import { PanelLayerContext } from './panelLayerContext'
@@ -22,7 +23,7 @@ export function PanelLayer({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <div ref={ref} className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div ref={ref} className="pointer-events-none absolute inset-0 overflow-hidden" onContextMenu={blockBrowserMenu}>
       {area.width > 0 && <PanelLayerContext value={{ area, rects }}>{children}</PanelLayerContext>}
     </div>
   )

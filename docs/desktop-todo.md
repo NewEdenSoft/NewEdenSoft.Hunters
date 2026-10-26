@@ -27,8 +27,10 @@ See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reac
 - [x] A **Nearby** widget from the focused system. Without a focus it says to focus one.
 - [x] **Settings:** gate jumps (Off, 3, 5, 10, 15; 5 by default); jump range on or off (the Jump range widget's light years); sort by NPC kills rising, NPC kills (`sort=npc-kills`) or a profile's likely now (a dropdown); show quiet systems (off). Saved with the desktop settings. Port `parseNearby`, `nearbyRequest`, `isActive`, `distanceText` and `inJumpRange` from `map/nearby.ts`, with their tests.
 - [x] **Quiet systems hidden:** no kills in the last hour or day and no profile seen. Show a "N quiet hidden" toggle. Ask for 200 rows.
-- [ ] **Gate jumps filtered locally:** always ask the server by `ly` (the Jump range widget's light years), never by `jumps`; cut the list to the gate jumps chosen on the client (port `withinJumps`), so changing them doesn't ask again. Jump range only adds the light years and the in-range mark. Update `Nearby.Request` and its tests to match.
-- [ ] **Sort by chance of a target:** a *Chance of a target* option sorted on the client (port `targetChance`, `byTargetChance` and the `npcSort` change, with their tests), asking the server with `sort=npc-kills`; each card shows the chance.
+- [ ] **Gate jumps filtered locally:** always ask the server by `ly` (the Jump range widget's light years), never by `jumps`; cut the list to the gate jumps chosen on the client (port `withinJumps`), so changing them doesn't ask again. Jump range only adds the light years and the in-range mark. Update `Nearby.Request` and its tests to match.
+
+- [ ] **Sort by chance of a target:** a *Chance of a target* option sorted on the client (port `targetChance`, `byTargetChance` and the `npcSort` change, with their tests), asking the server with `sort=npc-kills`; each card shows the chance.
+
 - [ ] **Cards** (up to 50, with the active count), each with:
   - name, security and distance (jumps, ly, or both; *no gates*), in jump-range blue when in range
   - NPC kills last hour with ▲ / ▼ and 24 h; PvP (ship and pod kills) last hour and 24 h when any
@@ -37,6 +39,13 @@ See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reac
 - [ ] **Clicking a card** selects the system and moves the map there; the quick controls don't.
 - [ ] **Route on the map:** hovering a card or a system on the map draws the gate route there from the focus, else to the selected system: its gates in the info blue under the systems, as bars moving from the focus towards the destination (a dashed line with a moving offset, 28 px a second; still with reduced motion). Port `gateRoute` from `map/route.ts` with its tests (`MapGeometry` may already have what it needs); redraw only while a route is shown.
 - [ ] Refreshed every two minutes; keep the old rows, dimmed, while loading.
+
+## Navigate to (web)
+See the system menu in [Web Client](web-client.md#map).
+- [ ] **Navigate to** in the system's menu on the map, a submenu: **All (N)** for every tracked character, then each usable character (online first, then the main, with an online dot) for that one; the outcome shown on the map.
+- [ ] The same menu (**Focus system**, **Navigate to**) on a right click on a Nearby card, the outcome on the card.
+- [ ] With a focus, the hover panel shows the gate jumps from the focused system ("5 jumps from X", or *no gates*).
+- [ ] No other context menu on the map, even on empty space, or on the widgets (except in text fields).
 
 ## System panel
 See [System panel](web-client.md#map). Needs the server's `GET /api/kills/systems/{id}` (the `kills` feature) and `GET /api/hunting/systems/{id}`.

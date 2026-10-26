@@ -14,6 +14,8 @@ const paths = {
   close: 'M6 6 L18 18 M18 6 L6 18',
   collapse: 'M6 15 L12 9 L18 15',
   expand: 'M6 9 L12 15 L18 9',
+  // Opens a submenu beside.
+  'chevron-right': 'M9 6 L15 12 L9 18',
   reset: 'M4 12 A8 8 0 1 0 6.5 6.2 M4 3.5 L4 8 L8.5 8',
   search: 'M10.5 17 A6.5 6.5 0 1 0 10.5 4 A6.5 6.5 0 1 0 10.5 17 Z M15.2 15.2 L20 20',
   // A radar: rings and a sweep (hunting profiles).
