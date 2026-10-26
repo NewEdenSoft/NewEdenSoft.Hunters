@@ -21,19 +21,31 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// jumps and the jump range toggle only change what is shown. Systems where nothing happens
 /// (<see cref="Nearby.IsActive"/>) are hidden unless asked for. Up to <see cref="Nearby.Limit"/> cards,
 /// each with its kills, the profiles seen, and quick controls: the destination for every tracked
-/// character, and focus. A click on a card selects its system and takes the map there.
+/// character, and focus. A click on a card selects its system and takes the map there. While on
+/// screen, the same question is asked again every two minutes, and when it comes back on screen with an
+/// answer older than a minute; the cards shown stay, dimmed, while the next answer loads.
 /// </summary>
 public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
 {
+    /// <summary>How often the same question is asked again while the widget is on screen, like the web's refetch interval.</summary>
+    private static readonly TimeSpan RefreshEvery = TimeSpan.FromMinutes(2);
+
+    /// <summary>An answer this old is asked for again when the widget comes back on screen, like the web's stale time.</summary>
+    private static readonly TimeSpan FreshFor = TimeSpan.FromMinutes(1);
+
     private readonly AccountPageViewModel _account;
     private readonly MapWidgetViewModel _map;
     private readonly MapPreferences _preferences;
     private readonly ThemeCatalog _catalog;
     private readonly Destinations _destinations;
     private CancellationTokenSource? _loading;
+    private readonly DispatcherTimer _refresh;
 
     /// <summary>The question the rows answer, so the same one isn't asked twice.</summary>
     private (NearbyRequest Request, HuntersSession Session)? _loadedFor;
+
+    /// <summary>When the last answer came (a <see cref="System.Diagnostics.Stopwatch"/> timestamp); null without one.</summary>
+    private long? _answeredAt;
 
     /// <summary>Set while the sort list is rebuilt, so the list's own selection changes aren't taken as the user's.</summary>
     private bool _syncingSort;
@@ -60,6 +72,8 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         _preferences = preferences;
         _catalog = catalog;
         _destinations = destinations;
+        _refresh = new DispatcherTimer { Interval = RefreshEvery };
+        _refresh.Tick += (_, _) => Refresh(again: true);
 
         int?[] jumps = [null, .. Nearby.JumpChoices.Select(n => (int?)n)];
         JumpChoices = jumps
@@ -122,6 +136,10 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     [ObservableProperty]
     public partial bool HasError { get; private set; }
 
+    /// <summary>An answer is on its way: the cards shown are the previous answer's, dimmed.</summary>
+    [ObservableProperty]
+    public partial bool IsLoading { get; private set; }
+
     /// <summary>"12 active near Tama, NPC kills rising first." ("(first 50)" when there are more).</summary>
     [ObservableProperty]
     public partial string? Summary { get; private set; }
@@ -177,8 +195,17 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
-        if (e.PropertyName == nameof(IsActive) && IsActive)
-            Refresh();
+        if (e.PropertyName != nameof(IsActive))
+            return;
+        if (IsActive)
+        {
+            Refresh(again: _answeredAt is { } at && System.Diagnostics.Stopwatch.GetElapsedTime(at) >= FreshFor);
+            _refresh.Start();
+        }
+        else
+        {
+            _refresh.Stop();
+        }
     }
 
     private IReadOnlyList<string> ProfileIds => [.. _map.HuntingProfiles.Select(p => p.Id)];
@@ -242,8 +269,12 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         ShowAnswer();
     }
 
-    /// <summary>Asks again when the question or the session changed, while on screen.</summary>
-    private void Refresh()
+    /// <summary>
+    /// Asks again when the question or the session changed, while on screen; and with
+    /// <paramref name="again"/> (every two minutes, or back on screen with a stale answer) the same question
+    /// too, unless it is on its way.
+    /// </summary>
+    private void Refresh(bool again = false)
     {
         var session = _account.Session;
         if (_map.Model is not { } model || session is null || _map.FocusedSystemId is not { } from || !model.IndexOf.ContainsKey(from))
@@ -258,7 +289,7 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
             return;
         }
 
-        if (!IsActive || _loadedFor == (request, session))
+        if (!IsActive || (_loadedFor == (request, session) && !(again && _loading is null)))
             return;
 
         _ = LoadAsync(session, model, request);
@@ -268,7 +299,9 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     {
         _loading?.Cancel();
         _loadedFor = null;
+        _answeredAt = null;
         _answer = null;
+        IsLoading = false;
         Rows = [];
         Summary = null;
         QuietText = null;
@@ -333,6 +366,7 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         if (Rows.Count == 0)
             StatusText = $"Looking around {name}…";
         HasError = false;
+        IsLoading = true;
         try
         {
             var reach = await session.GetReachAsync(request.From, null, request.Ly, request.Profile, request.Limit, request.Sort, cancel.Token);
@@ -343,7 +377,14 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
             _destinationOf = destinations;
             _tracked = _destinations.Tracked(session.Account);
             _answer = (cards, name);
+            _answeredAt = System.Diagnostics.Stopwatch.GetTimestamp();
             ShowAnswer();
+            // The next round is two minutes from this answer, however it was asked for.
+            if (IsActive)
+            {
+                _refresh.Stop();
+                _refresh.Start();
+            }
         }
         catch (OperationCanceledException)
         {
@@ -352,6 +393,7 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         catch (HuntersApiException e)
         {
             _loadedFor = null;
+            _answeredAt = null;
             _answer = null;
             Rows = [];
             Summary = null;
@@ -362,7 +404,10 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         finally
         {
             if (_loading == cancel)
+            {
                 _loading = null;
+                IsLoading = false;
+            }
         }
     }
 
