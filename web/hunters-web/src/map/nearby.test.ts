@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ReachMetric } from '../api/reach'
-import { defaultNearby, distanceText, inJumpRange, isActive, NEARBY_FETCH, nearbyRequest, parseNearby, withinJumps } from './nearby'
+import { byTargetChance, defaultNearby, distanceText, inJumpRange, isActive, NEARBY_FETCH, nearbyRequest, npcSort, parseNearby, TARGET_SORT, targetChance, withinJumps } from './nearby'
 
 describe('parseNearby', () => {
   it('keeps a valid setting', () => {
@@ -87,5 +87,36 @@ describe('inJumpRange', () => {
     expect(inJumpRange({ cynoTarget: false, ly: 2 }, 8)).toBe(false)
     expect(inJumpRange({ cynoTarget: true, ly: 8.1 }, 8)).toBe(false)
     expect(inJumpRange({ cynoTarget: true, ly: 1 }, null)).toBe(false)
+  })
+})
+
+describe('targetChance', () => {
+  const metric = (lastHour: number): ReachMetric => ({ lastHour, previousHour: null, day: lastHour, typical: null, peakRatio: null, hoursToPeak: null })
+  const activity = (npc: number) => ({ npcKills: metric(npc), shipKills: metric(0), podKills: metric(0), shipJumps: metric(0) })
+  const seen = (likelyNow: number) => ({ profile: 'ratters', score: 5, lastSeen: '2026-10-20T00:00:00Z', likelyNow, peakNow: null })
+
+  it('is nothing without kills or profiles likely now', () => {
+    expect(targetChance({ activity: activity(0), profiles: [seen(0)] })).toBe(0)
+    expect(targetChance({ activity: null, profiles: [] })).toBe(0)
+  })
+
+  it('grows with NPC kills and the sightings expected this hour, short of certain', () => {
+    expect(targetChance({ activity: activity(40), profiles: [] })).toBeCloseTo(1 - Math.exp(-1))
+    expect(targetChance({ activity: activity(0), profiles: [seen(0.5), seen(0.5)] })).toBeCloseTo(1 - Math.exp(-1))
+    const both = targetChance({ activity: activity(40), profiles: [seen(1)] })
+    expect(both).toBeCloseTo(1 - Math.exp(-2))
+    expect(both).toBeLessThan(1)
+  })
+
+  it('sorts the best chance first, then the nearest', () => {
+    const row = (systemId: number, npc: number, jumps: number | null) => ({ systemId, activity: activity(npc), profiles: [], jumps, ly: 1 })
+    expect(byTargetChance([row(1, 5, 1), row(2, 80, 4), row(3, 80, 2), row(4, 80, null)]).map((r) => r.systemId)).toEqual([3, 2, 4, 1])
+  })
+})
+
+describe('npcSort', () => {
+  it('asks the server for the busiest systems when sorting by target chance', () => {
+    expect(npcSort(TARGET_SORT)).toBe('npc-kills')
+    expect(npcSort('activity')).toBe('npc-rising')
   })
 })

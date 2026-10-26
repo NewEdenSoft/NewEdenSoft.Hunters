@@ -139,11 +139,12 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
 - **Gate jumps:** Off, 3, 5 (the default), 10 or 15. The panel cuts the list to systems within that many jumps itself (`withinJumps`), so changing the choice asks the server nothing new.
 - **Jump range:** shows the light years and marks the cyno targets in range. With neither gate jumps nor jump range, the panel asks for one.
 - **Sort by**, from a list (one toggle per profile would fill the panel):
+  - *Chance of a target*: the chance someone huntable is there now (`targetChance`), sorted in the panel, then nearest first. It combines two signals as independent chances of at least one: someone ratting, `1 − e^(−NPC kills last hour / 40)`, and a hunting profile here at this hour, `1 − e^(−Σ likely now)`. The server is asked for its busiest systems (`sort=npc-kills`). Each card shows the chance, green from 50%.
   - *NPC kills rising*: the rise since the hour before (the default)
   - *NPC kills*: the most in the last hour, then in 24 hours
   - a hunting profile's *likely now*
 
-  The server sorts, then nearest first.
+  The server sorts the others, then nearest first.
 - **Quiet systems are hidden:** only systems where something happens get a card, meaning NPC, ship or pod kills in the last hour or 24 hours, or a hunting profile seen there (`isActive`). Jumps alone don't count, since traffic passing through isn't a target. Without activity data a system can't be judged and is shown. A link under the count shows or hides the quiet ones ("3 quiet hidden"). 200 rows are asked for, so 50 active ones are left.
 - **Cards** (up to 50; the panel says how many are active), each showing:
   - name and security, and the distance: gate jumps, light years, or both, as asked; *no gates* where none lead there. It is in the jump-range blue when the system is a cyno target in range, with a tooltip for *out of range* or *no cyno*.
