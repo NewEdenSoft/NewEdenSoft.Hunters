@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Icon } from '../components/ui/Icon'
 import { cn } from '../components/ui/styles'
 import { onFocusRequested } from '../map/mapFocus'
+import { blockBrowserMenu } from './browserMenu'
 import type { PanelId } from './definitions'
 import type { PanelItem } from './Panels'
 
@@ -29,6 +30,7 @@ export function BottomSheet({ items }: { items: PanelItem[] }) {
   return (
     <section
       aria-label="Panels"
+      onContextMenu={blockBrowserMenu}
       className="pointer-events-auto absolute inset-x-0 bottom-0 z-[900] flex flex-col border-t border-line-strong bg-surface/95 shadow-[0_-8px_28px_rgb(0_0_0/0.45)] backdrop-blur-sm"
     >
       <div role="tablist" aria-label="Panels" className="flex shrink-0">

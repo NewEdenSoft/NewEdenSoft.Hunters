@@ -1277,11 +1277,11 @@ export class MapRenderer {
     return nearest >= 0 && (this.filter.groups[nearest] !== HIDDEN || nearest === this.focused || nearest === this.selection) ? nearest : -1
   }
 
-  /** A right click on a system opens its menu; elsewhere the browser's own menu stays. */
+  /** A right click on a system opens its menu; the browser's own menu never shows on the map. */
   private readonly onContextMenuEvent = (e: MouseEvent) => {
+    e.preventDefault()
     const index = this.systemAt(e.offsetX, e.offsetY)
     if (index < 0) return
-    e.preventDefault()
     // Touch browsers that also send this after a long press: the long press has opened the menu already.
     if (performance.now() - this.longPressedAt < 1000) return
     this.onContextMenu?.({ index, x: e.offsetX, y: e.offsetY })

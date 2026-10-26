@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ActivityColumns } from '../api/activity'
 import { ProfileMark } from '../components/map/ProfileMark'
-import { SystemContextMenu } from '../components/map/SystemContextMenu'
+import { navigateItem, SystemContextMenu } from '../components/map/SystemContextMenu'
+import { useDestination } from '../components/map/useDestination'
 import { cn } from '../components/ui/styles'
 import { securityColor } from '../theme/themes'
 import type { MapFilter } from './filters'
@@ -90,6 +91,9 @@ export function MapView({
   const [hover, setHover] = useState<MapHover | null>(null)
   const [menu, setMenu] = useState<MapContextMenuRequest | null>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
+  // The system the menu was last opened on: "Navigate to" sets the destination there, its outcome shown on the map.
+  const [menuSystem, setMenuSystem] = useState(-1)
+  const destination = useDestination(menuSystem >= 0 ? model.ids[menuSystem] : 0, menuSystem >= 0 ? model.names[menuSystem] : '')
 
   // The renderer lives as long as the model; everything else is applied to it without recreating it.
   const latest = useRef({ layout, filter, markers, focus, focused, selection, hunting, jumpRange, route, onMarkerClick, onUserPan, onSelectSystem, onDoubleClickSystem })
@@ -105,7 +109,10 @@ export function MapView({
     renderer.onUserPan = () => latest.current.onUserPan?.()
     renderer.onSystemClick = (index) => latest.current.onSelectSystem?.(index)
     renderer.onSystemDoubleClick = (index) => latest.current.onDoubleClickSystem?.(index)
-    renderer.onContextMenu = setMenu
+    renderer.onContextMenu = (request) => {
+      setMenu(request)
+      setMenuSystem(request.index)
+    }
     renderer.onUserMove = () => setMenu(null)
     renderer.setFocused(focused)
     renderer.setSelection(selection)
@@ -149,9 +156,10 @@ export function MapView({
     rendererRef.current?.setJumpRange(jumpRange?.inRange ?? null)
   }, [jumpRange])
 
-  // A system hovered on the map shows the route there from the focused system instead.
+  // A system hovered on the map shows the route there from the focused system instead, and its jumps in the hover panel.
   const hovered = hover?.index ?? -1
-  const shownRoute = useMemo(() => (focused >= 0 && hovered >= 0 ? gateRoute(model, focused, hovered) : route), [model, focused, hovered, route])
+  const hoverRoute = useMemo(() => (focused >= 0 && hovered >= 0 ? gateRoute(model, focused, hovered) : null), [model, focused, hovered])
+  const shownRoute = focused >= 0 && hovered >= 0 ? hoverRoute : route
   useEffect(() => {
     rendererRef.current?.setRoute(shownRoute)
   }, [shownRoute])
@@ -163,7 +171,8 @@ export function MapView({
   const here = hover ? markers.find((g) => g.systemIndex === hover.index)?.markers : undefined
 
   return (
-    <div className="relative size-full overflow-hidden">
+    // The map has no browser menu: a right click on a system opens its own, elsewhere nothing.
+    <div className="relative size-full overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
       {/* No text selection or callout on a long press: that opens the system's menu. */}
       <canvas ref={canvasRef} className="block size-full touch-none select-none [-webkit-touch-callout:none]" aria-label="Map of known space" />
       {hover && (
@@ -174,21 +183,37 @@ export function MapView({
           npcKills={npcKills}
           profiles={profilesAt?.get(hover.index)}
           jumpRange={jumpRange}
+          focused={focused}
+          route={hoverRoute}
         />
       )}
       {menu && (
         <SystemContextMenu
-          model={model}
-          index={menu.index}
+          name={model.names[menu.index]}
+          security={model.security[menu.index]}
           x={menu.x}
           y={menu.y}
           onClose={closeMenu}
-          items={
+          items={[
             menu.index === focused
-              ? [{ label: 'Clear focus', icon: 'close', onSelect: () => onClearSystem?.() }]
-              : [{ label: 'Focus system', icon: 'target', onSelect: () => onFocusSystem?.(menu.index) }]
-          }
+              ? { label: 'Clear focus', icon: 'close', onSelect: () => onClearSystem?.() }
+              : { label: 'Focus system', icon: 'target', onSelect: () => onFocusSystem?.(menu.index) },
+            navigateItem(destination),
+          ]}
         />
+      )}
+      {destination.status && (
+        <div
+          role="status"
+          className={cn(
+            'pointer-events-none absolute bottom-3 left-1/2 grid max-w-[calc(100%-1.5rem)] -translate-x-1/2 border border-line-strong bg-surface/95 px-3 py-1.5 text-[0.8125rem] shadow-lg backdrop-blur-sm',
+            destination.status.tone === 'ok' ? 'text-ok' : destination.status.tone === 'danger' ? 'text-danger' : 'text-fg-muted',
+          )}
+        >
+          {destination.status.lines.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </div>
       )}
     </div>
   )
@@ -204,6 +229,8 @@ function SystemPanel({
   npcKills,
   profiles,
   jumpRange,
+  focused,
+  route,
 }: {
   model: MapModel
   hover: MapHover
@@ -211,6 +238,9 @@ function SystemPanel({
   npcKills: ActivityColumns | null
   profiles?: PlaceProfile[]
   jumpRange: JumpRangeView | null
+  focused: number
+  /** The gate route from the focused system, or null (none focused, or no gates lead here). */
+  route: number[] | null
 }) {
   const { areaWidth } = hover
   const security = model.security[hover.index]
@@ -228,11 +258,23 @@ function SystemPanel({
         </span>
         {model.regionNames.get(model.regionIds[hover.index])}
       </span>
+      {focused >= 0 && hover.index !== focused && <JumpsLine from={model.names[focused]} route={route} />}
       {jumpRange && hover.index !== jumpRange.origin && <JumpRangeLine model={model} range={jumpRange} index={hover.index} />}
       {npcKills && <NpcKillsLine npcKills={npcKills} index={hover.index} />}
       {profiles && profiles.length > 0 && <ProfilesLines profiles={profiles} />}
       {characters && <span className="text-[0.8125rem] text-primary">{characters}</span>}
     </div>
+  )
+}
+
+/** Gate jumps from the focused system, the shortest way, or that no gates lead here. */
+function JumpsLine({ from, route }: { from: string; route: number[] | null }) {
+  const jumps = route === null ? null : route.length - 1
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] text-fg-muted">
+      {jumps === null ? <span className="text-fg-faint">no gates</span> : <span className="font-mono font-semibold text-fg">{jumps === 1 ? '1 jump' : `${jumps} jumps`}</span>}
+      from {from}
+    </span>
   )
 }
 

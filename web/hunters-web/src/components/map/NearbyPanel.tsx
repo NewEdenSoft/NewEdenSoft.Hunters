@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { HuntingProfileInfo } from '../../api/hunting'
 import { reachQuery, type ReachSystem } from '../../api/reach'
 import { formatLy } from '../../map/jumpRange'
@@ -26,6 +26,7 @@ import { Label } from '../ui/Label'
 import { cn } from '../ui/styles'
 import { Toggle } from '../ui/Toggle'
 import { ProfileMark } from './ProfileMark'
+import { navigateItem, SystemContextMenu } from './SystemContextMenu'
 import { useDestination } from './useDestination'
 
 /**
@@ -33,7 +34,7 @@ import { useDestination } from './useDestination'
  * the Jump range panel's light years, cut here to the gate jumps chosen, sorted by the chance of a target
  * (here), the rise in NPC kills or by a hunting profile's "likely now". One card per system with activity, with quick controls; systems
  * where nothing happens are hidden unless asked for. Clicking a card selects the system and takes the map
- * there; hovering one shows the gate route there on the map.
+ * there; hovering one shows the gate route there on the map; a right click opens the system's menu.
  */
 export function NearbyPanel({
   model,
@@ -192,7 +193,7 @@ const quickClass =
   'inline-flex cursor-pointer items-center gap-1 border border-line-strong px-1.5 py-0.5 font-display text-[0.625rem] font-semibold tracking-[0.08em] ' +
   'text-fg uppercase hover:border-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-fg disabled:cursor-default disabled:opacity-50'
 
-/** One system in reach: where, what happens there, the profiles seen, and quick controls. */
+/** One system in reach: where, what happens there, the profiles seen, quick controls, and its menu (right click). */
 function NearbyCard({
   name,
   row,
@@ -230,10 +231,20 @@ function NearbyCard({
   // The ones likely now first, then the rest by score (the server's order).
   const seen = [...row.profiles].sort((a, b) => Number(b.likelyNow > 0) - Number(a.likelyNow > 0))
   const tracked = destination.tracked
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  // The pointer may be on the menu when it goes, so the card's hover (its route) ends with it.
+  const closeMenu = useCallback(() => {
+    setMenu(null)
+    onHover(false)
+  }, [onHover])
 
   return (
     <li
       onClick={onSelect}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        setMenu({ x: e.clientX, y: e.clientY })
+      }}
       onPointerEnter={() => onHover(true)}
       onPointerLeave={() => onHover(false)}
       onFocus={() => onHover(true)}
@@ -364,6 +375,17 @@ function NearbyCard({
             <span key={line}>{line}</span>
           ))}
         </div>
+      )}
+      {menu && (
+        <SystemContextMenu
+          fixed
+          name={name}
+          security={row.security}
+          x={menu.x}
+          y={menu.y}
+          onClose={closeMenu}
+          items={[{ label: 'Focus system', icon: 'target', onSelect: onFocus }, navigateItem(destination)]}
+        />
       )}
     </li>
   )
