@@ -12,10 +12,11 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 
 /// <summary>
 /// What is in reach of the focused system, from the server's <c>/api/intel/reach</c>, like the web's
-/// Nearby panel (<c>NearbyPanel.tsx</c>): within gate jumps and/or the Jump range widget's light years,
-/// sorted by the rise in NPC kills, the most NPC kills, or a hunting profile's "likely now"
-/// (<see cref="MapPreferences.Nearby"/>). Asked for while the widget is on screen, each time the focus
-/// or the setting changes. Systems where nothing happens (<see cref="Nearby.IsActive"/>) are hidden
+/// Nearby panel (<c>NearbyPanel.tsx</c>): the cyno targets within the Jump range widget's light years,
+/// cut here to the gate jumps chosen, sorted by the rise in NPC kills, the most NPC kills, or a hunting
+/// profile's "likely now" (<see cref="MapPreferences.Nearby"/>). Asked for while the widget is on screen,
+/// each time the focus, the light years or the sort changes; the gate jumps and the jump range toggle
+/// only change what is shown. Systems where nothing happens (<see cref="Nearby.IsActive"/>) are hidden
 /// unless asked for.
 /// </summary>
 public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
@@ -199,16 +200,24 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         StatusText = status;
     }
 
-    /// <summary>The last answer's rows, without the quiet ones unless they are asked for.</summary>
+    /// <summary>
+    /// The last answer's rows within the gate jumps chosen, without the quiet ones unless they are asked
+    /// for, each with its distance as the setting shows it.
+    /// </summary>
     private void ShowAnswer()
     {
         if (_answer is not { } answer)
             return;
 
-        var active = answer.Rows.Count(r => r.IsActive);
-        var quiet = answer.Rows.Count - active;
-        var showQuiet = _preferences.Nearby.ShowQuiet;
-        Rows = showQuiet ? answer.Rows : [.. answer.Rows.Where(r => r.IsActive)];
+        var setting = _preferences.Nearby;
+        var (byJumps, byLy) = (setting.Jumps is not null, setting.ByJumpRange);
+        IReadOnlyList<NearbyRowViewModel> around = [.. answer.Rows
+            .Where(r => Nearby.WithinJumps(r.Jumps, setting.Jumps))
+            .Select(r => r with { Distance = Nearby.DistanceText(r.Jumps, r.Ly, byJumps, byLy) })];
+        var active = around.Count(r => r.IsActive);
+        var quiet = around.Count - active;
+        var showQuiet = setting.ShowQuiet;
+        Rows = showQuiet ? around : [.. around.Where(r => r.IsActive)];
         Summary = $"{active} active near {answer.Origin}, {answer.Order}.";
         QuietText = quiet == 0 ? null : showQuiet ? $"hide {quiet} quiet" : $"{quiet} quiet hidden";
         StatusText = Rows.Count == 0 ? "Nothing happening in reach." : null;
@@ -226,8 +235,7 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         HasError = false;
         try
         {
-            var reach = await session.GetReachAsync(request.From, request.Jumps, request.Ly, request.Profile, request.Limit, request.Sort, cancel.Token);
-            var (byJumps, byLy) = (request.Jumps is not null, request.Ly is not null);
+            var reach = await session.GetReachAsync(request.From, null, request.Ly, request.Profile, request.Limit, request.Sort, cancel.Token);
             IReadOnlyList<NearbyRowViewModel> rows = [.. reach.Systems
                 .Where(s => s.SystemId != reach.From && model.IndexOf.ContainsKey(s.SystemId))
                 .Select(s => new NearbyRowViewModel(
@@ -235,7 +243,8 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
                     model.Names[model.IndexOf[s.SystemId]],
                     SecurityStatus.Format(s.Security),
                     new SolidColorBrush(ThemeService.ToColor(_catalog.SecurityColor(s.Security))),
-                    Nearby.DistanceText(s.Jumps, s.Ly, byJumps, byLy),
+                    s.Jumps,
+                    s.Ly,
                     Nearby.IsActive(s.Activity, s.Profiles.Count)))];
             var order = request.Profile is { } profile
                 ? $"{_map.HuntingProfiles.FirstOrDefault(p => p.Id == profile)?.Name ?? profile} likely now first"
@@ -266,8 +275,13 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
 }
 
 /// <summary>One system in reach: its name, security and how far it is.</summary>
+/// <param name="Jumps">Gate jumps from the focus; null with no gate route.</param>
 /// <param name="IsActive">Something happens there (<see cref="Nearby.IsActive"/>); quiet systems are hidden unless asked for.</param>
-public sealed record NearbyRowViewModel(int SystemId, string Name, string Security, IBrush SecurityBrush, string Distance, bool IsActive);
+public sealed record NearbyRowViewModel(int SystemId, string Name, string Security, IBrush SecurityBrush, int? Jumps, double Ly, bool IsActive)
+{
+    /// <summary>"3 j", "4.2 ly" or both, as the setting shows it (<see cref="Nearby.DistanceText"/>).</summary>
+    public string Distance { get; init; } = "";
+}
 
 /// <summary>One way to sort the Nearby rows: <see cref="Nearby.SortActivity"/>, <see cref="Nearby.SortNpcKills"/> or a profile's id.</summary>
 public sealed record NearbySortOption(string Id, string Label)
