@@ -1,22 +1,55 @@
 name: Release
 
-# Pushing a version tag (v1.2.3, or v1.2.3-rc.1 for a pre-release) runs the CI checks, publishes
-# both images to GitHub Container Registry and creates a GitHub Release with generated notes.
+# Started by hand from main (Actions → Release → Run workflow) with a version such as 1.2.3, or
+# 1.2.3-rc.1 for a pre-release. Runs the CI checks, publishes both images to GitHub Container
+# Registry, then tags the commit vX.Y.Z and creates a GitHub Release with generated notes.
 on:
-  push:
-    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version, e.g. 1.2.3 or 1.2.3-rc.1"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Releases are made from main, not $GITHUB_REF."; exit 1
+          fi
+          version="${VERSION#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$VERSION' is not a version like 1.2.3 or 1.2.3-rc.1."; exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$version" --silent 2> /dev/null; then
+            echo "::error::Tag v$version already exists."; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   ci:
     name: CI
+    needs: validate
     uses: ./.github/workflows/ci.yml
 
   images:
     name: Image ${{ matrix.image }}
-    needs: ci
+    needs: [validate, ci]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -44,9 +77,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/newedensoft/${{ matrix.image }}
+          flavor: latest=false
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},value=${{ needs.validate.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.validate.outputs.version }}
+            type=raw,value=latest,enable=${{ !contains(needs.validate.outputs.version, '-') }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -55,22 +90,24 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: VERSION=${{ steps.meta.outputs.version }}
+          build-args: VERSION=${{ needs.validate.outputs.version }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,scope=${{ matrix.image }},mode=max
 
   release:
     name: GitHub Release
-    needs: images
+    needs: [validate, images]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      # Creates the tag at the commit the images were built from, and marks the release as latest
+      # unless it is a pre-release.
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: v${{ needs.validate.outputs.version }}
         run: |
-          flags=(--repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes)
-          if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
+          flags=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes)
+          if [[ "$TAG" == *-* ]]; then flags+=(--prerelease --latest=false); else flags+=(--latest); fi
           gh release create "$TAG" "${flags[@]}"

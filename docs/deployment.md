@@ -133,16 +133,13 @@ On a Linux host with Docker Engine and the Compose plugin:
 
 ## Releasing
 
-Releases come from tags on `main`. Pushing a `vX.Y.Z` tag runs the [release workflow](../.github/workflows/release.yml):
+Releases are made by hand from `main`: *Actions → Release → Run workflow*, branch `main`, and a version such as `0.1.0` (or `0.1.0-rc.1` for a pre-release). From the command line: `gh workflow run release.yml --ref main -f version=0.1.0`. The [release workflow](../.github/workflows/release.yml):
 
-1. The CI checks (the same jobs as [`ci.yml`](../.github/workflows/ci.yml)).
-2. Both images are built with `VERSION=X.Y.Z` and pushed to GitHub Container Registry.
-3. A GitHub Release with generated notes (a pre-release when the tag has a suffix such as `-rc.1`).
+1. Refuses to run from any other branch, or when the tag `vX.Y.Z` already exists.
+2. Runs the CI checks (the same jobs as [`ci.yml`](../.github/workflows/ci.yml)).
+3. Builds both images with `VERSION=X.Y.Z` and pushes them to GitHub Container Registry (`X.Y.Z`, `X.Y` and `latest`; only `X.Y.Z` for a pre-release).
+4. Tags the commit `vX.Y.Z` and creates a GitHub Release with generated notes, marked as *Latest*, or as a pre-release when the version has a suffix. Edit the notes afterwards if needed.
 
-```sh
-git switch main && git pull
-git tag v0.1.0
-git push origin v0.1.0
-```
+Don't push version tags or draft releases on GitHub yourself: neither starts a build.
 
 New packages on GitHub Container Registry are private. After the first release, make `hunters-server` and `hunters-intel` public under the organisation's *Packages* settings, so servers can pull them without logging in.
