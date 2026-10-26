@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ReachMetric } from '../api/reach'
-import { defaultNearby, distanceText, inJumpRange, isActive, NEARBY_FETCH, nearbyRequest, parseNearby } from './nearby'
+import { defaultNearby, distanceText, inJumpRange, isActive, NEARBY_FETCH, nearbyRequest, parseNearby, withinJumps } from './nearby'
 
 describe('parseNearby', () => {
   it('keeps a valid setting', () => {
@@ -19,11 +19,15 @@ describe('nearbyRequest', () => {
     expect(nearbyRequest({ ...defaultNearby, jumps: 5, byJumpRange: true, sort: 'carriers' }, 30000142, 8, ['carriers'])).toEqual({
       from: 30000142,
       jumps: 5,
-      ly: 8,
+      ly: null,
       profile: 'carriers',
       sort: 'npc-rising',
       limit: NEARBY_FETCH,
     })
+  })
+
+  it('asks for the light years only without gate jumps', () => {
+    expect(nearbyRequest({ ...defaultNearby, jumps: null, byJumpRange: true }, 1, 8, [])).toMatchObject({ jumps: null, ly: 8 })
   })
 
   it('sorts by activity for a profile the server does not list', () => {
@@ -55,6 +59,15 @@ describe('isActive', () => {
   it('leaves out systems with only traffic, and keeps the ones that cannot be judged', () => {
     expect(isActive({ activity: quiet, profiles: [] })).toBe(false)
     expect(isActive({ activity: null, profiles: [] })).toBe(true)
+  })
+})
+
+describe('withinJumps', () => {
+  it('keeps the systems within the gate jumps, or every one without them', () => {
+    expect(withinJumps({ jumps: 3 }, 3)).toBe(true)
+    expect(withinJumps({ jumps: 4 }, 3)).toBe(false)
+    expect(withinJumps({ jumps: null }, 3)).toBe(false)
+    expect(withinJumps({ jumps: null }, null)).toBe(true)
   })
 })
 

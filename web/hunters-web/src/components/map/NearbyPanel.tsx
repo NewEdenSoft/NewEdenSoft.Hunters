@@ -3,7 +3,7 @@ import type { HuntingProfileInfo } from '../../api/hunting'
 import { reachQuery, type ReachSystem } from '../../api/reach'
 import { formatLy } from '../../map/jumpRange'
 import type { MapModel } from '../../map/model'
-import { distanceText, inJumpRange, isActive, nearbyJumpChoices, nearbyRequest, NEARBY_LIMIT } from '../../map/nearby'
+import { distanceText, inJumpRange, isActive, nearbyJumpChoices, nearbyRequest, NEARBY_LIMIT, withinJumps } from '../../map/nearby'
 import { formatSecurity } from '../../map/security'
 import { formatIsk as compact } from '../../map/systemInfo'
 import { useJumpRange, useNearby } from '../../settings/mapSettings'
@@ -51,8 +51,10 @@ export function NearbyPanel({
     enabled: request !== null,
   })
   const names = new Map(profiles.map((p) => [p.id, p.name]))
+  // With gate jumps the light years only mark what is in jump range; without, they choose the systems.
+  const ly = setting.byJumpRange ? range.ly : null
   // The rows on screen may be the previous answer while the next one loads.
-  const around = reach.data?.systems.filter((s) => s.systemId !== reach.data.from) ?? []
+  const around = reach.data?.systems.filter((s) => s.systemId !== reach.data.from && withinJumps(s, setting.jumps)) ?? []
   const active = around.filter(isActive)
   const quiet = around.length - active.length
   const shown = (setting.showQuiet ? around : active).slice(0, NEARBY_LIMIT)
@@ -73,7 +75,11 @@ export function NearbyPanel({
         <Toggle
           active={setting.byJumpRange}
           onClick={() => update({ byJumpRange: !setting.byJumpRange })}
-          title="Cyno targets within the Jump range panel's range, however many gate jumps away"
+          title={
+            setting.jumps === null
+              ? "Cyno targets within the Jump range panel's range, however many gate jumps away"
+              : "Mark the cyno targets within the Jump range panel's range; with gate jumps off, list them all"
+          }
         >
           {setting.byJumpRange ? 'On' : 'Off'} · {formatLy(range.ly)}
         </Toggle>
@@ -141,7 +147,7 @@ export function NearbyPanel({
                     row={row}
                     selected={index === selection}
                     byJumps={request.jumps !== null}
-                    ly={request.ly}
+                    ly={ly}
                     sortProfile={request.profile}
                     names={names}
                     onSelect={() => onSelect(index)}
