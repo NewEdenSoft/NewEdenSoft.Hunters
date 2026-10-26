@@ -5,6 +5,11 @@
              xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
              x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.NearbyWidgetView"
              x:DataType="mw:NearbyWidgetViewModel">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.likely">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.OkBrush}" />
+    </Style>
+  </UserControl.Styles>
   <ScrollViewer>
   <StackPanel Spacing="8" Margin="12">
     <StackPanel Spacing="6">
@@ -53,13 +58,17 @@
     <ItemsControl ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}">
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="mw:NearbyRowViewModel">
-          <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2">
             <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}" FontWeight="SemiBold"
                        TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" Classes="mono" FontSize="12" FontWeight="SemiBold" Margin="8,0,0,0"
                        Text="{Binding Security}" Foreground="{Binding SecurityBrush}" VerticalAlignment="Center" />
             <TextBlock Grid.Column="2" Classes="mono muted" FontSize="12" Margin="10,0,0,0" MinWidth="44" TextAlignment="Right"
                        Text="{Binding Distance}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="3" Classes="mono" Classes.muted="{Binding !IsLikely}" Classes.likely="{Binding IsLikely}"
+                       FontSize="12" Margin="10,0,0,0" MinWidth="32" TextAlignment="Right"
+                       Text="{Binding ChanceText}" IsVisible="{Binding ShowChance}" VerticalAlignment="Center"
+                       ToolTip.Tip="Chance of a target now: someone ratting (NPC kills in the last hour) or a hunting profile usually here at this hour" />
           </Grid>
         </DataTemplate>
       </ItemsControl.ItemTemplate>

@@ -67,6 +67,41 @@ public sealed class NearbyTests
 
     private static ReachMetric Metric(int lastHour, int day) => new(lastHour, 0, day, null, null, null);
 
+    private static ReachActivity Npc(int lastHour) => Quiet with { NpcKills = Metric(lastHour, lastHour) };
+
+    private static ReachProfile Seen(double likelyNow) => new("ratters", 5, DateTimeOffset.Parse("2026-10-20T00:00:00Z"), likelyNow, null);
+
+    [Fact]
+    public void Target_chance_is_nothing_without_kills_or_profiles_likely_now()
+    {
+        Assert.Equal(0, Nearby.TargetChance(Npc(0), [Seen(0)]));
+        Assert.Equal(0, Nearby.TargetChance(null, []));
+    }
+
+    [Fact]
+    public void Target_chance_grows_with_NPC_kills_and_the_sightings_expected_this_hour_short_of_certain()
+    {
+        Assert.Equal(1 - Math.Exp(-1), Nearby.TargetChance(Npc(40), []), 9);
+        Assert.Equal(1 - Math.Exp(-1), Nearby.TargetChance(Npc(0), [Seen(0.5), Seen(0.5)]), 9);
+        var both = Nearby.TargetChance(Npc(40), [Seen(1)]);
+        Assert.Equal(1 - Math.Exp(-2), both, 9);
+        Assert.True(both < 1);
+    }
+
+    [Fact]
+    public void Sorts_the_best_chance_first_then_the_nearest()
+    {
+        (int Id, double Chance, int? Jumps, double Ly)[] rows = [(1, 0.1, 1, 1), (2, 0.9, 4, 1), (3, 0.9, 2, 1), (4, 0.9, null, 1), (5, 0.9, 2, 0.5)];
+        Assert.Equal([5, 3, 2, 4, 1], Nearby.ByTargetChance(rows, r => (r.Chance, r.Jumps, r.Ly)).Select(r => r.Id));
+    }
+
+    [Fact]
+    public void Asks_the_server_for_the_busiest_systems_when_sorting_by_target_chance()
+    {
+        Assert.Equal("npc-kills", Nearby.NpcSort(Nearby.SortTarget));
+        Assert.Equal("npc-rising", Nearby.NpcSort(Nearby.SortActivity));
+    }
+
     private static readonly ReachActivity Quiet = new(Metric(0, 0), Metric(0, 0), Metric(0, 0), Metric(400, 9000));
 
     [Fact]

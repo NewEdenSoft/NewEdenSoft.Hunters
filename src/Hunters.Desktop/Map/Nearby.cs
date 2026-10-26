@@ -6,7 +6,7 @@ namespace NewEdenSoft.Hunters.Desktop.Map;
 /// <summary>What the Nearby widget looks for around the focused system, saved with the desktop settings.</summary>
 /// <param name="Jumps">List only systems within this many gate jumps (cut here, not asked for); null for no limit.</param>
 /// <param name="ByJumpRange">Show the light years and mark the cyno targets within the Jump range widget's range.</param>
-/// <param name="Sort"><see cref="Nearby.SortActivity"/> (the rise in NPC kills), <see cref="Nearby.SortNpcKills"/> (the most), or a hunting profile's id (its "likely now").</param>
+/// <param name="Sort"><see cref="Nearby.SortActivity"/> (the rise in NPC kills), <see cref="Nearby.SortNpcKills"/> (the most), <see cref="Nearby.SortTarget"/> (the chance of a target), or a hunting profile's id (its "likely now").</param>
 /// <param name="ShowQuiet">Show the systems without any activity too (hidden by default).</param>
 public sealed record NearbySetting(int? Jumps = 5, bool ByJumpRange = false, string Sort = Nearby.SortActivity, bool ShowQuiet = false);
 
@@ -20,6 +20,12 @@ public static class Nearby
     public const string SortActivity = "activity";
 
     public const string SortNpcKills = "npc-kills";
+
+    /// <summary>The sort by <see cref="TargetChance"/>, done here rather than by the server.</summary>
+    public const string SortTarget = "target";
+
+    /// <summary>NPC kills an hour that make about a 63% chance of someone ratting (1 - 1/e): one ratter, roughly.</summary>
+    private const double NpcKillsPerRatter = 40;
 
     /// <summary>The gate jumps offered.</summary>
     public static readonly IReadOnlyList<int> JumpChoices = [3, 5, 10, 15];
@@ -61,8 +67,32 @@ public static class Nearby
             Fetch);
     }
 
-    /// <summary>The server's order when not sorting by a profile: the most NPC kills, or else their rise.</summary>
-    public static string NpcSort(string sort) => sort == SortNpcKills ? ReachSorts.NpcKills : ReachSorts.NpcRising;
+    /// <summary>
+    /// The server's order when not sorting by a profile: the most NPC kills, or else their rise. The target
+    /// chance is sorted here, from the busiest systems the server sends.
+    /// </summary>
+    public static string NpcSort(string sort) => sort is SortNpcKills or SortTarget ? ReachSorts.NpcKills : ReachSorts.NpcRising;
+
+    /// <summary>
+    /// The chance (0–1) of a target in the system now: someone ratting (NPC kills in the last hour), or a
+    /// hunting profile seen at this hour (the sum of their "likely now", the sightings expected this hour),
+    /// each as the chance of at least one, taken as independent.
+    /// </summary>
+    public static double TargetChance(ReachActivity? activity, IEnumerable<ReachProfile> profiles)
+    {
+        var seen = 1 - Math.Exp(-profiles.Sum(p => p.LikelyNow));
+        var ratting = 1 - Math.Exp(-(activity?.NpcKills.LastHour ?? 0) / NpcKillsPerRatter);
+        return 1 - (1 - seen) * (1 - ratting);
+    }
+
+    /// <summary>Highest target chance first, then nearest (gate jumps, then light years); ties keep their order.</summary>
+    public static IEnumerable<T> ByTargetChance<T>(IEnumerable<T> rows, Func<T, (double Chance, int? Jumps, double Ly)> of) =>
+        rows
+            .Select(row => (Row: row, Key: of(row)))
+            .OrderByDescending(r => r.Key.Chance)
+            .ThenBy(r => r.Key.Jumps ?? int.MaxValue)
+            .ThenBy(r => r.Key.Ly)
+            .Select(r => r.Row);
 
     /// <summary>
     /// Something happens here: NPC, ship or pod kills in the last hour or the last 24 hours, or a hunting
