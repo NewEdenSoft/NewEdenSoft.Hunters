@@ -29,7 +29,7 @@ See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reac
 - [x] **Quiet systems hidden:** no kills in the last hour or day and no profile seen. Show a "N quiet hidden" toggle. Ask for 200 rows.
 - [x] **Gate jumps filtered locally:** always ask the server by `ly` (the Jump range widget's light years), never by `jumps`; cut the list to the gate jumps chosen on the client (port `withinJumps`), so changing them doesn't ask again. Jump range only adds the light years and the in-range mark. Update `Nearby.Request` and its tests to match.
 
-- [ ] **Sort by chance of a target:** a *Chance of a target* option sorted on the client (port `targetChance`, `byTargetChance` and the `npcSort` change, with their tests), asking the server with `sort=npc-kills`; each card shows the chance.
+- [x] **Sort by chance of a target:** a *Chance of a target* option sorted on the client (port `targetChance`, `byTargetChance` and the `npcSort` change, with their tests), asking the server with `sort=npc-kills`; each card shows the chance.
 
 - [ ] **Cards** (up to 50, with the active count), each with:
   - name, security and distance (jumps, ly, or both; *no gates*), in jump-range blue when in range

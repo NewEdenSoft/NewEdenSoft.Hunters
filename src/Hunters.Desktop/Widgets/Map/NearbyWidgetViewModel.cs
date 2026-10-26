@@ -13,8 +13,8 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// <summary>
 /// What is in reach of the focused system, from the server's <c>/api/intel/reach</c>, like the web's
 /// Nearby panel (<c>NearbyPanel.tsx</c>): the cyno targets within the Jump range widget's light years,
-/// cut here to the gate jumps chosen, sorted by the rise in NPC kills, the most NPC kills, or a hunting
-/// profile's "likely now" (<see cref="MapPreferences.Nearby"/>). Asked for while the widget is on screen,
+/// cut here to the gate jumps chosen, sorted by the chance of a target (here), the rise in NPC kills, the
+/// most NPC kills, or a hunting profile's "likely now" (<see cref="MapPreferences.Nearby"/>). Asked for while the widget is on screen,
 /// each time the focus, the light years or the sort changes; the gate jumps and the jump range toggle
 /// only change what is shown. Systems where nothing happens (<see cref="Nearby.IsActive"/>) are hidden
 /// unless asked for.
@@ -33,8 +33,8 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     /// <summary>Set while the sort list is rebuilt, so the list's own selection changes aren't taken as the user's.</summary>
     private bool _syncingSort;
 
-    /// <summary>The last answer's rows, quiet ones too, and the origin's name; null without one.</summary>
-    private (IReadOnlyList<NearbyRowViewModel> Rows, string Origin, string Order)? _answer;
+    /// <summary>The last answer's rows, quiet ones too, in the server's order, and the origin's name; null without one.</summary>
+    private (IReadOnlyList<NearbyRowViewModel> Rows, string Origin)? _answer;
 
     public NearbyWidgetViewModel(AccountPageViewModel account, MapWidgetViewModel map, MapPreferences preferences, ThemeCatalog catalog)
     {
@@ -70,7 +70,7 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     /// <summary>"On · 8 ly" or "Off · 8 ly": the Jump range widget's light years.</summary>
     public string JumpRangeText => $"{(ByJumpRange ? "On" : "Off")} · {JumpRanges.FormatLy(_preferences.JumpRange.Ly)}";
 
-    /// <summary>NPC kills rising, NPC kills, and each hunting profile's "likely now".</summary>
+    /// <summary>Chance of a target, NPC kills rising, NPC kills, and each hunting profile's "likely now".</summary>
     [ObservableProperty]
     public partial IReadOnlyList<NearbySortOption> SortOptions { get; private set; } = [];
 
@@ -83,7 +83,7 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
             _preferences.Nearby = _preferences.Nearby with { Sort = value.Id };
     }
 
-    /// <summary>The systems in reach, in the server's order; empty until loaded.</summary>
+    /// <summary>The systems in reach, in the server's order or by the chance of a target; empty until loaded.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasRows))]
     public partial IReadOnlyList<NearbyRowViewModel> Rows { get; private set; } = [];
@@ -126,7 +126,7 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         get
         {
             var sort = _preferences.Nearby.Sort;
-            return sort is Nearby.SortActivity or Nearby.SortNpcKills || ProfileIds.Contains(sort) ? sort : Nearby.SortActivity;
+            return sort is Nearby.SortActivity or Nearby.SortNpcKills or Nearby.SortTarget || ProfileIds.Contains(sort) ? sort : Nearby.SortActivity;
         }
     }
 
@@ -154,6 +154,7 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         {
             SortOptions =
             [
+                new NearbySortOption(Nearby.SortTarget, "Chance of a target"),
                 new NearbySortOption(Nearby.SortActivity, "NPC kills rising"),
                 new NearbySortOption(Nearby.SortNpcKills, "NPC kills"),
                 .. _map.HuntingProfiles.Select(p => new NearbySortOption(p.Id, $"{p.Name}: likely now")),
@@ -201,8 +202,8 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     }
 
     /// <summary>
-    /// The last answer's rows within the gate jumps chosen, without the quiet ones unless they are asked
-    /// for, each with its distance as the setting shows it.
+    /// The last answer's rows within the gate jumps chosen, by the chance of a target when sorting by it,
+    /// without the quiet ones unless they are asked for, each with its distance as the setting shows it.
     /// </summary>
     private void ShowAnswer()
     {
@@ -210,15 +211,24 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
             return;
 
         var setting = _preferences.Nearby;
+        var sort = EffectiveSort;
+        var byTarget = sort == Nearby.SortTarget;
         var (byJumps, byLy) = (setting.Jumps is not null, setting.ByJumpRange);
-        IReadOnlyList<NearbyRowViewModel> around = [.. answer.Rows
-            .Where(r => Nearby.WithinJumps(r.Jumps, setting.Jumps))
-            .Select(r => r with { Distance = Nearby.DistanceText(r.Jumps, r.Ly, byJumps, byLy) })];
+        var within = answer.Rows.Where(r => Nearby.WithinJumps(r.Jumps, setting.Jumps));
+        IReadOnlyList<NearbyRowViewModel> around = [.. (byTarget ? Nearby.ByTargetChance(within, r => (r.Chance, r.Jumps, r.Ly)) : within)
+            .Select(r => r with { Distance = Nearby.DistanceText(r.Jumps, r.Ly, byJumps, byLy), ShowChance = byTarget })];
         var active = around.Count(r => r.IsActive);
         var quiet = around.Count - active;
         var showQuiet = setting.ShowQuiet;
         Rows = showQuiet ? around : [.. around.Where(r => r.IsActive)];
-        Summary = $"{active} active near {answer.Origin}, {answer.Order}.";
+        var order = sort switch
+        {
+            Nearby.SortTarget => "best chance of a target first",
+            Nearby.SortNpcKills => "most NPC kills first",
+            Nearby.SortActivity => "NPC kills rising first",
+            _ => $"{_map.HuntingProfiles.FirstOrDefault(p => p.Id == sort)?.Name ?? sort} likely now first",
+        };
+        Summary = $"{active} active near {answer.Origin}, {order}.";
         QuietText = quiet == 0 ? null : showQuiet ? $"hide {quiet} quiet" : $"{quiet} quiet hidden";
         StatusText = Rows.Count == 0 ? "Nothing happening in reach." : null;
     }
@@ -245,11 +255,9 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
                     new SolidColorBrush(ThemeService.ToColor(_catalog.SecurityColor(s.Security))),
                     s.Jumps,
                     s.Ly,
-                    Nearby.IsActive(s.Activity, s.Profiles.Count)))];
-            var order = request.Profile is { } profile
-                ? $"{_map.HuntingProfiles.FirstOrDefault(p => p.Id == profile)?.Name ?? profile} likely now first"
-                : request.Sort == ReachSorts.NpcKills ? "most NPC kills first" : "NPC kills rising first";
-            _answer = (rows, name, order);
+                    Nearby.IsActive(s.Activity, s.Profiles.Count),
+                    Nearby.TargetChance(s.Activity, s.Profiles)))];
+            _answer = (rows, name);
             ShowAnswer();
         }
         catch (OperationCanceledException)
@@ -277,10 +285,20 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
 /// <summary>One system in reach: its name, security and how far it is.</summary>
 /// <param name="Jumps">Gate jumps from the focus; null with no gate route.</param>
 /// <param name="IsActive">Something happens there (<see cref="Nearby.IsActive"/>); quiet systems are hidden unless asked for.</param>
-public sealed record NearbyRowViewModel(int SystemId, string Name, string Security, IBrush SecurityBrush, int? Jumps, double Ly, bool IsActive)
+/// <param name="Chance">The chance of a target there now, 0–1 (<see cref="Nearby.TargetChance"/>).</param>
+public sealed record NearbyRowViewModel(int SystemId, string Name, string Security, IBrush SecurityBrush, int? Jumps, double Ly, bool IsActive, double Chance)
 {
     /// <summary>"3 j", "4.2 ly" or both, as the setting shows it (<see cref="Nearby.DistanceText"/>).</summary>
     public string Distance { get; init; } = "";
+
+    /// <summary>The chance is shown while sorting by it.</summary>
+    public bool ShowChance { get; init; }
+
+    /// <summary>"63%".</summary>
+    public string ChanceText => $"{Math.Round(Chance * 100, MidpointRounding.AwayFromZero)}%";
+
+    /// <summary>At least even: shown in the ok colour.</summary>
+    public bool IsLikely => Chance >= 0.5;
 }
 
 /// <summary>One way to sort the Nearby rows: <see cref="Nearby.SortActivity"/>, <see cref="Nearby.SortNpcKills"/> or a profile's id.</summary>
