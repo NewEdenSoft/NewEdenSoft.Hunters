@@ -3,7 +3,17 @@ import type { HuntingProfileInfo } from '../../api/hunting'
 import { reachQuery, type ReachSystem } from '../../api/reach'
 import { formatLy } from '../../map/jumpRange'
 import type { MapModel } from '../../map/model'
-import { distanceText, inJumpRange, isActive, nearbyJumpChoices, nearbyRequest, NEARBY_LIMIT } from '../../map/nearby'
+import {
+  byTargetChance,
+  distanceText,
+  inJumpRange,
+  isActive,
+  nearbyJumpChoices,
+  nearbyRequest,
+  NEARBY_LIMIT,
+  TARGET_SORT,
+  targetChance,
+} from '../../map/nearby'
 import { formatSecurity } from '../../map/security'
 import { formatIsk as compact } from '../../map/systemInfo'
 import { useJumpRange, useNearby } from '../../settings/mapSettings'
@@ -18,8 +28,8 @@ import { useDestination } from './useDestination'
 
 /**
  * The Nearby panel: what is in reach of the focused system (`/api/intel/reach`), within gate jumps and/or
- * the Jump range panel's light years, sorted by the rise in NPC kills or by a hunting profile's "likely
- * now". One card per system with activity, with quick controls; systems where nothing happens are
+ * the Jump range panel's light years, sorted by the chance of a target (here), the rise in NPC kills or
+ * by a hunting profile's "likely now". One card per system with activity, with quick controls; systems where nothing happens are
  * hidden unless asked for. Clicking a card selects the system and takes the map there.
  */
 export function NearbyPanel({
@@ -51,8 +61,10 @@ export function NearbyPanel({
     enabled: request !== null,
   })
   const names = new Map(profiles.map((p) => [p.id, p.name]))
+  const byTarget = setting.sort === TARGET_SORT
   // The rows on screen may be the previous answer while the next one loads.
-  const around = reach.data?.systems.filter((s) => s.systemId !== reach.data.from) ?? []
+  const rows = reach.data?.systems.filter((s) => s.systemId !== reach.data.from) ?? []
+  const around = byTarget ? byTargetChance(rows) : rows
   const active = around.filter(isActive)
   const quiet = around.length - active.length
   const shown = (setting.showQuiet ? around : active).slice(0, NEARBY_LIMIT)
@@ -82,10 +94,11 @@ export function NearbyPanel({
         <Label>Sort by</Label>
         {/* A list, not toggles: one per profile would fill the panel. */}
         <select
-          value={request?.profile ?? (request?.sort === 'npc-kills' ? 'npc-kills' : 'activity')}
+          value={request?.profile ?? (byTarget || setting.sort === 'npc-kills' ? setting.sort : 'activity')}
           onChange={(e) => update({ sort: e.target.value })}
           className="border border-line-strong bg-bg px-2 py-1 text-[0.8125rem] text-fg focus:border-primary focus:outline-none"
         >
+          <option value={TARGET_SORT}>Chance of a target</option>
           <option value="activity">NPC kills rising</option>
           <option value="npc-kills">NPC kills</option>
           {profiles.map((p) => (
@@ -111,9 +124,11 @@ export function NearbyPanel({
               {active.length} active near {model.names[focused]}
               {request.profile
                 ? `, ${names.get(request.profile)} likely now first`
-                : request.sort === 'npc-kills'
-                  ? ', most NPC kills first'
-                  : ', NPC kills rising first'}
+                : byTarget
+                  ? ', best chance of a target first'
+                  : request.sort === 'npc-kills'
+                    ? ', most NPC kills first'
+                    : ', NPC kills rising first'}
               {shown.length < (setting.showQuiet ? around.length : active.length) && ` (first ${NEARBY_LIMIT})`}.
             </span>
             {quiet > 0 && (
@@ -143,6 +158,7 @@ export function NearbyPanel({
                     byJumps={request.jumps !== null}
                     ly={request.ly}
                     sortProfile={request.profile}
+                    chance={byTarget ? targetChance(row) : null}
                     names={names}
                     onSelect={() => onSelect(index)}
                     onFocus={() => onFocus(index)}
@@ -169,6 +185,7 @@ function NearbyCard({
   byJumps,
   ly,
   sortProfile,
+  chance,
   names,
   onSelect,
   onFocus,
@@ -180,6 +197,8 @@ function NearbyCard({
   /** The light years asked for, or null. */
   ly: number | null
   sortProfile: string | null
+  /** The chance of a target there now (0–1), shown when sorting by it; else null. */
+  chance: number | null
   names: Map<string, string>
   onSelect: () => void
   onFocus: () => void
@@ -218,6 +237,14 @@ function NearbyCard({
         <span className="font-mono text-[0.75rem] font-semibold" style={{ color: securityColor(row.security) }}>
           {formatSecurity(row.security)}
         </span>
+        {chance !== null && (
+          <span
+            className={cn('font-mono text-[0.75rem]', chance >= 0.5 ? 'text-ok' : 'text-fg-muted')}
+            title="Chance of a target now: someone ratting (NPC kills in the last hour) or a hunting profile usually here at this hour"
+          >
+            {Math.round(chance * 100)}%
+          </span>
+        )}
         <span
           className={cn('ml-auto shrink-0 font-mono text-[0.75rem]', jumpable ? 'text-jump-range' : 'text-fg-muted')}
           title={

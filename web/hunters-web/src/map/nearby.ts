@@ -51,9 +51,38 @@ export function nearbyRequest(setting: NearbySetting, from: number | null, range
   }
 }
 
-/** The server's order when not sorting by a profile: the most NPC kills, or else their rise. */
+/**
+ * The server's order when not sorting by a profile: the most NPC kills, or else their rise. The target
+ * chance is sorted here, from the busiest systems the server sends.
+ */
 export function npcSort(sort: string): ReachSort {
-  return sort === 'npc-kills' ? 'npc-kills' : 'npc-rising'
+  return sort === 'npc-kills' || sort === TARGET_SORT ? 'npc-kills' : 'npc-rising'
+}
+
+/** The sort by {@link targetChance}, done here rather than by the server. */
+export const TARGET_SORT = 'target'
+
+/** NPC kills an hour that make about a 63% chance of someone ratting (1 - 1/e): one ratter, roughly. */
+const NPC_KILLS_PER_RATTER = 40
+
+/**
+ * The chance (0–1) of a target in the system now: someone ratting (NPC kills in the last hour), or a
+ * hunting profile seen at this hour (the sum of their "likely now", the sightings expected this hour),
+ * each as the chance of at least one, taken as independent.
+ */
+export function targetChance(row: Pick<ReachSystem, 'activity' | 'profiles'>): number {
+  const expected = row.profiles.reduce((sum, p) => sum + p.likelyNow, 0)
+  const profiles = 1 - Math.exp(-expected)
+  const ratting = 1 - Math.exp(-(row.activity?.npcKills.lastHour ?? 0) / NPC_KILLS_PER_RATTER)
+  return 1 - (1 - profiles) * (1 - ratting)
+}
+
+/** Highest target chance first, then nearest (gate jumps, then light years). */
+export function byTargetChance<T extends Pick<ReachSystem, 'activity' | 'profiles' | 'jumps' | 'ly'>>(rows: T[]): T[] {
+  return rows
+    .map((row) => ({ row, chance: targetChance(row) }))
+    .sort((a, b) => b.chance - a.chance || (a.row.jumps ?? Infinity) - (b.row.jumps ?? Infinity) || a.row.ly - b.row.ly)
+    .map((r) => r.row)
 }
 
 /**
