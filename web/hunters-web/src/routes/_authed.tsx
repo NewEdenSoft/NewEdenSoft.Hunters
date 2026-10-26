@@ -30,7 +30,7 @@ export const Route = createFileRoute('/_authed')({
 })
 
 /**
- * A slim rail on the left of every page: the map, and on the map a toggle per panel; Account,
+ * A slim rail on the left of every page: the map, and on the map a toggle per panel; Info, Account,
  * Settings and log out at the bottom. The map fills the rest of the window; other pages scroll in
  * the centred column. On a phone the rail is a bar along the bottom instead, without the panel
  * toggles (the panels have tabs there).
@@ -71,6 +71,7 @@ function AuthedLayout() {
         )}
 
         <div className="ml-auto flex items-center gap-1 sm:mt-auto sm:ml-0 sm:flex-col">
+          <RailLink to="/info" icon="help" label="Info: how Hunters works" />
           <RailLink to="/account" icon="user" label={main ? `Account · ${main.name}` : 'Account'}>
             {main && <img src={characterPortraitUrl(main.id, 64)} alt="" className="size-7 border border-line-strong" />}
           </RailLink>
@@ -114,7 +115,7 @@ function RailLink({
   exact,
   children,
 }: {
-  to: '/' | '/account' | '/settings'
+  to: '/' | '/info' | '/account' | '/settings'
   icon: IconName
   label: string
   exact?: boolean

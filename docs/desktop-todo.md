@@ -66,3 +66,7 @@ See [Hunting profiles on the map](web-client.md#map). The overview's `reliable` 
 - [ ] **Reliable ring:** port `reliableLevel` (and `RELIABLE_FULL`) from `map/hunting.ts` and the layer's `reliable` per system (the strongest shown profile's level at this UTC hour). Draw a 2 px ring at the drawn radius + 5, alpha `0.35 + 0.65 × level`, over the systems and outside the jump range's ring, at every zoom.
 - [ ] **Hover:** **reliable** in `hunt-reliable` next to a shown profile whose regulars cover this hour.
 - [ ] **Hunting widget hint:** add that a ring marks where someone with a routine is usually there at this hour.
+
+## Info page (web)
+See the web's `/info` (`routes/_authed/info.tsx`).
+- [ ] An **Info** page from the navigation: using the map, the map's marks (glow, reliable ring, badges, jump range, focus and selection rings) and the panels' words (peak now / now / seen, reliable, regulars, local, Peak in N h), how profiles are scored, and each profile's description and evidence from `/api/hunting/profiles` (`HuntingProfileInfo.Description`, `Evidence`). Same wording as the web.

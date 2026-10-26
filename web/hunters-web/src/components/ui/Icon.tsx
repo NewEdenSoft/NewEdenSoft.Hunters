@@ -24,6 +24,7 @@ const paths = {
   nearby: 'M12 14 A2 2 0 1 0 12 10 A2 2 0 1 0 12 14 Z M12 2.5 L12 6 M12 18 L12 21.5 M2.5 12 L6 12 M18 12 L21.5 12 M5.3 5.3 L7.8 7.8 M16.2 16.2 L18.7 18.7 M18.7 5.3 L16.2 7.8 M7.8 16.2 L5.3 18.7',
   // A circled "i" (the System panel).
   info: 'M12 21 A9 9 0 1 0 12 3 A9 9 0 1 0 12 21 Z M12 11 L12 16.5 M12 7.5 L12 7.51',
+  help: 'M12 21 A9 9 0 1 0 12 3 A9 9 0 1 0 12 21 Z M9.5 9.5 A2.5 2.5 0 1 1 12 12 L12 13.5 M12 16.5 L12 16.51',
   // A flag on a pole (set destination).
   flag: 'M5 21 L5 4 M5 4 L18 4 L15 8.5 L18 13 L5 13',
   // A box with an arrow leaving it (opens another site).
