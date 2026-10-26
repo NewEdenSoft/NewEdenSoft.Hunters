@@ -237,6 +237,16 @@
       </StackPanel>
     </ContentControl>
 
+    <!-- What "Navigate to" in a system's menu came to, at the bottom of the map -->
+    <ContentControl Theme="{StaticResource MapOverlay}" Padding="12,6" Margin="12" IsHitTestVisible="False"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                    IsVisible="{Binding Destination.HasStatus, FallbackValue=False}">
+      <TextBlock FontSize="13" TextWrapping="Wrap" MaxWidth="480" Text="{Binding Destination.StatusText, FallbackValue={x:Null}}"
+                 Classes.muted="{Binding !Destination.HasStatus, FallbackValue=True}"
+                 Classes.rising="{Binding Destination.IsOk, FallbackValue=False}"
+                 Classes.falling="{Binding Destination.IsDanger, FallbackValue=False}" />
+    </ContentControl>
+
     <!-- Not loaded: logged out, loading, being prepared, or an error -->
     <StackPanel IsVisible="{Binding IsNotLoaded}" MaxWidth="360" Margin="16" Spacing="12"
                 HorizontalAlignment="Center" VerticalAlignment="Center">

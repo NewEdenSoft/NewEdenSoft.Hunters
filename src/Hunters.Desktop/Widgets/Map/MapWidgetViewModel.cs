@@ -47,6 +47,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     private readonly CharacterTracking _tracking;
     private readonly CharacterPreferences _characters;
     private readonly MapFocus _focus;
+    private readonly Destinations _destinations;
 
     /// <summary>A character focused before its location was known; the map moves there once it is.</summary>
     private long? _awaitingLocation;
@@ -67,7 +68,8 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         ThemeService theme,
         CharacterTracking tracking,
         CharacterPreferences characters,
-        MapFocus focus)
+        MapFocus focus,
+        Destinations destinations)
     {
         _account = account;
         _preferences = preferences;
@@ -76,6 +78,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         _tracking = tracking;
         _characters = characters;
         _focus = focus;
+        _destinations = destinations;
 
         Search = new SystemSearchViewModel(Describe, FindSystem);
 
@@ -368,6 +371,35 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                 : null,
         };
     }
+
+    /// <summary>The last "Navigate to" from a system's menu: its outcome is shown on the map. Null before the first.</summary>
+    [ObservableProperty]
+    public partial DestinationViewModel? Destination { get; private set; }
+
+    /// <summary>
+    /// Who "Navigate to" in a system's menu offers: the tracked characters (All), and every usable one
+    /// (online first, then the main). Empty while logged out.
+    /// </summary>
+    public (IReadOnlyList<DestinationCharacter> Tracked, IReadOnlyList<DestinationCharacter> Usable) NavigateChoices() =>
+        _account.Session is { IsEnded: false } session ? (_destinations.Tracked(session.Account), _destinations.Usable(session.Account)) : ([], []);
+
+    /// <summary>A destination is being set from a system's menu: its items wait until it is done.</summary>
+    public bool IsNavigating => Destination?.IsBusy == true;
+
+    /// <summary>"Navigate to" in a system's menu: sets the autopilot destination there for these characters.</summary>
+    public void NavigateTo(int index, IReadOnlyList<DestinationCharacter> characters)
+    {
+        if (Model is not { } model || index < 0 || index >= model.Count || characters.Count == 0 || IsNavigating)
+            return;
+
+        var systemId = model.Ids[index];
+        if (Destination?.SystemId != systemId)
+            Destination = new DestinationViewModel(systemId, model.Names[index], _destinations, () => _account.Session);
+        _ = Destination.SetForAsync(characters);
+    }
+
+    /// <summary>A system's name, security and region, for its menu's header.</summary>
+    public MapSystemInfo? DescribeSystem(int index) => Model is { } model && index >= 0 && index < model.Count ? Describe(index) : null;
 
     /// <summary>A system's name, security and region.</summary>
     private MapSystemInfo Describe(int index)

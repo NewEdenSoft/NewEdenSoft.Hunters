@@ -42,7 +42,7 @@ See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reac
 
 ## Navigate to (web)
 See the system menu in [Web Client](web-client.md#map).
-- [ ] **Navigate to** in the system's menu on the map, a submenu: **All (N)** for every tracked character, then each usable character (online first, then the main, with an online dot) for that one; the outcome shown on the map.
+- [x] **Navigate to** in the system's menu on the map, a submenu: **All (N)** for every tracked character, then each usable character (online first, then the main, with an online dot) for that one; the outcome shown on the map.
 - [ ] The same menu (**Focus system**, **Navigate to**) on a right click on a Nearby card, the outcome on the card.
 - [ ] With a focus, the hover panel shows the gate jumps from the focused system ("5 jumps from X", or *no gates*).
 - [ ] No other context menu on the map, even on empty space, or on the widgets (except in text fields).
