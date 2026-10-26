@@ -24,8 +24,8 @@ const overview: HuntingOverview = {
   version: 1,
   updatedAt: '',
   profiles: [
-    { profile: 'carriers', systemIds: [1, 2, 3, 99], score: [8, 2, 5, 9], week: [], month: [], lastSeen: [], hours: [at([19, 4]), at([19, 1], [20, 1]), at([3, 2]), at([19, 1])] },
-    { profile: 'crab', systemIds: [2], score: [3], week: [], month: [], lastSeen: [], hours: [at([19, 1])] },
+    { profile: 'carriers', systemIds: [1, 2, 3, 99], score: [8, 2, 5, 9], week: [], month: [], lastSeen: [], hours: [at([19, 4]), at([19, 1], [20, 1]), at([3, 2]), at([19, 1])], reliable: [] },
+    { profile: 'crab', systemIds: [2], score: [3], week: [], month: [], lastSeen: [], hours: [at([19, 1])], reliable: [] },
   ],
 }
 

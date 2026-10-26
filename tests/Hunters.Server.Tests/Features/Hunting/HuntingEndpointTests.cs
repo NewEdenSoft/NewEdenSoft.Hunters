@@ -30,6 +30,7 @@ public sealed class HuntingEndpointTests(PostgresFixture postgres) : IAsyncLifet
         await db.Database.MigrateAsync();
         await db.HuntingSystemStats.ExecuteDeleteAsync();
         await db.HuntingRegionStats.ExecuteDeleteAsync();
+        await db.HuntingRegulars.ExecuteDeleteAsync();
         await db.HuntingProfileStates.ExecuteDeleteAsync();
         await db.Versions.Where(v => v.Dataset == IntelVersion.Hunting).ExecuteDeleteAsync();
     }
@@ -69,9 +70,14 @@ public sealed class HuntingEndpointTests(PostgresFixture postgres) : IAsyncLifet
 
         db.HuntingSystemStats.AddRange(
             new HuntingSystemStats { Profile = "carriers", SystemId = Sobaseki, Score = 1.2, Week = 1, Month = 2, Pilots = 1, LastSeen = UpdatedAt.AddDays(-2), Hours = Hours(3, 2) },
-            new HuntingSystemStats { Profile = "carriers", SystemId = Jita, Score = 6.12345, Week = 3.75, Month = 7.5, MonthIndicator = 0.75, Pilots = 4, MonthLocal = 4.5, LocalPilots = 2, LastSeen = UpdatedAt.AddHours(-1), Hours = Hours(19, 7.5) },
+            new HuntingSystemStats { Profile = "carriers", SystemId = Jita, Score = 6.12345, Week = 3.75, Month = 7.5, MonthIndicator = 0.75, Pilots = 4, MonthLocal = 4.5, LocalPilots = 2, Reliable = Hours(22, 2.71828), LastSeen = UpdatedAt.AddHours(-1), Hours = Hours(19, 7.5) },
             new HuntingSystemStats { Profile = "crab", SystemId = Jita, Score = 2, Week = 1, Month = 1, LastSeen = UpdatedAt.AddHours(-3), Hours = Hours(17, 1) },
             new HuntingSystemStats { Profile = "titans", SystemId = Jita, Score = 9, Week = 1, Month = 1, LastSeen = UpdatedAt, Hours = Hours(0, 1) });
+        // Carriers in Jita: one pilot on an evening session, one only within the extended window.
+        await db.HuntingRegulars.ExecuteDeleteAsync();
+        db.HuntingRegulars.AddRange(
+            new HuntingSystemRegular { Profile = "carriers", SystemId = Jita, PilotId = 2, Days = 2, DaysInWindow = 2, WindowStart = 14, WindowHours = 6, LastSeen = UpdatedAt.AddDays(-2), Strength = 0.9 },
+            new HuntingSystemRegular { Profile = "carriers", SystemId = Jita, PilotId = 1, Days = 4, DaysInWindow = 3, WindowStart = 22, WindowHours = 4, LastSeen = UpdatedAt.AddHours(-1), Local = true, Strength = 2.71828 });
         db.HuntingRegionStats.AddRange(
             new HuntingRegionStats { Profile = "carriers", RegionId = TheForge, Score = 6.12345, Week = 3.75, Month = 7.5, MonthIndicator = 0.75, Pilots = 4, LastSeen = UpdatedAt.AddHours(-1), Hours = Hours(19, 7.5) },
             new HuntingRegionStats { Profile = "carriers", RegionId = Lonetrek, Score = 1.2, Week = 1, Month = 2, Pilots = 1, LastSeen = UpdatedAt.AddDays(-2), Hours = Hours(3, 2) });
@@ -144,6 +150,9 @@ public sealed class HuntingEndpointTests(PostgresFixture postgres) : IAsyncLifet
         Assert.Equal([UpdatedAt.AddHours(-1), UpdatedAt.AddDays(-2)], carriers.LastSeen);
         Assert.Equal(7.5, carriers.Hours[0][19]);
         Assert.Equal(24, carriers.Hours[1].Count);
+        // Where someone reliably is at 22:00; Sobaseki has no regulars (no curve stored).
+        Assert.Equal(2.718, carriers.Reliable![0][22]);
+        Assert.Empty(carriers.Reliable[1]);
         Assert.Empty(overview.Profiles[2].SystemIds);
     }
 
@@ -187,6 +196,11 @@ public sealed class HuntingEndpointTests(PostgresFixture postgres) : IAsyncLifet
         Assert.Equal(("Carriers", 6.123, 0.75, 4), (carriers.Name, carriers.Score, carriers.MonthIndicator, carriers.Pilots));
         Assert.Equal((4.5, 2), (carriers.MonthLocal, carriers.LocalPilots));
         Assert.Equal(7.5, carriers.Hours[19]);
+        // The session regular first.
+        Assert.Equal([(1L, 4, 3, 22, 4, true, 2.718), (2L, 2, 2, 14, 6, false, 0.9)],
+            carriers.Regulars!.Select(r => (r.PilotId, r.Days, r.DaysInWindow, r.WindowStart, r.WindowHours, r.Local, r.Strength)));
+        Assert.Equal(2.718, carriers.Reliable![22]);
+        Assert.Empty(jita.Profiles[1].Regulars!);
 
         Assert.Empty((await client.GetFromJsonAsync<HuntingPlace>(HuntingPaths.System(Perimeter)))!.Profiles);
 
@@ -204,6 +218,7 @@ public sealed class HuntingEndpointTests(PostgresFixture postgres) : IAsyncLifet
 
         var forge = await client.GetFromJsonAsync<HuntingPlace>(HuntingPaths.Region(TheForge));
         Assert.Equal(("carriers", 7.5), (Assert.Single(forge!.Profiles).Profile, forge.Profiles[0].Month));
+        Assert.Empty(forge.Profiles[0].Regulars!); // Per system only.
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(HuntingPaths.Region(Jita))).StatusCode);
     }
 }

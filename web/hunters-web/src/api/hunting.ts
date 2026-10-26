@@ -20,6 +20,11 @@ export interface HuntingProfileSystems {
   lastSeen: string[]
   /** Per system, 24 weighted sightings by hour of the day (UTC). */
   hours: number[][]
+  /**
+   * Per system, 24 values by hour of the day (UTC): the strength of the pilots with a routine there whose
+   * window covers the hour. High when someone reliably is there at that time: a target worth landing on now.
+   */
+  reliable: number[][]
 }
 
 export interface HuntingOverview {
@@ -46,6 +51,28 @@ export interface HuntingPlaceProfile {
   monthLocal: number
   /** The part of `pilots` seen as locals. */
   localPilots: number
+  /** For a system, the pilots with a routine there (session windows first, then the strongest); empty for a region. */
+  regulars: HuntingRegular[]
+  /** For a system, 24 values by hour of the day (UTC): how reliably someone is there then; empty for a region. */
+  reliable: number[]
+}
+
+/** A pilot seen in a system on different days at about the same time of day, over the last 30 days. */
+export interface HuntingRegular {
+  pilotId: number
+  /** Different days (UTC) seen there. */
+  days: number
+  /** The days seen inside the window. */
+  daysInWindow: number
+  /** The window's first hour of the day (UTC); it may run past midnight. */
+  windowStart: number
+  /** 4 for a play session's window, 6 for the extended one. */
+  windowHours: number
+  lastSeen: string
+  /** Seen as a local (in its own alliance's sovereignty) at least once. */
+  local: boolean
+  /** How reliable the routine is: the days in the window, each fading with a 14-day half-life, at half for an extended window. */
+  strength: number
 }
 
 /** The profiles seen in one system, highest score first; empty when none were. */

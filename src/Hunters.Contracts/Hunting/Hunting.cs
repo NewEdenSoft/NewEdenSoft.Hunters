@@ -16,6 +16,10 @@ public sealed record HuntingOverview(long Version, DateTimeOffset UpdatedAt, IRe
 /// <param name="Week">Weighted sightings in the last 7 days.</param>
 /// <param name="Month">Weighted sightings in the last 30 days.</param>
 /// <param name="Hours">Per system, 24 weighted sightings by hour of the day (UTC): when it is there.</param>
+/// <param name="Reliable">
+/// Per system, 24 values by hour of the day (UTC): the strength of the pilots with a routine there whose
+/// window covers the hour. High when someone reliably is there at that time: a target worth landing on now.
+/// </param>
 public sealed record HuntingProfileSystems(
     string Profile,
     IReadOnlyList<int> SystemIds,
@@ -23,7 +27,8 @@ public sealed record HuntingProfileSystems(
     IReadOnlyList<double> Week,
     IReadOnlyList<double> Month,
     IReadOnlyList<DateTimeOffset> LastSeen,
-    IReadOnlyList<IReadOnlyList<double>> Hours);
+    IReadOnlyList<IReadOnlyList<double>> Hours,
+    IReadOnlyList<IReadOnlyList<double>>? Reliable = null);
 
 /// <summary>The profiles seen in one system or region, highest score first; empty when none were.</summary>
 public sealed record HuntingPlace(int Id, long Version, DateTimeOffset UpdatedAt, IReadOnlyList<HuntingPlaceProfile> Profiles);
@@ -36,6 +41,11 @@ public sealed record HuntingPlace(int Id, long Version, DateTimeOffset UpdatedAt
 /// counts 1.5 times.
 /// </param>
 /// <param name="LocalPilots">The part of <paramref name="Pilots"/> seen as locals.</param>
+/// <param name="Regulars">
+/// For a system, the pilots with a routine there (session windows first, then the strongest); empty for a
+/// region.
+/// </param>
+/// <param name="Reliable">For a system, 24 values by hour of the day (UTC): how reliably someone is there then; empty for a region.</param>
 public sealed record HuntingPlaceProfile(
     string Profile,
     string Name,
@@ -47,7 +57,32 @@ public sealed record HuntingPlaceProfile(
     DateTimeOffset LastSeen,
     IReadOnlyList<double> Hours,
     double MonthLocal = 0,
-    int LocalPilots = 0);
+    int LocalPilots = 0,
+    IReadOnlyList<HuntingRegular>? Regulars = null,
+    IReadOnlyList<double>? Reliable = null);
+
+/// <summary>
+/// A pilot seen in a system on different days at about the same time of day, over the last 30 days: a
+/// routine, likely to be back in that window.
+/// </summary>
+/// <param name="Days">Different days (UTC) seen there.</param>
+/// <param name="DaysInWindow">The days seen inside the window.</param>
+/// <param name="WindowStart">The window's first hour of the day (UTC); it may run past midnight.</param>
+/// <param name="WindowHours">4 for a play session's window, 6 for the extended one.</param>
+/// <param name="Local">Seen as a local (in its own alliance's sovereignty) at least once.</param>
+/// <param name="Strength">
+/// How reliable the routine is: the days in the window, each fading with a 14-day half-life, at half for
+/// an extended window.
+/// </param>
+public sealed record HuntingRegular(
+    long PilotId,
+    int Days,
+    int DaysInWindow,
+    int WindowStart,
+    int WindowHours,
+    DateTimeOffset LastSeen,
+    bool Local,
+    double Strength);
 
 public static class HuntingPaths
 {

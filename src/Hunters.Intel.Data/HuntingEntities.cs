@@ -144,6 +144,49 @@ public sealed class HuntingSystemStats
 
     /// <summary>Weighted sightings per hour of the day (UTC), 24 entries, over all kept sightings: when it is there.</summary>
     public double[] Hours { get; set; } = [];
+
+    /// <summary>
+    /// Per hour of the day (UTC), 24 entries: the strength of the regulars (<see cref="HuntingSystemRegular"/>)
+    /// whose window covers it. High at an hour when someone reliably is there: a target worth landing on now.
+    /// </summary>
+    public double[] Reliable { get; set; } = [];
+}
+
+/// <summary>
+/// A pilot seen in a system on different days at about the same time of day (docs/map-and-activity.md,
+/// "Regulars"): someone with a routine there, likely back at that time. From the sightings of the last 30
+/// days that count; recomputed with the aggregates.
+/// </summary>
+public sealed class HuntingSystemRegular
+{
+    public string Profile { get; set; } = "";
+
+    public int SystemId { get; set; }
+
+    public long PilotId { get; set; }
+
+    /// <summary>Different days (UTC) the pilot was seen there.</summary>
+    public int Days { get; set; }
+
+    /// <summary>The days with a sighting inside the window, at least two.</summary>
+    public int DaysInWindow { get; set; }
+
+    /// <summary>The window's first hour of the day (UTC); it may run past midnight.</summary>
+    public int WindowStart { get; set; }
+
+    /// <summary>The window's length: the tight one (4 hours, a play session) when it holds, else the extended one (6).</summary>
+    public int WindowHours { get; set; }
+
+    public DateTimeOffset LastSeen { get; set; }
+
+    /// <summary>Seen as a local (<see cref="Sighting.Local"/>) at least once.</summary>
+    public bool Local { get; set; }
+
+    /// <summary>
+    /// How reliable the routine is: the days in the window, each fading with the score's half-life (14
+    /// days) from its latest sighting there, at half for an extended window.
+    /// </summary>
+    public double Strength { get; set; }
 }
 
 /// <summary>The same as <see cref="HuntingSystemStats"/>, for a region's systems together.</summary>

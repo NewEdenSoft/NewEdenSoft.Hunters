@@ -9,7 +9,7 @@ using NpgsqlTypes;
 namespace NewEdenSoft.Hunters.Intel.Hunting;
 
 /// <summary>
-/// Rebuilds <see cref="HuntingSystemStats"/> and <see cref="HuntingRegionStats"/> from the sightings
+/// Rebuilds <see cref="HuntingSystemStats"/>, <see cref="HuntingRegionStats"/> and <see cref="HuntingSystemRegular"/>s from the sightings
 /// (docs/map-and-activity.md, "Hunting aggregates"), with the <c>hunting</c> version bump, in one
 /// transaction. Sightings are few (about one kill in ten has one), so a full recompute in SQL is cheap
 /// and always right, also after a backfill or when a battle marks earlier sightings as fleet.
@@ -31,7 +31,7 @@ public sealed partial class HuntingAggregator(
         var db = scope.ServiceProvider.GetRequiredService<IntelDbContext>();
         var now = time.GetUtcNow();
 
-        var (systems, regions) = await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        var (systems, regions, regulars) = await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             db.ChangeTracker.Clear();
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -39,16 +39,109 @@ public sealed partial class HuntingAggregator(
 
             await db.HuntingSystemStats.ExecuteDeleteAsync(cancellationToken);
             await db.HuntingRegionStats.ExecuteDeleteAsync(cancellationToken);
+            await db.HuntingRegulars.ExecuteDeleteAsync(cancellationToken);
             var systemRows = await RecomputeAsync(db, "HuntingSystemStats", "SystemId", regionOf: null, now, cancellationToken);
             var regionRows = await RecomputeAsync(db, "HuntingRegionStats", "RegionId", catalog, now, cancellationToken);
+            var regularRows = await RecomputeRegularsAsync(db, now, cancellationToken);
+            await RecomputeReliableAsync(db, cancellationToken);
             await BumpVersionAsync(db, now, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
-            return (systemRows, regionRows);
+            return (systemRows, regionRows, regularRows);
         });
 
-        LogUpdated(systems, regions);
+        LogUpdated(systems, regions, regulars);
     }
+
+    /// <summary>
+    /// The regulars: per profile, system and pilot, the sightings that count from the last 30 days, by day
+    /// and hour of the day (UTC). Each of the 24 start hours is tried for the session window and the
+    /// extended one (both may run past midnight); a pilot is a regular when one holds sightings on at least
+    /// <see cref="HuntingOptions.RegularMinDays"/> different days. The session window wins when it holds,
+    /// then the one with the most days, then one starting at an hour the pilot was seen (so a window reads
+    /// "from when they show up"), then the earliest.
+    /// <para>
+    /// A regular's strength is its days in the window, each fading with the score's half-life from its
+    /// latest sighting there, and counting <see cref="HuntingOptions.RegularExtendedWeight"/> for the
+    /// extended window: six days this week is a reliable routine, two a month ago hardly one.
+    /// </para>
+    /// </summary>
+    private Task<int> RecomputeRegularsAsync(IntelDbContext db, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var settings = options.Value.Hunting;
+        return db.Database.ExecuteSqlRawAsync("""
+            WITH src AS (
+                SELECT "Profile", "SystemId", "PilotId", "Time", "Local",
+                    ("Time" AT TIME ZONE 'UTC')::date AS day, extract(hour FROM "Time" AT TIME ZONE 'UTC')::int AS hour
+                FROM intel."Sightings"
+                WHERE NOT "IsFleet" AND "PilotId" <> 0 AND "Time" >= @now - interval '30 days'),
+            pilots AS (
+                SELECT "Profile", "SystemId", "PilotId", count(DISTINCT day) AS days, max("Time") AS last_seen, bool_or("Local") AS local
+                FROM src GROUP BY 1, 2, 3
+                HAVING count(DISTINCT day) >= @minDays),
+            seen AS (
+                SELECT s."Profile", s."SystemId", s."PilotId", s.day, s.hour, max(s."Time") AS time
+                FROM src s JOIN pilots p USING ("Profile", "SystemId", "PilotId")
+                GROUP BY 1, 2, 3, 4, 5),
+            windows AS (
+                SELECT s."Profile", s."SystemId", s."PilotId", w.hours, g AS start, count(DISTINCT s.day) AS days_in,
+                    bool_or(s.hour = g) AS starts_seen
+                FROM seen s
+                CROSS JOIN (VALUES (@session), (@extended)) AS w(hours)
+                CROSS JOIN generate_series(0, 23) g
+                WHERE (s.hour - g + 24) % 24 < w.hours
+                GROUP BY 1, 2, 3, 4, 5
+                HAVING count(DISTINCT s.day) >= @minDays),
+            best AS (
+                SELECT DISTINCT ON ("Profile", "SystemId", "PilotId") "Profile", "SystemId", "PilotId", hours, start, days_in
+                FROM windows
+                ORDER BY "Profile", "SystemId", "PilotId", hours, days_in DESC, starts_seen DESC, start),
+            in_window AS (
+                SELECT b."Profile", b."SystemId", b."PilotId", s.day, max(s.time) AS time
+                FROM best b JOIN seen s USING ("Profile", "SystemId", "PilotId")
+                WHERE (s.hour - b.start + 24) % 24 < b.hours
+                GROUP BY 1, 2, 3, 4),
+            strength AS (
+                SELECT "Profile", "SystemId", "PilotId",
+                    sum(power(0.5, greatest(extract(epoch FROM @now - time), 0) / @halfLifeSeconds)) AS strength
+                FROM in_window GROUP BY 1, 2, 3)
+            INSERT INTO intel."HuntingRegulars" ("Profile", "SystemId", "PilotId", "Days", "DaysInWindow", "WindowStart", "WindowHours", "LastSeen", "Local", "Strength")
+            SELECT b."Profile", b."SystemId", b."PilotId", p.days, b.days_in, b.start, b.hours, p.last_seen, p.local,
+                st.strength * CASE WHEN b.hours = @session THEN 1 ELSE @extendedWeight END
+            FROM best b JOIN pilots p USING ("Profile", "SystemId", "PilotId") JOIN strength st USING ("Profile", "SystemId", "PilotId")
+            """,
+            [
+                new NpgsqlParameter("now", now),
+                new NpgsqlParameter("minDays", settings.RegularMinDays),
+                new NpgsqlParameter("session", settings.RegularWindowHours),
+                new NpgsqlParameter("extended", settings.RegularExtendedWindowHours),
+                new NpgsqlParameter("extendedWeight", settings.RegularExtendedWeight),
+                new NpgsqlParameter("halfLifeSeconds", settings.ScoreHalfLife.TotalSeconds),
+            ],
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Each system's <see cref="HuntingSystemStats.Reliable"/> curve: per hour of the day, the strength of
+    /// its regulars whose window covers that hour. All 24 hours for every row, zeros without regulars.
+    /// </summary>
+    private static Task<int> RecomputeReliableAsync(IntelDbContext db, CancellationToken cancellationToken) =>
+        db.Database.ExecuteSqlRawAsync("""
+            WITH covered AS (
+                SELECT r."Profile", r."SystemId", (r."WindowStart" + o) % 24 AS hour, sum(r."Strength") AS strength
+                FROM intel."HuntingRegulars" r CROSS JOIN generate_series(0, 23) o
+                WHERE o < r."WindowHours"
+                GROUP BY 1, 2, 3),
+            curves AS (
+                SELECT k."Profile", k."SystemId", array_agg(coalesce(c.strength, 0) ORDER BY g) AS curve
+                FROM intel."HuntingSystemStats" k
+                CROSS JOIN generate_series(0, 23) g
+                LEFT JOIN covered c ON c."Profile" = k."Profile" AND c."SystemId" = k."SystemId" AND c.hour = g
+                GROUP BY 1, 2)
+            UPDATE intel."HuntingSystemStats" s SET "Reliable" = c.curve
+            FROM curves c WHERE s."Profile" = c."Profile" AND s."SystemId" = c."SystemId"
+            """,
+            cancellationToken);
 
     /// <summary>
     /// One row per profile and system (or region): the windows, the decayed score and the hours of the
@@ -121,8 +214,8 @@ public sealed partial class HuntingAggregator(
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Hunting aggregates recomputed: {Systems} profile-system rows, {Regions} profile-region rows")]
-    private partial void LogUpdated(int systems, int regions);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Hunting aggregates recomputed: {Systems} profile-system rows, {Regions} profile-region rows, {Regulars} regulars")]
+    private partial void LogUpdated(int systems, int regions, int regulars);
 }
 
 /// <summary>

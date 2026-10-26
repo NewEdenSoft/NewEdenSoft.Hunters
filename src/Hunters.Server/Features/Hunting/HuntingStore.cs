@@ -11,16 +11,26 @@ namespace NewEdenSoft.Hunters.Server.Features.Hunting;
 /// <summary>One version of the intel service's hunting aggregates, held in memory (a few thousand small rows).</summary>
 public sealed class HuntingSnapshot
 {
+    /// <summary>The most regulars listed per profile in a system.</summary>
+    public const int RegularsListed = 10;
+
     public HuntingSnapshot(long version, DateTimeOffset updatedAt, IReadOnlyList<HuntingProfileInfo> profiles,
-        IReadOnlyList<HuntingSystemStats> systems, IReadOnlyList<HuntingRegionStats> regions)
+        IReadOnlyList<HuntingSystemStats> systems, IReadOnlyList<HuntingRegionStats> regions, IReadOnlyList<HuntingSystemRegular>? regulars = null)
     {
         Version = version;
         UpdatedAt = updatedAt;
         Profiles = profiles;
         var names = profiles.ToDictionary(p => p.Id, p => p.Name);
 
-        Systems = systems.GroupBy(s => s.SystemId).ToDictionary(g => g.Key, g => Place(g.Select(s => Row(s.Profile, s.Score, s.Week, s.Month, s.MonthIndicator, s.Pilots, s.LastSeen, s.Hours, s.MonthLocal, s.LocalPilots))));
-        Regions = regions.GroupBy(r => r.RegionId).ToDictionary(g => g.Key, g => Place(g.Select(r => Row(r.Profile, r.Score, r.Week, r.Month, r.MonthIndicator, r.Pilots, r.LastSeen, r.Hours, r.MonthLocal, r.LocalPilots))));
+        var regularsOf = (regulars ?? []).GroupBy(r => (r.Profile, r.SystemId)).ToDictionary(g => g.Key, g => (IReadOnlyList<HuntingRegular>)
+        [
+            .. g.OrderBy(r => r.WindowHours).ThenByDescending(r => r.Strength).ThenBy(r => r.PilotId)
+                .Take(RegularsListed)
+                .Select(r => new HuntingRegular(r.PilotId, r.Days, r.DaysInWindow, r.WindowStart, r.WindowHours, r.LastSeen, r.Local, Round(r.Strength))),
+        ]);
+        Systems = systems.GroupBy(s => s.SystemId).ToDictionary(g => g.Key, g => Place(g.Select(s =>
+            Row(s.Profile, s.Score, s.Week, s.Month, s.MonthIndicator, s.Pilots, s.LastSeen, s.Hours, s.MonthLocal, s.LocalPilots, regularsOf.GetValueOrDefault((s.Profile, s.SystemId)) ?? [], s.Reliable))));
+        Regions = regions.GroupBy(r => r.RegionId).ToDictionary(g => g.Key, g => Place(g.Select(r => Row(r.Profile, r.Score, r.Week, r.Month, r.MonthIndicator, r.Pilots, r.LastSeen, r.Hours, r.MonthLocal, r.LocalPilots, [], []))));
 
         // Profiles the states don't list any more are left out.
         Overview = PrecompressedJson.Create(new HuntingOverview(version, updatedAt, [
@@ -34,7 +44,8 @@ public sealed class HuntingSnapshot
                     [.. rows.Select(s => Round(s.Week))],
                     [.. rows.Select(s => Round(s.Month))],
                     [.. rows.Select(s => s.LastSeen)],
-                    [.. rows.Select(s => (IReadOnlyList<double>)[.. s.Hours.Select(Round)])]);
+                    [.. rows.Select(s => (IReadOnlyList<double>)[.. s.Hours.Select(Round)])],
+                    [.. rows.Select(s => (IReadOnlyList<double>)[.. s.Reliable.Select(Round)])]);
             }),
         ]));
 
@@ -43,10 +54,10 @@ public sealed class HuntingSnapshot
 
         HuntingPlaceProfile? Row(
             string profile, double score, double week, double month, double indicator, int pilots, DateTimeOffset lastSeen, double[] hours,
-            double monthLocal, int localPilots) =>
+            double monthLocal, int localPilots, IReadOnlyList<HuntingRegular> regulars, double[] reliable) =>
             names.TryGetValue(profile, out var name)
                 ? new HuntingPlaceProfile(profile, name, Round(score), Round(week), Round(month), Round(indicator), pilots, lastSeen, [.. hours.Select(Round)],
-                    Round(monthLocal), localPilots)
+                    Round(monthLocal), localPilots, regulars, [.. reliable.Select(Round)])
                 : null;
     }
 
@@ -148,10 +159,11 @@ public sealed partial class HuntingService(
             var profiles = await db.HuntingProfileStates.AsNoTracking().OrderBy(p => p.Name).Select(p => new HuntingProfileInfo(p.Profile, p.Name)).ToListAsync(cancellationToken);
             var systems = await db.HuntingSystemStats.AsNoTracking().ToListAsync(cancellationToken);
             var regions = await db.HuntingRegionStats.AsNoTracking().ToListAsync(cancellationToken);
+            var regulars = await db.HuntingRegulars.AsNoTracking().ToListAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
             LogLoaded(version.Version, profiles.Count, systems.Count);
-            return new HuntingSnapshot(version.Version, version.UpdatedAt, profiles, systems, regions);
+            return new HuntingSnapshot(version.Version, version.UpdatedAt, profiles, systems, regions, regulars);
         });
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Loaded hunting version {Version}: {Profiles} profiles, {Rows} profile-system rows")]

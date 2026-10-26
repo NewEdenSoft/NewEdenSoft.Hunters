@@ -111,6 +111,18 @@ public sealed class HuntingOptions
 
     /// <summary>The aggregates are recomputed at most this often while sightings arrive (and at least hourly).</summary>
     public TimeSpan UpdateInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>A regular's time of day: the hours of a typical play session.</summary>
+    public int RegularWindowHours { get; set; } = 4;
+
+    /// <summary>The wider time of day a regular may fall in when the session window doesn't hold.</summary>
+    public int RegularExtendedWindowHours { get; set; } = 6;
+
+    /// <summary>Different days inside the window that make a pilot a regular.</summary>
+    public int RegularMinDays { get; set; } = 2;
+
+    /// <summary>A regular only the extended window holds counts this much: weaker evidence than a session's.</summary>
+    public double RegularExtendedWeight { get; set; } = 0.5;
 }
 
 public sealed class EsiOptions
