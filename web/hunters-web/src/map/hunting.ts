@@ -22,11 +22,25 @@ export interface HuntingBadgeGroup {
 
 /**
  * The hunting profiles on the map: a glow per system (0–1, the strongest shown profile's "likely now"
- * there, relative to that profile's strongest system) and badges for the shown profiles seen there.
+ * there, relative to that profile's strongest system), a reliable ring per system (0–1, see
+ * {@link reliableLevel}) and badges for the shown profiles seen there.
  */
 export interface HuntingLayer {
   glow: Float32Array
+  /** Someone reliably there at this hour (a regular's window covers it): 0 for none, else 0–1 by strength. */
+  reliable: Float32Array
   badges: HuntingBadgeGroup[]
+}
+
+/** A reliable strength this high draws the ring at full strength: about three recent days in the window. */
+export const RELIABLE_FULL = 3
+
+/**
+ * How strongly to draw "reliable now" for a regular strength at this hour (the server's `reliable`
+ * curve): 0 for none, else from a faint ring (an old or extended routine) to full at {@link RELIABLE_FULL}.
+ */
+export function reliableLevel(strength: number): number {
+  return strength > 0 ? Math.min(1, 0.2 + (0.8 * strength) / RELIABLE_FULL) : 0
 }
 
 /**
@@ -52,6 +66,7 @@ export function buildHuntingLayer(
   styleOf: (profile: string) => ProfileStyle,
 ): HuntingLayer {
   const glow = new Float32Array(model.count)
+  const reliable = new Float32Array(model.count)
   const badges = new Map<number, HuntingBadge[]>()
 
   for (const profile of shown) {
@@ -66,13 +81,14 @@ export function buildHuntingLayer(
     indexes.forEach((index, i) => {
       if (index === undefined) return
       if (strongest > 0 && likely[i] > 0) glow[index] = Math.max(glow[index], Math.sqrt(likely[i] / strongest))
+      reliable[index] = Math.max(reliable[index], reliableLevel(systems.reliable?.[i]?.[hour] ?? 0))
       let row = badges.get(index)
       if (!row) badges.set(index, (row = []))
       row.push({ profile, code: style.code, colour: style.colour, icon: profileIcon(style.icon), faint: likely[i] <= 0 })
     })
   }
 
-  return { glow, badges: [...badges].map(([systemIndex, row]) => ({ systemIndex, badges: row })) }
+  return { glow, reliable, badges: [...badges].map(([systemIndex, row]) => ({ systemIndex, badges: row })) }
 }
 
 /** A profile seen at a system, for the hover panel. */
@@ -87,6 +103,8 @@ export interface PlaceProfile {
   likely: number
   /** This hour against the busiest hour of the day there, 0–1. */
   peakNow: number
+  /** The regulars' strength at this hour there (0 for none): someone reliably there now. */
+  reliableNow: number
 }
 
 /**
@@ -121,6 +139,7 @@ export function profilesBySystem(
         score: systems.score[i],
         likely: likelyNow(systems.score[i], hours, hour),
         peakNow: busiest > 0 ? (hours[hour] ?? 0) / busiest : 0,
+        reliableNow: systems.reliable?.[i]?.[hour] ?? 0,
       })
     })
   }

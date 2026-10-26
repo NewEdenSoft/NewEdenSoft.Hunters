@@ -10,6 +10,8 @@ import {
   peakHint,
   profileStatus,
   sortProfiles,
+  windowCovers,
+  windowLabel,
   timeAgo,
 } from './systemInfo'
 
@@ -64,6 +66,19 @@ describe('profileStatus and sortProfiles', () => {
 
   it('puts peak now first, then now, then the rest by score', () => {
     expect(sortProfiles([seen, now, peak], 10).map((p) => p.profile)).toEqual(['peak', 'now', 'seen'])
+  })
+})
+
+describe('regular windows', () => {
+  it('covers the hours from its start, past midnight too', () => {
+    expect([21, 22, 23, 0, 1, 2].map((hour) => windowCovers(22, 4, hour))).toEqual([false, true, true, true, true, false])
+    expect(windowCovers(14, 6, 19)).toBe(true)
+    expect(windowCovers(14, 6, 20)).toBe(false)
+  })
+
+  it('reads as from and to (UTC)', () => {
+    expect(windowLabel(22, 4)).toBe('22–02 UTC')
+    expect(windowLabel(8, 6)).toBe('08–14 UTC')
   })
 })
 

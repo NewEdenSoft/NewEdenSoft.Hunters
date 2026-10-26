@@ -44,6 +44,7 @@ See [System panel](web-client.md#map). Needs the server's `GET /api/kills/system
   - Destination as a split button: the main part sets it on every tracked character (showing how many); ▾ lists the usable characters (online first, then the main) to set it for one. ESI `POST /ui/autopilot/waypoint?add_to_beginning=false&clear_other_waypoints=true&destination_id=…` with the character's token; retry once on 401, and ask for a new login on 403.
 - [ ] **Last hour:** NPC, ship and pod kills and jumps, each with the last hour, the change from the hour before (▲ / ▼ / –), the last 24 hours and the usual, plus Peak now / Peak in N h. Port `metricRows` and `peakHint` from `map/systemInfo.ts`.
 - [ ] **Hunting profiles:** all seen there, with peak now / now / seen, pilots and last seen, likely now first. Port `profileStatus` and `sortProfiles`.
+- [ ] **Regulars** under each hunting profile (see the web's System panel): name, **local**, window ("22–02 UTC") with days in it, and **now** in `hunt-reliable` when the window covers this hour; the profile row says **reliable** when its `reliable` curve is set at this hour. Port `windowCovers` and `windowLabel`.
 - [ ] **Recent kills:** the newest 10, refreshed every minute. Each has the ship icon, ship and pilot, the final blow (pilot and ship, or the NPC) with +N, NPC, time ago and ISK value, and links to the kill on zKillboard. Names come from ESI `/universe/names`. Port `formatIsk`, `timeAgo` and `partyName`.
 
 ## Jump range (web #49)
@@ -58,3 +59,10 @@ See [Jump range](web-client.md#map).
   - a 1.5 px ring at the drawn radius + 2, drawn over the systems and under the hover ring, so busy systems with an activity colour still read as in range
 - [x] **Hover:** with the range on, the distance from the focus ("14.6 ly from Tama") and **in range**, **out of range** or **no cyno**.
 - [x] **Without a focus** nothing is drawn, and the controls say to focus a system.
+
+## Reliable now (web, regulars)
+See [Hunting profiles on the map](web-client.md#map). The overview's `reliable` (24 per system) and the system endpoint's `regulars` come from the server (#76, #77).
+- [ ] **`hunt-reliable`** (`#5effd0`), a new fixed token in `design/themes.json`, to add to the desktop theme resources.
+- [ ] **Reliable ring:** port `reliableLevel` (and `RELIABLE_FULL`) from `map/hunting.ts` and the layer's `reliable` per system (the strongest shown profile's level at this UTC hour). Draw a 2 px ring at the drawn radius + 5, alpha `0.35 + 0.65 × level`, over the systems and outside the jump range's ring, at every zoom.
+- [ ] **Hover:** **reliable** in `hunt-reliable` next to a shown profile whose regulars cover this hour.
+- [ ] **Hunting widget hint:** add that a ring marks where someone with a routine is usually there at this hour.

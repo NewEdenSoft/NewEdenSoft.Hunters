@@ -165,6 +165,8 @@ interface Palette {
   selection: string
   /** The glow behind systems where a shown hunting profile is likely now. */
   huntGlow: string
+  /** The ring around systems where someone is reliably there at this hour. */
+  huntReliable: string
   /** The blue behind systems a jump drive can reach from the focused system. */
   jumpRange: string
   /** Resolved colours of the filter's groups. */
@@ -508,6 +510,7 @@ export class MapRenderer {
 
     // Over the systems, so the range shows on busy (large, bright) systems too.
     if (this.jumpRange) this.drawJumpRangeRings(radius, pad)
+    if (this.hunting) this.drawReliableRings(radius, pad)
 
     if (this.hovered >= 0) {
       const sx = xy[this.hovered * 2] * scale + offsetX
@@ -826,6 +829,29 @@ export class MapRenderer {
       ctx.beginPath()
       ctx.arc(sx, sy, reach, 0, Math.PI * 2)
       ctx.fill()
+    }
+  }
+
+  /**
+   * A ring around each system where someone is reliably there at this hour (a regular's window covers
+   * it): over the systems and outside the jump range's ring, apart from the glow, which is how often a
+   * profile is seen there. Stronger routines draw it more opaque.
+   */
+  private drawReliableRings(radius: number, pad: number): void {
+    const { ctx, xy, scale, offsetX, offsetY, palette } = this
+    const reliable = this.hunting!.reliable
+    ctx.lineWidth = 2
+    for (let i = 0; i < reliable.length; i++) {
+      const level = reliable[i]
+      if (level <= 0) continue
+      const sx = xy[i * 2] * scale + offsetX
+      const sy = xy[i * 2 + 1] * scale + offsetY
+      if (sx < -pad || sy < -pad || sx > this.width + pad || sy > this.height + pad) continue
+      const r = this.radiusOf(i, radius) + 5
+      ctx.strokeStyle = withAlpha(palette.huntReliable, 0.35 + 0.65 * level)
+      ctx.beginPath()
+      ctx.arc(sx, sy, r, 0, Math.PI * 2)
+      ctx.stroke()
     }
   }
 
@@ -1281,6 +1307,7 @@ function resolvePalette(filter: MapFilter): Palette {
     focused: resolveColor('var(--primary)'),
     selection: resolveColor('var(--fg)'),
     huntGlow: resolveColor('var(--hunt-glow)'),
+    huntReliable: resolveColor('var(--hunt-reliable)'),
     jumpRange: resolveColor('var(--jump-range)'),
     groups: filter.colours.map(resolveColor),
   }

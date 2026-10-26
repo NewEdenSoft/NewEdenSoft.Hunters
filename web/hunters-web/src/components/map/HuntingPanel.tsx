@@ -27,7 +27,7 @@ export function HuntingPanel({
       </div>
       <p className="text-[0.75rem] text-fg-muted">
         {shown.length > 0
-          ? 'The glow is where a shown profile is likely now: usually seen there at this hour (UTC).'
+          ? 'The glow is where a shown profile is likely now: usually seen there at this hour (UTC). A ring marks where someone with a routine is usually there at this hour.'
           : 'Show a profile to see where it is seen, and where it is likely now.'}
       </p>
     </div>

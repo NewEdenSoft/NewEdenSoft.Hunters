@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { ActivityMetrics } from '../../api/activity'
 import { typeIconUrl } from '../../api/eveImages'
-import { systemHuntingQuery } from '../../api/hunting'
+import { systemHuntingQuery, type HuntingRegular } from '../../api/hunting'
 import { systemKillsQuery, type RecentKill } from '../../api/kills'
 import type { MapModel } from '../../map/model'
 import { formatSecurity } from '../../map/security'
@@ -15,6 +15,8 @@ import {
   profileStatus,
   sortProfiles,
   timeAgo,
+  windowCovers,
+  windowLabel,
   zkillboardKillUrl,
   zkillboardSystemUrl,
   type MetricRow,
@@ -281,12 +283,16 @@ function MetricLine({ row }: { row: MetricRow }) {
   )
 }
 
-/** The hunting profiles seen here: the ones usually here at this hour first. */
+/**
+ * The hunting profiles seen here: the ones usually here at this hour first. Each lists its regulars: who
+ * has a routine here, and when.
+ */
 function Hunting({ systemId }: { systemId: number }) {
   const place = useQuery(systemHuntingQuery(systemId))
   const hour = useUtcHour()
   const now = useNow()
   const profiles = place.data ? sortProfiles(place.data.profiles, hour) : []
+  const nameOf = useEveNames(profiles.flatMap((p) => (p.regulars ?? []).map((r) => r.pilotId)))
   return (
     <section className="grid gap-1.5">
       <Label>Hunting profiles</Label>
@@ -297,29 +303,71 @@ function Hunting({ systemId }: { systemId: number }) {
       ) : profiles.length === 0 ? (
         <span className="text-[0.8125rem] text-fg-muted">None seen here.</span>
       ) : (
-        <ul className="grid gap-0.5 text-[0.8125rem]">
+        <ul className="grid gap-1 text-[0.8125rem]">
           {profiles.map((p) => {
             const status = profileStatus(p, hour)
             return (
-              <li key={p.profile} className="flex items-baseline gap-2">
-                <ProfileMark style={profileStyle(p.profile, p.name)} className="w-5 text-[0.6875rem]" />
-                <span className={cn('min-w-0 truncate', status === 'seen' ? 'text-fg-muted' : 'text-fg')}>{p.name}</span>
-                <span
-                  className={cn('shrink-0', status === 'seen' ? 'text-fg-faint' : 'text-warning')}
-                  title={status === 'seen' ? 'Seen here, but not usually at this hour (UTC)' : 'Usually seen here at this hour (UTC)'}
-                >
-                  {status}
+              <li key={p.profile} className="grid gap-0.5">
+                <span className="flex items-baseline gap-2">
+                  <ProfileMark style={profileStyle(p.profile, p.name)} className="w-5 text-[0.6875rem]" />
+                  <span className={cn('min-w-0 truncate', status === 'seen' ? 'text-fg-muted' : 'text-fg')}>{p.name}</span>
+                  <span
+                    className={cn('shrink-0', status === 'seen' ? 'text-fg-faint' : 'text-warning')}
+                    title={status === 'seen' ? 'Seen here, but not usually at this hour (UTC)' : 'Usually seen here at this hour (UTC)'}
+                  >
+                    {status}
+                  </span>
+                  {(p.reliable?.[hour] ?? 0) > 0 && (
+                    <span className="shrink-0 text-hunt-reliable" title="Someone with a routine here is usually here at this hour (UTC)">
+                      reliable
+                    </span>
+                  )}
+                  <span className="ml-auto shrink-0 font-mono text-[0.75rem] text-fg-faint" title={`Last seen ${new Date(p.lastSeen).toUTCString()}; ${p.pilots} pilots in 30 days`}>
+                    {p.pilots > 0 && `${p.pilots} ${p.pilots === 1 ? 'pilot' : 'pilots'} · `}
+                    {timeAgo(p.lastSeen, now)}
+                  </span>
                 </span>
-                <span className="ml-auto shrink-0 font-mono text-[0.75rem] text-fg-faint" title={`Last seen ${new Date(p.lastSeen).toUTCString()}; ${p.pilots} pilots in 30 days`}>
-                  {p.pilots > 0 && `${p.pilots} ${p.pilots === 1 ? 'pilot' : 'pilots'} · `}
-                  {timeAgo(p.lastSeen, now)}
-                </span>
+                {(p.regulars ?? []).length > 0 && <Regulars regulars={p.regulars} hour={hour} nameOf={nameOf} />}
               </li>
             )
           })}
         </ul>
       )}
     </section>
+  )
+}
+
+/**
+ * A profile's regulars here: seen on different days at about the same time of day. Their window (UTC),
+ * the days in it, "local" when seen in their own alliance's sovereignty, and "now" when the window covers
+ * this hour.
+ */
+function Regulars({ regulars, hour, nameOf }: { regulars: HuntingRegular[]; hour: number; nameOf: (id: number) => string | undefined }) {
+  return (
+    <ul className="ml-7 grid gap-0.5 text-[0.75rem]">
+      {regulars.map((r) => {
+        const active = windowCovers(r.windowStart, r.windowHours, hour)
+        return (
+          <li key={r.pilotId} className="flex items-baseline gap-2">
+            <span className={cn('min-w-0 truncate', active ? 'text-fg' : 'text-fg-muted')}>{nameOf(r.pilotId) ?? '…'}</span>
+            {r.local && (
+              <span className="shrink-0 text-info" title="Seen in its own alliance's sovereignty">
+                local
+              </span>
+            )}
+            <span
+              className="ml-auto shrink-0 font-mono text-fg-faint"
+              title={`${r.daysInWindow} of ${r.days} days seen here in this window; last seen ${new Date(r.lastSeen).toUTCString()}`}
+            >
+              {windowLabel(r.windowStart, r.windowHours)} · {r.daysInWindow}d
+            </span>
+            <span className={cn('w-7 shrink-0 text-right', active ? 'text-hunt-reliable' : 'invisible')} title="Usually here at this hour (UTC)">
+              now
+            </span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
