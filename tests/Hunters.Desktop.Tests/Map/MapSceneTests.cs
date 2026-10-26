@@ -192,6 +192,36 @@ public sealed class MapSceneTests
     }
 
     [Fact]
+    public void A_route_is_drawn_along_its_gates_in_the_route_colour()
+    {
+        var scene = new MapScene(
+            _model, MapLayout.TopDown, MapFilters.Security(_model, _catalog), Palette with { Route = SKColors.Cyan },
+            new MapFonts(SKTypeface.Default, SKTypeface.Default));
+        var camera = new MapCamera(Scale: 40, OffsetX: 100, OffsetY: 150, Width: 400, Height: 300);
+        // Jita (0, 0) to Otela (10, 0) by Perimeter (1, 0): a straight line along y = 150, from x 100 to 500.
+        int[] route = [_model.IndexOf[10], _model.IndexOf[11], _model.IndexOf[20]];
+
+        SKColor Sample(MapRoute? shown, int x, int y = 150)
+        {
+            using var surface = SKSurface.Create(new SKImageInfo(400, 300));
+            surface.Canvas.Clear(SKColors.Black);
+            scene.Draw(surface.Canvas, camera, hovered: -1, route: shown);
+            using var image = surface.Snapshot();
+            using var pixels = image.PeekPixels();
+            return pixels.GetPixelColor(x, y);
+        }
+
+        // Between Perimeter and Otela, on a bar (12 px past Perimeter's centre, after 2 periods of 14), and in a gap.
+        Assert.True(Sample(new MapRoute(route), 140 + 28 + 4) is { Red: < 60, Green: > 200, Blue: > 200 });
+        Assert.True(Sample(new MapRoute(route), 140 + 28 + 11) is { Green: < 120 });
+        // The bars move along: 7 px on, the gap is where a bar was.
+        Assert.True(Sample(new MapRoute(route, Travelled: 7), 140 + 28 + 4) is { Green: < 120 });
+        // The soft stroke reaches past the bars' width.
+        Assert.True(Sample(new MapRoute(route), 300, 153) is { Red: 0, Green: > 0 });
+        Assert.Equal(SKColors.Black, Sample(null, 300, 153));
+    }
+
+    [Fact]
     public void Clicks_find_the_marker_that_was_drawn()
     {
         var scene = Scene(MapFilters.Security(_model, _catalog));

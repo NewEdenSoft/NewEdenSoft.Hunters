@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 
 namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
@@ -22,6 +23,17 @@ public partial class NearbyWidgetView : UserControl
             return;
         Select(sender);
         e.Handled = true;
+    }
+
+    /// <summary>The pointer or the keyboard's focus came onto a card: the map shows the gate route there.</summary>
+    private void OnCardEntered(object? sender, RoutedEventArgs e) => Hover(sender, true);
+
+    private void OnCardExited(object? sender, RoutedEventArgs e) => Hover(sender, false);
+
+    private void Hover(object? sender, bool on)
+    {
+        if (DataContext is NearbyWidgetViewModel widget && sender is Control { DataContext: NearbyCardViewModel card } control)
+            widget.HoverCard(card, on || control.IsPointerOver || control.IsKeyboardFocusWithin);
     }
 
     private void Select(object? sender)

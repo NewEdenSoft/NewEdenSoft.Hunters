@@ -67,6 +67,8 @@
                   SelectedSystemId="{Binding SelectedSystemId}"
                   Hunting="{Binding Hunting}"
                   JumpRange="{Binding JumpRange}"
+                  RouteToSystemId="{Binding RouteToSystemId}"
+                  RouteColor="{DynamicResource Hud.InfoColor}"
                   JumpRangeColor="{DynamicResource Hud.JumpRangeColor}"
                   HuntGlowColor="{DynamicResource Hud.HuntGlowColor}"
                   HaloColor="{DynamicResource Hud.BgColor}"

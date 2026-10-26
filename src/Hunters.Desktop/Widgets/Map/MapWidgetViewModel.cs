@@ -171,8 +171,16 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 
     /// <summary>The selected system: the one last clicked or searched for, with a crosshair on the map and a card under the search. Null for none.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SelectedSystem), nameof(IsSelectionFocused))]
+    [NotifyPropertyChangedFor(nameof(SelectedSystem), nameof(IsSelectionFocused), nameof(RouteToSystemId))]
     public partial int? SelectedSystemId { get; private set; }
+
+    /// <summary>The system hovered in the Nearby widget (its card, by the pointer or the keyboard); null for none.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RouteToSystemId))]
+    public partial int? NearbyHoveredSystemId { get; set; }
+
+    /// <summary>Where the gate route from the focused system goes: the hovered Nearby card, else the selection. A system hovered on the map takes over.</summary>
+    public int? RouteToSystemId => NearbyHoveredSystemId ?? SelectedSystemId;
 
     /// <summary>The selected system's name, security and region, for its card; null when none is selected.</summary>
     public MapSystemInfo? SelectedSystem =>
