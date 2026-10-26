@@ -53,6 +53,13 @@
     <Style Selector="Border.card:pointerover">
       <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
     </Style>
+    <Style Selector="Border.card.selected">
+      <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+      <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+    </Style>
+    <Style Selector="Border.card:focus-visible">
+      <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
+    </Style>
     <Style Selector="Border.badge.sorted">
       <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
     </Style>
@@ -133,7 +140,15 @@
       </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="mw:NearbyCardViewModel">
-          <Border Classes="card">
+          <!-- The card is clickable (code-behind); focusable, so Enter selects it too -->
+          <Border Classes="card" Focusable="True" Cursor="Hand" Tapped="OnCardTapped" KeyDown="OnCardKeyDown"
+                  AutomationProperties.Name="{Binding Name}">
+            <Classes.selected>
+              <MultiBinding Converter="{x:Static w:EqualConverter.Instance}">
+                <Binding Path="SystemId" />
+                <Binding Path="$parent[UserControl].((mw:NearbyWidgetViewModel)DataContext).SelectedSystemId" />
+              </MultiBinding>
+            </Classes.selected>
             <StackPanel Spacing="4">
               <Grid ColumnDefinitions="Auto,Auto,Auto,*">
                 <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}" FontWeight="SemiBold"
