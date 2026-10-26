@@ -63,7 +63,7 @@ public sealed class HuntingEndpointTests(PostgresFixture postgres) : IAsyncLifet
         if (!await db.HuntingProfileStates.AnyAsync())
         {
             db.HuntingProfileStates.AddRange(
-                new HuntingProfileState { Profile = "carriers", Name = "Carriers", Definition = "d" },
+                new HuntingProfileState { Profile = "carriers", Name = "Carriers", Definition = "d", Description = "Carrier pilots.", Evidence = ["A Carrier dies there.", "A CRAB beacon is killed there."] },
                 new HuntingProfileState { Profile = "crab", Name = "CRAB beacons", Definition = "d" },
                 new HuntingProfileState { Profile = "ishtars", Name = "Ishtars", Definition = "d" });
         }
@@ -128,8 +128,13 @@ public sealed class HuntingEndpointTests(PostgresFixture postgres) : IAsyncLifet
         Assert.True(await RefreshAsync());
 
         Assert.Contains(HuntersFeatures.Hunting, (await client.GetFromJsonAsync<DiscoveryDocument>(DiscoveryDocument.Path))!.Features);
-        var profiles = await client.GetFromJsonAsync<List<HuntingProfileInfo>>(HuntingPaths.Profiles);
-        Assert.Equal([new("carriers", "Carriers"), new("crab", "CRAB beacons"), new("ishtars", "Ishtars")], profiles!);
+        var profiles = (await client.GetFromJsonAsync<List<HuntingProfileInfo>>(HuntingPaths.Profiles))!;
+        Assert.Equal(["carriers Carriers", "crab CRAB beacons", "ishtars Ishtars"], profiles.Select(p => $"{p.Id} {p.Name}"));
+        // Each with what it is and what counts as seeing it, from the intel service.
+        Assert.Equal("Carrier pilots.", profiles[0].Description);
+        Assert.Equal(["A Carrier dies there.", "A CRAB beacon is killed there."], profiles[0].Evidence!);
+        Assert.Equal("", profiles[1].Description);
+        Assert.Empty(profiles[1].Evidence!);
     }
 
     [Fact]

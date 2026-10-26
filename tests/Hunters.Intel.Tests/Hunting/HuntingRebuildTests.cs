@@ -64,6 +64,22 @@ public sealed class HuntingRebuildTests(IntelDatabase database) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Every_profile_is_stored_with_what_it_is_and_what_counts_as_seeing_it()
+    {
+        Assert.All(HuntingProfiles.All, p =>
+        {
+            Assert.NotEqual("", p.Description);
+            Assert.NotEmpty(p.Evidence!);
+        });
+
+        await using var db = Db();
+        var smartbombers = await db.HuntingProfileStates.SingleAsync(s => s.Profile == "smartbombers");
+        Assert.Equal(HuntingProfiles.All.Single(p => p.Id == "smartbombers").Description, smartbombers.Description);
+        Assert.StartsWith("A ship with at least 5 smart bombs fitted", smartbombers.Evidence[0]);
+        Assert.Equal(3, smartbombers.Evidence.Length);
+    }
+
+    [Fact]
     public async Task Nothing_is_rebuilt_without_a_request()
     {
         await LoseSightingsAsync();

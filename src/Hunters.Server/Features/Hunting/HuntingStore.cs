@@ -156,7 +156,7 @@ public sealed partial class HuntingService(
         {
             await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, cancellationToken);
             var version = await db.Versions.AsNoTracking().SingleAsync(v => v.Dataset == IntelVersion.Hunting, cancellationToken);
-            var profiles = await db.HuntingProfileStates.AsNoTracking().OrderBy(p => p.Name).Select(p => new HuntingProfileInfo(p.Profile, p.Name)).ToListAsync(cancellationToken);
+            var profiles = await db.HuntingProfileStates.AsNoTracking().OrderBy(p => p.Name).Select(p => new HuntingProfileInfo(p.Profile, p.Name, p.Description, p.Evidence)).ToListAsync(cancellationToken);
             var systems = await db.HuntingSystemStats.AsNoTracking().ToListAsync(cancellationToken);
             var regions = await db.HuntingRegionStats.AsNoTracking().ToListAsync(cancellationToken);
             var regulars = await db.HuntingRegulars.AsNoTracking().ToListAsync(cancellationToken);

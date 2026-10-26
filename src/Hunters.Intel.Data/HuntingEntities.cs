@@ -97,6 +97,12 @@ public sealed class HuntingProfileState
     /// <summary>The display name, for example "Carriers".</summary>
     public string Name { get; set; } = "";
 
+    /// <summary>What the target is, in a sentence.</summary>
+    public string Description { get; set; } = "";
+
+    /// <summary>What counts as seeing it, one line per way: the rules in players' words.</summary>
+    public string[] Evidence { get; set; } = [];
+
     /// <summary>The profile's rules with the SDE ids they resolved to.</summary>
     public string Definition { get; set; } = "";
 
