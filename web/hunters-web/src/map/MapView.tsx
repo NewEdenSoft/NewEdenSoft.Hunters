@@ -52,7 +52,7 @@ interface MapViewProps {
   profilesAt?: Map<number, PlaceProfile[]> | null
   /** The jump range: a blue glow on the systems it reaches; the hover panel tells the distance. */
   jumpRange?: JumpRangeView | null
-  /** A gate route to highlight (system indexes, origin first), with a ball travelling it; null for none. */
+  /** A gate route to highlight (system indexes, origin first), with bars moving along it towards the destination; null for none. */
   route?: number[] | null
 }
 
