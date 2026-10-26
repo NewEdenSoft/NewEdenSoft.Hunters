@@ -57,6 +57,7 @@
     "fax": { "code": "FX", "colour": "#4fd18b" },
     "marauders": { "code": "MR", "colour": "#5cc8ff" },
     "ishtars": { "code": "IS", "colour": "#a98bff" },
+    "miners": { "code": "MN", "colour": "#d4b483" },
     "smartbombers": { "code": "SB", "colour": "#ffe066" },
     "crab": { "code": "CR", "colour": "#ff9a3c" },
     "smartbomb-camps": { "code": "SK", "colour": "#ff4d4d", "icon": "skull" }

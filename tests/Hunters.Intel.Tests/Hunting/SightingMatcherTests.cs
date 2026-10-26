@@ -231,6 +231,18 @@ public sealed class SightingMatcherTests
     }
 
     [Fact]
+    public async Task Miners_are_barges_exhumers_and_their_boosters_dying()
+    {
+        var profiles = await ProfilesAsync();
+
+        Assert.Equal(["miners 90000001 Victim 22544 1"], SightingMatcher.Match(Kill(FakeSde.Hulk, victim: Pilot), profiles, 25).Select(Describe));
+        Assert.Equal(["miners 90000001 Victim 28606 1"], SightingMatcher.Match(Kill(FakeSde.Orca, victim: Pilot), profiles, 25).Select(Describe));
+        Assert.Equal(["miners 90000001 Victim 28352 2"], SightingMatcher.Match(Kill(FakeSde.Rorqual, victim: Pilot, npc: true), profiles, 25).Select(Describe));
+        // An Orca on the attacker list may have come for that kill.
+        Assert.Empty(SightingMatcher.Match(Kill(FakeSde.Rifter, victim: Pilot, attackers: [(Other, FakeSde.Orca, 0)]), profiles, 25));
+    }
+
+    [Fact]
     public async Task More_attackers_than_the_limit_is_a_fleet_fight()
     {
         var profiles = await ProfilesAsync();

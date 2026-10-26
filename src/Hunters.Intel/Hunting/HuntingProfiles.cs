@@ -92,8 +92,9 @@ public sealed record HuntingProfile(
 public static class HuntingProfiles
 {
     // SDE group ids, checked against the SDE when the profiles are resolved.
-    public const int Capsule = 29, Titan = 30, SmartBomb = 72, Dreadnought = 485, Carrier = 547, Supercarrier = 659, Marauder = 900,
-        ForceAuxiliary = 1538, VortonProjector = 4060, LancerDreadnought = 4594;
+    public const int Capsule = 29, Titan = 30, SmartBomb = 72, MiningBarge = 463, Dreadnought = 485, Exhumer = 543, Carrier = 547,
+        Supercarrier = 659, CapitalIndustrialShip = 883, Marauder = 900, IndustrialCommandShip = 941, ForceAuxiliary = 1538,
+        VortonProjector = 4060, LancerDreadnought = 4594;
 
     /// <summary>
     /// A pilot killed by NPCs only counts this many times: it died ratting there, the strongest sign it
@@ -143,6 +144,11 @@ public static class HuntingProfiles
         new("ishtars", "Ishtars", [new(RuleKind.Ship, Types: [Ishtar])],
             Description: "Ishtars: the common drone ratting cruiser.",
             Evidence: ["An Ishtar dies there."]),
+        // Mining Barges and Exhumers, and the boosters that fleet with them: Orca and Porpoise (Industrial
+        // Command Ships) and Rorqual (Capital Industrial Ship).
+        new("miners", "Miners", [new(RuleKind.Ship, Groups: [MiningBarge, Exhumer, IndustrialCommandShip, CapitalIndustrialShip])],
+            Description: "Mining fleets: barges and exhumers in the belts and ore anomalies, with an Orca, Porpoise or Rorqual boosting them.",
+            Evidence: ["A Mining Barge or Exhumer dies there.", "An Orca, Porpoise or Rorqual dies there."]),
         // A victim with at least five smart bombs fitted (any mix): a ship built to bomb, not one carrying a
         // utility smart bomb. Or an attacker's area weapon (a smart bomb, or the Vorton projector of an
         // EDENCOM ship) killing one of its own corporation or alliance: friendly fire in a group that bombs
