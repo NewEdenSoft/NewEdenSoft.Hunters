@@ -14,6 +14,9 @@
 
     <!-- Icons (24 x 24) -->
     <StreamGeometry x:Key="Hud.Icon.Warning">M12 2 L23 21 L1 21 Z M11 9 L11 15 L13 15 L13 9 Z M11 17 L11 19 L13 19 L13 17 Z</StreamGeometry>
+    <!-- Stroke icons, like the web's Icon.tsx: draw them with a Path's Stroke -->
+    <StreamGeometry x:Key="Hud.Icon.Flag">M5 21 L5 4 M5 4 L18 4 L15 8.5 L18 13 L5 13</StreamGeometry>
+    <StreamGeometry x:Key="Hud.Icon.Target">M12 19 A7 7 0 1 0 12 5 A7 7 0 1 0 12 19 Z M12 14.5 A2.5 2.5 0 1 0 12 9.5 A2.5 2.5 0 1 0 12 14.5 Z M12 2 L12 5 M12 19 L12 22 M2 12 L5 12 M19 12 L22 12</StreamGeometry>
   </Styles.Resources>
 
   <!-- Window -->

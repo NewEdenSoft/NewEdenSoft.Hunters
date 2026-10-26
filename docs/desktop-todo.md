@@ -31,7 +31,7 @@ See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reac
 
 - [x] **Sort by chance of a target:** a *Chance of a target* option sorted on the client (port `targetChance`, `byTargetChance` and the `npcSort` change, with their tests), asking the server with `sort=npc-kills`; each card shows the chance.
 
-- [ ] **Cards** (up to 50, with the active count), each with:
+- [x] **Cards** (up to 50, with the active count), each with:
   - name, security and distance (jumps, ly, or both; *no gates*), in jump-range blue when in range
   - NPC kills last hour with ▲ / ▼ and 24 h; PvP (ship and pod kills) last hour and 24 h when any
   - profile badges, bright when likely now, the sorting one outlined

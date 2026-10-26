@@ -80,6 +80,8 @@ public static class DesktopHost
         services.AddSingleton<IEveNameSource, EsiNameSource>();
         services.AddSingleton<EveNames>();
         services.AddSingleton<CharacterTracking>();
+        services.AddSingleton<IAutopilotEsi, AutopilotEsi>();
+        services.AddSingleton<Destinations>();
 
         // Shell
         services.AddSingleton<MainWindow>();

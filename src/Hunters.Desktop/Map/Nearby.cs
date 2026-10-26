@@ -121,4 +121,21 @@ public static class Nearby
 
     /// <summary>Within the jump drive's reach: a cyno target within the light years (when they were asked for).</summary>
     public static bool InJumpRange(bool cynoTarget, double ly, double? range) => range is { } r && cynoTarget && ly <= r;
+
+    /// <summary>The distance's tooltip while the light years are shown: in or out of jump range, or no cyno; else null.</summary>
+    public static string? DistanceTip(bool cynoTarget, double ly, double? range) =>
+        range is null ? null
+        : InJumpRange(cynoTarget, ly, range) ? "In jump range"
+        : cynoTarget ? "Out of jump range"
+        : "No cyno: high-sec, Pochven or Zarzakh";
+
+    /// <summary>NPC kills in the last hour against the hour before; null when the hour before is missing.</summary>
+    public static int? NpcChange(ReachMetric npcKills) => npcKills.PreviousHour is { } before ? npcKills.LastHour - before : null;
+
+    /// <summary>The profiles seen, the ones likely now first, then the rest in the server's order (by score).</summary>
+    public static IEnumerable<ReachProfile> SeenFirst(IEnumerable<ReachProfile> profiles) => profiles.OrderByDescending(p => p.LikelyNow > 0);
+
+    /// <summary>A badge's word: "peak now", "usually here now" or "seen here".</summary>
+    public static string ProfileWhen(ReachProfile profile) =>
+        profile.LikelyNow <= 0 ? "seen here" : (profile.PeakNow ?? 0) >= 0.8 ? "peak now" : "usually here now";
 }
