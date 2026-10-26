@@ -77,9 +77,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/newedensoft/${{ matrix.image }}
+          flavor: latest=false
           tags: |
             type=semver,pattern={{version}},value=${{ needs.validate.outputs.version }}
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.validate.outputs.version }}
+            type=raw,value=latest,enable=${{ !contains(needs.validate.outputs.version, '-') }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -99,12 +101,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      # Creates the tag at the commit the images were built from.
+      # Creates the tag at the commit the images were built from, and marks the release as latest
+      # unless it is a pre-release.
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: v${{ needs.validate.outputs.version }}
         run: |
           flags=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes)
-          if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
+          if [[ "$TAG" == *-* ]]; then flags+=(--prerelease --latest=false); else flags+=(--latest); fi
           gh release create "$TAG" "${flags[@]}"
