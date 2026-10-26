@@ -25,6 +25,9 @@
     <Style Selector="TextBlock.faint">
       <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
     </Style>
+    <Style Selector="ItemsControl.loading">
+      <Setter Property="Opacity" Value="0.7" />
+    </Style>
     <Style Selector="Run.label">
       <Setter Property="Foreground" Value="{DynamicResource Hud.FgMutedBrush}" />
     </Style>
@@ -132,7 +135,8 @@
               IsVisible="{Binding QuietText, Converter={x:Static ObjectConverters.IsNotNull}}"
               ToolTip.Tip="Systems without kills in the last day or hunting profiles seen" />
     </WrapPanel>
-    <ItemsControl ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}">
+    <!-- Dimmed while the next answer loads -->
+    <ItemsControl ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}" Classes.loading="{Binding IsLoading}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
           <StackPanel Spacing="6" />
