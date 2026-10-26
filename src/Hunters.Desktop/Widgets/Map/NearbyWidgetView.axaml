@@ -3,11 +3,61 @@
              xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
              xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
              xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
              x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.NearbyWidgetView"
              x:DataType="mw:NearbyWidgetViewModel">
   <UserControl.Styles>
     <Style Selector="TextBlock.likely">
       <Setter Property="Foreground" Value="{DynamicResource Hud.OkBrush}" />
+    </Style>
+    <Style Selector="TextBlock.in-range">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.JumpRangeBrush}" />
+    </Style>
+    <Style Selector="TextBlock.rising">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.OkBrush}" />
+    </Style>
+    <Style Selector="TextBlock.falling">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.DangerBrush}" />
+    </Style>
+    <Style Selector="TextBlock.hot">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.WarningBrush}" />
+    </Style>
+    <Style Selector="TextBlock.faint">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="8,6" />
+    </Style>
+    <Style Selector="Border.card:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+    </Style>
+    <Style Selector="Border.badge.sorted">
+      <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
+    </Style>
+    <!-- The cards' quick controls: small, outlined -->
+    <Style Selector="Button.quick">
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.quick:pointerover">
+      <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.quick:disabled">
+      <Setter Property="Opacity" Value="0.5" />
+    </Style>
+    <Style Selector="Button.quick Path">
+      <Setter Property="Stroke" Value="{DynamicResource Hud.FgBrush}" />
+      <Setter Property="StrokeThickness" Value="2" />
+      <Setter Property="StrokeLineCap" Value="Round" />
+      <Setter Property="StrokeJoin" Value="Round" />
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Height" Value="12" />
+      <Setter Property="Stretch" Value="Uniform" />
     </Style>
   </UserControl.Styles>
   <ScrollViewer>
@@ -56,20 +106,97 @@
               ToolTip.Tip="Systems without kills in the last day or hunting profiles seen" />
     </WrapPanel>
     <ItemsControl ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>
-        <DataTemplate x:DataType="mw:NearbyRowViewModel">
-          <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2">
-            <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}" FontWeight="SemiBold"
-                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Classes="mono" FontSize="12" FontWeight="SemiBold" Margin="8,0,0,0"
-                       Text="{Binding Security}" Foreground="{Binding SecurityBrush}" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="2" Classes="mono muted" FontSize="12" Margin="10,0,0,0" MinWidth="44" TextAlignment="Right"
-                       Text="{Binding Distance}" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="3" Classes="mono" Classes.muted="{Binding !IsLikely}" Classes.likely="{Binding IsLikely}"
-                       FontSize="12" Margin="10,0,0,0" MinWidth="32" TextAlignment="Right"
-                       Text="{Binding ChanceText}" IsVisible="{Binding ShowChance}" VerticalAlignment="Center"
-                       ToolTip.Tip="Chance of a target now: someone ratting (NPC kills in the last hour) or a hunting profile usually here at this hour" />
-          </Grid>
+        <DataTemplate x:DataType="mw:NearbyCardViewModel">
+          <Border Classes="card">
+            <StackPanel Spacing="4">
+              <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+                <TextBlock Text="{Binding Name}" FontFamily="{StaticResource Hud.DisplayFont}" FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Classes="mono" FontSize="12" FontWeight="SemiBold" Margin="8,0,0,0"
+                           Text="{Binding Security}" Foreground="{Binding SecurityBrush}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Classes="mono" Classes.muted="{Binding !IsLikely}" Classes.likely="{Binding IsLikely}"
+                           FontSize="12" Margin="8,0,0,0"
+                           Text="{Binding ChanceText}" IsVisible="{Binding ShowChance}" VerticalAlignment="Center"
+                           ToolTip.Tip="Chance of a target now: someone ratting (NPC kills in the last hour) or a hunting profile usually here at this hour" />
+                <TextBlock Grid.Column="3" Classes="mono" Classes.muted="{Binding !InJumpRange}" Classes.in-range="{Binding InJumpRange}"
+                           FontSize="12" Margin="10,0,0,0" HorizontalAlignment="Right"
+                           Text="{Binding Distance}" ToolTip.Tip="{Binding DistanceTip}" VerticalAlignment="Center" />
+              </Grid>
+
+              <!-- Stats and profiles on the left, the quick controls beside them -->
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="4" VerticalAlignment="Center">
+                  <WrapPanel ItemSpacing="12">
+                    <TextBlock Classes="faint" FontSize="12" Text="no activity data" IsVisible="{Binding !HasActivity}" />
+                    <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding HasActivity}"
+                                ToolTip.Tip="{Binding Npc.Tip, FallbackValue={x:Null}}">
+                      <TextBlock Classes="muted" FontSize="12" Text="NPC" />
+                      <TextBlock Classes="mono" FontSize="12" Text="{Binding Npc.LastHour, FallbackValue={x:Null}}" />
+                      <TextBlock Classes="mono" Classes.rising="{Binding Npc.IsRising, FallbackValue=False}" Classes.falling="{Binding !Npc.IsRising, FallbackValue=False}"
+                                 FontSize="12" Text="{Binding Npc.Change, FallbackValue={x:Null}}" IsVisible="{Binding Npc.HasChange, FallbackValue=False}" />
+                      <TextBlock Classes="mono faint" FontSize="12" Text="{Binding Npc.Day, FallbackValue={x:Null}}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding HasPvp}"
+                                ToolTip.Tip="Ship and pod kills: last hour, last 24 hours">
+                      <TextBlock Classes="muted" FontSize="12" Text="PvP" />
+                      <TextBlock Classes="mono" Classes.hot="{Binding Pvp.IsHot, FallbackValue=False}" FontSize="12" Text="{Binding Pvp.LastHour, FallbackValue={x:Null}}" />
+                      <TextBlock Classes="mono faint" FontSize="12" Text="{Binding Pvp.Day, FallbackValue={x:Null}}" />
+                    </StackPanel>
+                  </WrapPanel>
+                  <ItemsControl ItemsSource="{Binding Badges}" IsVisible="{Binding HasBadges}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <WrapPanel ItemSpacing="4" LineSpacing="4" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="mw:NearbyBadge">
+                        <Border Classes="badge" Classes.sorted="{Binding IsSorted}" BorderThickness="1" BorderBrush="Transparent" Padding="1"
+                                Opacity="{Binding Opacity}" Background="Transparent" ToolTip.Tip="{Binding Tip}">
+                          <c:ProfileMark Profile="{Binding Style}" FontSize="11" />
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="8,0,0,0" VerticalAlignment="Center">
+                  <Button Classes="hud quick"
+                          Command="{Binding $parent[UserControl].((mw:NearbyWidgetViewModel)DataContext).SetDestinationCommand}"
+                          CommandParameter="{Binding}"
+                          ToolTip.Tip="{Binding DestinationTip}"
+                          ToolTip.ShowOnDisabled="True">
+                    <Button.IsEnabled>
+                      <MultiBinding Converter="{x:Static BoolConverters.And}">
+                        <Binding Path="HasTracked" />
+                        <Binding Path="Destination.IsIdle" />
+                      </MultiBinding>
+                    </Button.IsEnabled>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <Path Data="{StaticResource Hud.Icon.Flag}" />
+                      <TextBlock Text="DEST" VerticalAlignment="Center" />
+                      <TextBlock Classes="mono muted" Text="{Binding TrackedCount}" IsVisible="{Binding HasTracked}" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="hud quick"
+                          Command="{Binding $parent[UserControl].((mw:NearbyWidgetViewModel)DataContext).FocusCardCommand}"
+                          CommandParameter="{Binding}"
+                          ToolTip.Tip="{Binding FocusTip}"
+                          AutomationProperties.Name="{Binding FocusTip}">
+                    <Path Data="{StaticResource Hud.Icon.Target}" />
+                  </Button>
+                </StackPanel>
+              </Grid>
+
+              <TextBlock FontSize="11" TextWrapping="Wrap" Text="{Binding Destination.StatusText}" IsVisible="{Binding Destination.HasStatus}"
+                         Classes="muted" Classes.likely="{Binding Destination.IsOk}" Classes.falling="{Binding Destination.IsDanger}" />
+            </StackPanel>
+          </Border>
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>

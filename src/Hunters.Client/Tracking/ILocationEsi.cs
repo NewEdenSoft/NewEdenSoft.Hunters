@@ -38,17 +38,21 @@ public interface ILocationEsi
 public sealed class LocationEsi(ILocation location) : ILocationEsi
 {
     public async Task<EsiCall<bool>> GetOnlineAsync(long characterId, string accessToken, CancellationToken cancellationToken) =>
-        Map(await location.GetCharactersCharacterIdOnline(characterId, accessToken).ExecuteAsync(cancellationToken), v => v.Online);
+        EsiCalls.Map(await location.GetCharactersCharacterIdOnline(characterId, accessToken).ExecuteAsync(cancellationToken), v => v.Online);
 
     public async Task<EsiCall<CharacterLocation>> GetLocationAsync(long characterId, string accessToken, CancellationToken cancellationToken) =>
-        Map(await location.GetCharactersCharacterIdLocation(characterId, accessToken).ExecuteAsync(cancellationToken),
+        EsiCalls.Map(await location.GetCharactersCharacterIdLocation(characterId, accessToken).ExecuteAsync(cancellationToken),
             v => new CharacterLocation((int)v.SolarSystemId, v.StationId, v.StructureId));
 
     public async Task<EsiCall<CharacterShip>> GetShipAsync(long characterId, string accessToken, CancellationToken cancellationToken) =>
-        Map(await location.GetCharactersCharacterIdShip(characterId, accessToken).ExecuteAsync(cancellationToken),
+        EsiCalls.Map(await location.GetCharactersCharacterIdShip(characterId, accessToken).ExecuteAsync(cancellationToken),
             v => new CharacterShip((int)v.ShipTypeId, v.ShipName, v.ShipItemId));
+}
 
-    private static EsiCall<TOut> Map<TIn, TOut>(EsiResult<TIn> result, Func<TIn, TOut> select)
+/// <summary>NewEdenKit.ESI results as <see cref="EsiCall{T}"/>.</summary>
+internal static class EsiCalls
+{
+    public static EsiCall<TOut> Map<TIn, TOut>(EsiResult<TIn> result, Func<TIn, TOut> select)
     {
         if (result.IsSuccess)
             return EsiCall<TOut>.Ok(select(result.Value!));

@@ -130,6 +130,34 @@ public sealed class NearbyTests
     }
 
     [Fact]
+    public void Distance_tip_says_in_or_out_of_jump_range_while_the_light_years_are_shown()
+    {
+        Assert.Equal("In jump range", Nearby.DistanceTip(true, 7.9, 8));
+        Assert.Equal("Out of jump range", Nearby.DistanceTip(true, 8.1, 8));
+        Assert.Equal("No cyno: high-sec, Pochven or Zarzakh", Nearby.DistanceTip(false, 2, 8));
+        Assert.Null(Nearby.DistanceTip(true, 2, null));
+    }
+
+    [Fact]
+    public void NPC_change_is_against_the_hour_before_when_known()
+    {
+        Assert.Equal(3, Nearby.NpcChange(new ReachMetric(10, 7, 50, null, null, null)));
+        Assert.Equal(-2, Nearby.NpcChange(new ReachMetric(5, 7, 50, null, null, null)));
+        Assert.Null(Nearby.NpcChange(new ReachMetric(5, null, 50, null, null, null)));
+    }
+
+    [Fact]
+    public void Badges_put_the_profiles_likely_now_first_and_keep_the_server_order_otherwise()
+    {
+        ReachProfile Profile(string id, double likely, double? peak = null) => new(id, 5, DateTimeOffset.UnixEpoch, likely, peak);
+
+        Assert.Equal(["b", "d", "a", "c"], Nearby.SeenFirst([Profile("a", 0), Profile("b", 0.2), Profile("c", 0), Profile("d", 0.1)]).Select(p => p.Profile));
+        Assert.Equal("seen here", Nearby.ProfileWhen(Profile("a", 0, 1)));
+        Assert.Equal("usually here now", Nearby.ProfileWhen(Profile("a", 0.2, 0.5)));
+        Assert.Equal("peak now", Nearby.ProfileWhen(Profile("a", 0.2, 0.8)));
+    }
+
+    [Fact]
     public void In_jump_range_is_a_cyno_target_within_the_light_years()
     {
         Assert.True(Nearby.InJumpRange(true, 7.9, 8));
