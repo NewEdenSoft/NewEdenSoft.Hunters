@@ -17,9 +17,9 @@ import { ProfileMark } from './ProfileMark'
 import { useDestination } from './useDestination'
 
 /**
- * The Nearby panel: what is in reach of the focused system (`/api/intel/reach`), within gate jumps and/or
- * the Jump range panel's light years, sorted by the rise in NPC kills or by a hunting profile's "likely
- * now". One card per system with activity, with quick controls; systems where nothing happens are
+ * The Nearby panel: what is in reach of the focused system (`/api/intel/reach`): the cyno targets within
+ * the Jump range panel's light years, cut here to the gate jumps chosen, sorted by the rise in NPC kills
+ * or by a hunting profile's "likely now". One card per system with activity, with quick controls; systems where nothing happens are
  * hidden unless asked for. Clicking a card selects the system and takes the map there.
  */
 export function NearbyPanel({
@@ -51,9 +51,9 @@ export function NearbyPanel({
     enabled: request !== null,
   })
   const names = new Map(profiles.map((p) => [p.id, p.name]))
-  // With gate jumps the light years only mark what is in jump range; without, they choose the systems.
+  // Jump range on: the light years are shown and the systems in range marked.
   const ly = setting.byJumpRange ? range.ly : null
-  // The rows on screen may be the previous answer while the next one loads.
+  // Gate jumps are filtered here, not asked for. The rows may be the previous answer while the next loads.
   const around = reach.data?.systems.filter((s) => s.systemId !== reach.data.from && withinJumps(s, setting.jumps)) ?? []
   const active = around.filter(isActive)
   const quiet = around.length - active.length
@@ -75,11 +75,7 @@ export function NearbyPanel({
         <Toggle
           active={setting.byJumpRange}
           onClick={() => update({ byJumpRange: !setting.byJumpRange })}
-          title={
-            setting.jumps === null
-              ? "Cyno targets within the Jump range panel's range, however many gate jumps away"
-              : "Mark the cyno targets within the Jump range panel's range; with gate jumps off, list them all"
-          }
+          title="Show the light years and mark the cyno targets within the Jump range panel's range"
         >
           {setting.byJumpRange ? 'On' : 'Off'} · {formatLy(range.ly)}
         </Toggle>
@@ -146,7 +142,7 @@ export function NearbyPanel({
                     name={model.names[index]}
                     row={row}
                     selected={index === selection}
-                    byJumps={request.jumps !== null}
+                    byJumps={setting.jumps !== null}
                     ly={ly}
                     sortProfile={request.profile}
                     names={names}

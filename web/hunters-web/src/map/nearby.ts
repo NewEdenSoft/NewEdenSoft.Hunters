@@ -37,16 +37,16 @@ export function parseNearby(value: unknown): NearbySetting {
 
 /**
  * The reach query for the setting, from the focused system: null without a focus, or with neither gate
- * jumps nor jump range chosen. Gate jumps limit the list, so the light years are only asked for without
- * them (the server's union would spend the rows on systems the list leaves out). A sort by a profile the
- * server doesn't list falls back to activity.
+ * jumps nor jump range chosen. It always asks for the cyno targets within the Jump range panel's light
+ * years, never by gate jumps: those are filtered here ({@link withinJumps}), so changing them asks
+ * nothing new. A sort by a profile the server doesn't list falls back to activity.
  */
 export function nearbyRequest(setting: NearbySetting, from: number | null, rangeLy: number, profiles: string[]): ReachRequest | null {
   if (from === null || (setting.jumps === null && !setting.byJumpRange)) return null
   return {
     from,
-    jumps: setting.jumps,
-    ly: setting.jumps === null ? rangeLy : null,
+    jumps: null,
+    ly: rangeLy,
     profile: profiles.includes(setting.sort) ? setting.sort : null,
     sort: npcSort(setting.sort),
     limit: NEARBY_FETCH,
@@ -69,10 +69,7 @@ export function isActive(row: Pick<ReachSystem, 'activity' | 'profiles'>): boole
   return [npcKills, shipKills, podKills].some((m) => m.lastHour > 0 || m.day > 0)
 }
 
-/**
- * Within the gate jumps chosen (any row without them). Checked here as well as by the server, so the
- * previous answer, shown while the next loads, doesn't list systems beyond a smaller choice.
- */
+/** Within the gate jumps chosen (any row without them). The server isn't asked by gate jumps; the list is cut here. */
 export function withinJumps(row: Pick<ReachSystem, 'jumps'>, jumps: number | null): boolean {
   return jumps === null || (row.jumps !== null && row.jumps <= jumps)
 }

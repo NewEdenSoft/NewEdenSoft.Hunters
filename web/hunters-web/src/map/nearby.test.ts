@@ -15,19 +15,20 @@ describe('parseNearby', () => {
 })
 
 describe('nearbyRequest', () => {
-  it('asks from the focused system with the chosen limits', () => {
+  it('asks from the focused system for everything within the light years', () => {
     expect(nearbyRequest({ ...defaultNearby, jumps: 5, byJumpRange: true, sort: 'carriers' }, 30000142, 8, ['carriers'])).toEqual({
       from: 30000142,
-      jumps: 5,
-      ly: null,
+      jumps: null,
+      ly: 8,
       profile: 'carriers',
       sort: 'npc-rising',
       limit: NEARBY_FETCH,
     })
   })
 
-  it('asks for the light years only without gate jumps', () => {
-    expect(nearbyRequest({ ...defaultNearby, jumps: null, byJumpRange: true }, 1, 8, [])).toMatchObject({ jumps: null, ly: 8 })
+  it('never asks by gate jumps: they are filtered here', () => {
+    expect(nearbyRequest({ ...defaultNearby, jumps: 5, byJumpRange: false }, 1, 8, [])).toMatchObject({ jumps: null, ly: 8 })
+    expect(nearbyRequest({ ...defaultNearby, jumps: 3 }, 1, 8, [])).toEqual(nearbyRequest({ ...defaultNearby, jumps: 15 }, 1, 8, []))
   })
 
   it('sorts by activity for a profile the server does not list', () => {

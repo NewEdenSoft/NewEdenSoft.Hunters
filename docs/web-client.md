@@ -135,8 +135,9 @@ Both are drawn at every zoom, even when the colour filter hides the system. Focu
 
 **Nearby panel.** The **Nearby** panel (`components/map/NearbyPanel.tsx`) lists what is in reach of the **focused** system, from `GET /api/intel/reach` ([Reach](map-and-activity.md#reach)):
 
-- **Gate jumps:** Off, 3, 5 (the default), 10 or 15: only systems within that many jumps are listed. The panel checks this itself too (`withinJumps`), so the previous rows shown while a smaller choice loads are cut at once.
-- **Jump range:** with gate jumps, shows the light years and marks the cyno targets within the Jump range panel's range. With gate jumps off, lists every cyno target in that range, however many gate jumps away; only then is `ly` sent to the server, so its union doesn't spend the rows on systems the list leaves out. With neither, the panel asks for one.
+- **What is asked for:** always the cyno targets within the Jump range panel's light years (`ly`), never by gate jumps (`nearbyRequest`). Systems where a jump drive can't land (high-sec, Pochven, Zarzakh) aren't listed.
+- **Gate jumps:** Off, 3, 5 (the default), 10 or 15. The panel cuts the list to systems within that many jumps itself (`withinJumps`), so changing the choice asks the server nothing new.
+- **Jump range:** shows the light years and marks the cyno targets in range. With neither gate jumps nor jump range, the panel asks for one.
 - **Sort by**, from a list (one toggle per profile would fill the panel):
   - *NPC kills rising*: the rise since the hour before (the default)
   - *NPC kills*: the most in the last hour, then in 24 hours
