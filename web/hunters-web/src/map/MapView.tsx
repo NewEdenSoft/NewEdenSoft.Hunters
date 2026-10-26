@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActivityColumns } from '../api/activity'
 import { ProfileMark } from '../components/map/ProfileMark'
 import { SystemContextMenu } from '../components/map/SystemContextMenu'
+import { cn } from '../components/ui/styles'
 import { securityColor } from '../theme/themes'
 import type { MapFilter } from './filters'
 import type { HuntingLayer, PlaceProfile } from './hunting'
@@ -274,7 +275,8 @@ function PeakHint({ npcKills, index }: { npcKills: ActivityColumns; index: numbe
 
 /**
  * The shown hunting profiles seen here, likely now first. "now" means usually seen here at this hour,
- * "peak now" that this is its busiest hour here, "seen" otherwise.
+ * "peak now" that this is its busiest hour here, "seen" otherwise; "reliable" that someone with a
+ * routine here is usually here at this hour (the map's ring).
  */
 function ProfilesLines({ profiles }: { profiles: PlaceProfile[] }) {
   return (
@@ -283,8 +285,13 @@ function ProfilesLines({ profiles }: { profiles: PlaceProfile[] }) {
         <span key={p.profile} className="flex items-baseline gap-2">
           <ProfileMark style={p} className="w-5 text-[0.6875rem]" />
           <span className={p.likely > 0 ? 'min-w-0 truncate text-fg' : 'min-w-0 truncate text-fg-muted'}>{p.name}</span>
+          {p.reliableNow > 0 && (
+            <span className="ml-auto shrink-0 text-hunt-reliable" title="Someone with a routine here is usually here at this hour (UTC)">
+              reliable
+            </span>
+          )}
           <span
-            className={p.likely > 0 ? 'ml-auto shrink-0 text-warning' : 'ml-auto shrink-0 text-fg-faint'}
+            className={cn('shrink-0', p.reliableNow <= 0 && 'ml-auto', p.likely > 0 ? 'text-warning' : 'text-fg-faint')}
             title={p.likely > 0 ? 'Usually seen here at this hour (UTC)' : 'Seen here, but not usually at this hour'}
           >
             {p.likely > 0 ? (p.peakNow >= 0.8 ? 'peak now' : 'now') : 'seen'}

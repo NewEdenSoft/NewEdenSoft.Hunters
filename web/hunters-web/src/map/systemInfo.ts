@@ -66,6 +66,17 @@ export function sortProfiles<T extends Pick<HuntingPlaceProfile, 'score' | 'hour
   return [...profiles].sort((a, b) => rank[profileStatus(a, hour)] - rank[profileStatus(b, hour)] || b.score - a.score)
 }
 
+/** Whether a regular's window (from `start`, `hours` long, UTC) covers the hour; it may run past midnight. */
+export function windowCovers(start: number, hours: number, hour: number): boolean {
+  return (hour - start + 24) % 24 < hours
+}
+
+/** A regular's window as "22–02 UTC" (the hour it ends, not the last hour in it). */
+export function windowLabel(start: number, hours: number): string {
+  const pad = (hour: number) => String(hour % 24).padStart(2, '0')
+  return `${pad(start)}–${pad(start + hours)} UTC`
+}
+
 /** ISK as EVE players write it: 950, 12.5k, 3.2M, 1.05B. */
 export function formatIsk(isk: number): string {
   const units: [number, string][] = [
