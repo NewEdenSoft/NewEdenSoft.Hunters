@@ -17,6 +17,9 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
 
     public const int VortonGroup = 4060, Vorton = 54748, Thunderchild = 54733;
 
+    /// <summary>A mining fleet (no Mining Barge): an Exhumer, an Industrial Command Ship and a Capital Industrial Ship.</summary>
+    public const int ExhumerGroup = 543, Hulk = 22544, IndustrialCommandGroup = 941, Orca = 28606, CapitalIndustrialGroup = 883, Rorqual = 28352;
+
     /// <summary>Smart bombs of other sizes and damage types, for mixed fits.</summary>
     public const int EmpSmartbomb = 3961, PlasmaSmartbomb = 3977, ProtonSmartbomb = 3945, SmallSmartbomb = 3937;
 
@@ -63,6 +66,9 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
                 new SdeType(SmallSmartbomb, "Small Graviton Smartbomb I", SmartBombGroup, true),
                 new SdeType(Vorton, "Large Vorton Projector II", VortonGroup, true),
                 new SdeType(Thunderchild, "Thunderchild", 27, true),
+                new SdeType(Hulk, "Hulk", ExhumerGroup, true),
+                new SdeType(Orca, "Orca", IndustrialCommandGroup, true),
+                new SdeType(Rorqual, "Rorqual", CapitalIndustrialGroup, true),
                 new SdeType(CrabBeacon, "CONCORD Rogue Analysis Beacon", CrabGroup, true),
                 new SdeType(CarrierCrabBeacon, "CONCORD-Carrier Rogue Analysis Beacon", CrabGroup, true),
                 // An unpublished copy with the same name in another group: the published one must win.
@@ -74,6 +80,8 @@ public sealed class FakeSde : ISdeMapSource, ISdeTypeSource
                 new SdeGroup(SmartBombGroup, "Smart Bomb", 7), new SdeGroup(VortonGroup, "Vorton Projector", 7),
                 new SdeGroup(27, "Battleship", ShipCategory), new SdeGroup(CrabGroup, "Rogue Analysis Beacon", 22),
                 new SdeGroup(4810, "Analysis Beacon", 22),
+                new SdeGroup(ExhumerGroup, "Exhumer", ShipCategory), new SdeGroup(IndustrialCommandGroup, "Industrial Command Ship", ShipCategory),
+                new SdeGroup(CapitalIndustrialGroup, "Capital Industrial Ship", ShipCategory),
             ],
             [new SdeCategory(ShipCategory, "Ship"), new SdeCategory(7, "Module"), new SdeCategory(22, "Deployable")]));
     }

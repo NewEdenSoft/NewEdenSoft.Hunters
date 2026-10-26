@@ -120,6 +120,7 @@ A hunting profile is a kind of target: where it is seen, and when, is built up f
 | `fax` | a Force Auxiliary (1538) dies |
 | `marauders` | a Marauder (900) dies |
 | `ishtars` | an Ishtar (type 12005) dies |
+| `miners` | a Mining Barge (463), Exhumer (543), Industrial Command Ship (941: Orca, Porpoise) or Capital Industrial Ship (883: Rorqual) dies |
 | `smartbombers` | a ship with **at least five smart bombs** fitted dies (Smart Bomb, group 72, any mix of sizes and damage types; one is a utility slot, not a smartbomber), or an attacker's area weapon (Smart Bomb, or Vorton Projector, 4060) kills a victim in **its own corporation or alliance**: friendly fire in a group that bombs together (smartbomb battleships catching a corp-mate's ship and pod, or their own Mobile Tractor Units; Thunderchild groups). **Appearances:** an area weapon on anyone else's loss (an alt in another corporation) shows the smartbomber there too, towards its [regulars](#regulars) |
 | `crab` | a CRAB beacon is killed: every type in the group of "CONCORD Rogue Analysis Beacon" (the CONCORD and the CONCORD-Carrier beacon) |
 | `smartbomb-camps` | an attacker's last hit was a Smart Bomb (72) **on a capsule** (29) of **another corporation and alliance**: PvP smartbombing, typically a camp on a low-sec pipe gate. A group's own pods caught in its bombs are friendly fire, not a camp. **Keeps fights:** a burst of pods is its target, so the battle rule doesn't apply to it (the 25-attacker rule still does) |
