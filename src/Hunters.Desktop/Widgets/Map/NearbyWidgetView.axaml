@@ -196,10 +196,13 @@
                         <Binding Path="Destination.IsIdle" />
                       </MultiBinding>
                     </Button.IsEnabled>
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                      <Path Data="{StaticResource Hud.Icon.Flag}" />
-                      <TextBlock Text="DEST" VerticalAlignment="Center" />
-                      <TextBlock Classes="mono muted" Text="{Binding TrackedCount}" IsVisible="{Binding HasTracked}" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                      <Path Data="{StaticResource Hud.Icon.Flag}" VerticalAlignment="Center" />
+                      <!-- One TextBlock, so the word and the count share a baseline -->
+                      <TextBlock VerticalAlignment="Center">
+                        <Run Text="DEST" />
+                        <Run Classes="figure label" Text="{Binding TrackedCountText}" />
+                      </TextBlock>
                     </StackPanel>
                   </Button>
                   <Button Classes="hud quick"

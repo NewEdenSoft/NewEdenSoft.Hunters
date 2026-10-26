@@ -434,6 +434,9 @@ public sealed record NearbyCardViewModel(
 
     public bool HasTracked => TrackedCount > 0;
 
+    /// <summary>The count after DEST (" 2"), or empty without tracked characters.</summary>
+    public string TrackedCountText => HasTracked ? $" {TrackedCount}" : "";
+
     public string DestinationTip { get; init; } = "";
 
     public string FocusTip => $"Focus {Name}: look around it instead";
