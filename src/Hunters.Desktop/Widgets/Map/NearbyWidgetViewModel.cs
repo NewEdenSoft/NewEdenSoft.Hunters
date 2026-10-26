@@ -21,7 +21,7 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// jumps and the jump range toggle only change what is shown. Systems where nothing happens
 /// (<see cref="Nearby.IsActive"/>) are hidden unless asked for. Up to <see cref="Nearby.Limit"/> cards,
 /// each with its kills, the profiles seen, and quick controls: the destination for every tracked
-/// character, and focus.
+/// character, and focus. A click on a card selects its system and takes the map there.
 /// </summary>
 public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
 {
@@ -140,6 +140,16 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     [RelayCommand]
     private void SetDestination(NearbyCardViewModel card) => _ = card.Destination.SetForAsync(_tracked);
 
+    /// <summary>The map's selected system: its card is highlighted.</summary>
+    public int? SelectedSystemId => _map.SelectedSystemId;
+
+    /// <summary>A click on a card: selects its system and takes the map there, the focus staying as it was (like the search).</summary>
+    public void SelectCard(NearbyCardViewModel card)
+    {
+        if (_map.Model is { } model && model.IndexOf.TryGetValue(card.SystemId, out var index))
+            _map.FindSystem(index);
+    }
+
     /// <summary>A card's Focus: look around that system instead.</summary>
     [RelayCommand]
     private void FocusCard(NearbyCardViewModel card)
@@ -171,6 +181,8 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
     {
         if (e.PropertyName == nameof(MapWidgetViewModel.HuntingProfiles))
             SyncSortOptions();
+        if (e.PropertyName == nameof(MapWidgetViewModel.SelectedSystemId))
+            OnPropertyChanged(nameof(SelectedSystemId));
         if (e.PropertyName is nameof(MapWidgetViewModel.FocusedSystemId) or nameof(MapWidgetViewModel.Model) or nameof(MapWidgetViewModel.HuntingProfiles))
             Refresh();
     }
