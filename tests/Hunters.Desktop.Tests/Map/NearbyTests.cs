@@ -22,11 +22,28 @@ public sealed class NearbyTests
     }
 
     [Fact]
-    public void Asks_from_the_focused_system_with_the_chosen_limits()
+    public void Asks_from_the_focused_system_for_everything_within_the_light_years()
     {
         Assert.Equal(
-            new NearbyRequest(30000142, 5, 8, "carriers", "npc-rising", Nearby.Fetch),
+            new NearbyRequest(30000142, 8, "carriers", "npc-rising", Nearby.Fetch),
             Nearby.Request(Defaults with { Jumps = 5, ByJumpRange = true, Sort = "carriers" }, 30000142, 8, ["carriers"]));
+    }
+
+    [Fact]
+    public void Never_asks_by_gate_jumps_they_are_cut_here()
+    {
+        Assert.Equal(8, Nearby.Request(Defaults with { Jumps = 5, ByJumpRange = false }, 1, 8, [])!.Ly);
+        Assert.Equal(Nearby.Request(Defaults with { Jumps = 3 }, 1, 8, []), Nearby.Request(Defaults with { Jumps = 15 }, 1, 8, []));
+    }
+
+    [Fact]
+    public void Within_jumps_keeps_the_rows_up_to_the_gate_jumps_chosen()
+    {
+        Assert.True(Nearby.WithinJumps(5, 5));
+        Assert.False(Nearby.WithinJumps(6, 5));
+        Assert.False(Nearby.WithinJumps(null, 5));
+        Assert.True(Nearby.WithinJumps(null, null));
+        Assert.True(Nearby.WithinJumps(40, null));
     }
 
     [Fact]

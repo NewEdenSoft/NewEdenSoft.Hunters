@@ -31,7 +31,7 @@
       <Button Classes="hud toggle" Classes.primary="{Binding ByJumpRange}" Classes.ghost="{Binding !ByJumpRange}" HorizontalAlignment="Left"
               Command="{Binding ToggleJumpRangeCommand}"
               Content="{Binding JumpRangeText, Converter={x:Static w:UpperCaseConverter.Instance}}"
-              ToolTip.Tip="Cyno targets within the Jump range widget's range, however many gate jumps away" />
+              ToolTip.Tip="Show the light years and mark the cyno targets within the Jump range widget's range" />
     </StackPanel>
     <StackPanel Spacing="6" Margin="0,0,0,4">
       <TextBlock Classes="label" Text="SORT BY" />

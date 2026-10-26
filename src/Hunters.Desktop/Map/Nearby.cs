@@ -4,15 +4,15 @@ using NewEdenSoft.Hunters.Contracts.Intel;
 namespace NewEdenSoft.Hunters.Desktop.Map;
 
 /// <summary>What the Nearby widget looks for around the focused system, saved with the desktop settings.</summary>
-/// <param name="Jumps">Systems within this many gate jumps; null for none by gates.</param>
-/// <param name="ByJumpRange">Cyno targets within the Jump range widget's light years too.</param>
+/// <param name="Jumps">List only systems within this many gate jumps (cut here, not asked for); null for no limit.</param>
+/// <param name="ByJumpRange">Show the light years and mark the cyno targets within the Jump range widget's range.</param>
 /// <param name="Sort"><see cref="Nearby.SortActivity"/> (the rise in NPC kills), <see cref="Nearby.SortNpcKills"/> (the most), or a hunting profile's id (its "likely now").</param>
 /// <param name="ShowQuiet">Show the systems without any activity too (hidden by default).</param>
 public sealed record NearbySetting(int? Jumps = 5, bool ByJumpRange = false, string Sort = Nearby.SortActivity, bool ShowQuiet = false);
 
-/// <summary>A reach query (<c>/api/intel/reach</c>) from the focused system.</summary>
+/// <summary>A reach query (<c>/api/intel/reach</c>) from the focused system: the cyno targets within <paramref name="Ly"/>.</summary>
 /// <param name="Profile">Sort by this profile's "likely now"; null sorts by <paramref name="Sort"/>.</param>
-public sealed record NearbyRequest(int From, int? Jumps, double? Ly, string? Profile, string Sort, int Limit);
+public sealed record NearbyRequest(int From, double Ly, string? Profile, string Sort, int Limit);
 
 /// <summary>The Nearby widget's rules, like the web's <c>map/nearby.ts</c>.</summary>
 public static class Nearby
@@ -45,7 +45,9 @@ public static class Nearby
 
     /// <summary>
     /// The reach query for the setting, from the focused system: null without a focus, or with neither gate
-    /// jumps nor jump range chosen. A sort by a profile the server doesn't list falls back to activity.
+    /// jumps nor jump range chosen. It always asks for the cyno targets within the Jump range widget's light
+    /// years, never by gate jumps: those are cut here (<see cref="WithinJumps"/>), so changing them asks
+    /// nothing new. A sort by a profile the server doesn't list falls back to activity.
     /// </summary>
     public static NearbyRequest? Request(NearbySetting setting, int? from, double rangeLy, IReadOnlyCollection<string> profiles)
     {
@@ -53,8 +55,7 @@ public static class Nearby
             return null;
         return new NearbyRequest(
             origin,
-            setting.Jumps,
-            setting.ByJumpRange ? rangeLy : null,
+            rangeLy,
             profiles.Contains(setting.Sort) ? setting.Sort : null,
             NpcSort(setting.Sort),
             Fetch);
@@ -74,6 +75,9 @@ public static class Nearby
             return true;
         return new[] { activity.NpcKills, activity.ShipKills, activity.PodKills }.Any(m => m.LastHour > 0 || m.Day > 0);
     }
+
+    /// <summary>Within the gate jumps chosen (any row without them). The server isn't asked by gate jumps; the list is cut here.</summary>
+    public static bool WithinJumps(int? rowJumps, int? jumps) => jumps is null || (rowJumps is { } n && n <= jumps);
 
     /// <summary>How far a row is: "3 j", "4.2 ly", or both when both were asked for. Null jumps: no gate route.</summary>
     public static string DistanceText(int? jumps, double ly, bool byJumps, bool byLy)
