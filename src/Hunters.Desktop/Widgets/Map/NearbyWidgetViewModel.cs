@@ -442,12 +442,17 @@ public sealed record NearbyCardViewModel(
 /// <summary>NPC kills on a card: the last hour, its change from the hour before ("▲3", "▼2"; null for none or unknown), and the last 24 hours ("1.2k/24h").</summary>
 public sealed record NearbyNpc(int LastHour, string? Change, bool IsRising, string Day, string Tip)
 {
-    public bool HasChange => Change is not null;
+    /// <summary>The change after a space, or empty: the parts are runs of one line.</summary>
+    public string ChangeText => Change is null ? "" : " " + Change;
+
+    public string DayText => " " + Day;
 }
 
 /// <summary>Ship and pod kills on a card: the last hour and the last 24 hours ("4/24h").</summary>
 public sealed record NearbyPvp(int LastHour, string Day)
 {
+    public string DayText => " " + Day;
+
     /// <summary>Kills in the last hour: shown in the warning colour.</summary>
     public bool IsHot => LastHour > 0;
 }

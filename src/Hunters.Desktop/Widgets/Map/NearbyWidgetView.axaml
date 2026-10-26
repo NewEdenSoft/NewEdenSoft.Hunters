@@ -25,7 +25,27 @@
     <Style Selector="TextBlock.faint">
       <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
     </Style>
+    <Style Selector="Run.label">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgMutedBrush}" />
+    </Style>
+    <Style Selector="Run.figure">
+      <Setter Property="FontFamily" Value="{StaticResource Hud.MonoFont}" />
+    </Style>
+    <Style Selector="Run.rising">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.OkBrush}" />
+    </Style>
+    <Style Selector="Run.falling">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.DangerBrush}" />
+    </Style>
+    <Style Selector="Run.hot">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.WarningBrush}" />
+    </Style>
+    <Style Selector="Run.faint">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
+    </Style>
+    <!-- A background, so the pointer is over the card in the gaps between its texts too -->
     <Style Selector="Border.card">
+      <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="{DynamicResource Hud.LineBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="8,6" />
@@ -38,7 +58,7 @@
     </Style>
     <!-- The cards' quick controls: small, outlined -->
     <Style Selector="Button.quick">
-      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="Padding" Value="10,5" />
       <Setter Property="FontSize" Value="10" />
       <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
       <Setter Property="Background" Value="Transparent" />
@@ -134,20 +154,19 @@
                 <StackPanel Spacing="4" VerticalAlignment="Center">
                   <WrapPanel ItemSpacing="12">
                     <TextBlock Classes="faint" FontSize="12" Text="no activity data" IsVisible="{Binding !HasActivity}" />
-                    <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding HasActivity}"
-                                ToolTip.Tip="{Binding Npc.Tip, FallbackValue={x:Null}}">
-                      <TextBlock Classes="muted" FontSize="12" Text="NPC" />
-                      <TextBlock Classes="mono" FontSize="12" Text="{Binding Npc.LastHour, FallbackValue={x:Null}}" />
-                      <TextBlock Classes="mono" Classes.rising="{Binding Npc.IsRising, FallbackValue=False}" Classes.falling="{Binding !Npc.IsRising, FallbackValue=False}"
-                                 FontSize="12" Text="{Binding Npc.Change, FallbackValue={x:Null}}" IsVisible="{Binding Npc.HasChange, FallbackValue=False}" />
-                      <TextBlock Classes="mono faint" FontSize="12" Text="{Binding Npc.Day, FallbackValue={x:Null}}" />
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding HasPvp}"
-                                ToolTip.Tip="Ship and pod kills: last hour, last 24 hours">
-                      <TextBlock Classes="muted" FontSize="12" Text="PvP" />
-                      <TextBlock Classes="mono" Classes.hot="{Binding Pvp.IsHot, FallbackValue=False}" FontSize="12" Text="{Binding Pvp.LastHour, FallbackValue={x:Null}}" />
-                      <TextBlock Classes="mono faint" FontSize="12" Text="{Binding Pvp.Day, FallbackValue={x:Null}}" />
-                    </StackPanel>
+                    <!-- One TextBlock each, so the label and the figures share a baseline -->
+                    <TextBlock FontSize="12" IsVisible="{Binding HasActivity}" ToolTip.Tip="{Binding Npc.Tip, FallbackValue={x:Null}}">
+                      <Run Classes="label" Text="NPC " />
+                      <Run Classes="figure" Text="{Binding Npc.LastHour, FallbackValue={x:Null}}" />
+                      <Run Classes="figure" Classes.rising="{Binding Npc.IsRising, FallbackValue=False}" Classes.falling="{Binding !Npc.IsRising, FallbackValue=False}"
+                           Text="{Binding Npc.ChangeText, FallbackValue={x:Null}}" />
+                      <Run Classes="figure faint" Text="{Binding Npc.DayText, FallbackValue={x:Null}}" />
+                    </TextBlock>
+                    <TextBlock FontSize="12" IsVisible="{Binding HasPvp}" ToolTip.Tip="Ship and pod kills: last hour, last 24 hours">
+                      <Run Classes="label" Text="PvP " />
+                      <Run Classes="figure" Classes.hot="{Binding Pvp.IsHot, FallbackValue=False}" Text="{Binding Pvp.LastHour, FallbackValue={x:Null}}" />
+                      <Run Classes="figure faint" Text="{Binding Pvp.DayText, FallbackValue={x:Null}}" />
+                    </TextBlock>
                   </WrapPanel>
                   <ItemsControl ItemsSource="{Binding Badges}" IsVisible="{Binding HasBadges}">
                     <ItemsControl.ItemsPanel>
