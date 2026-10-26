@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ActivityColumns } from '../api/activity'
 import { ProfileMark } from '../components/map/ProfileMark'
 import { SystemContextMenu } from '../components/map/SystemContextMenu'
@@ -9,6 +9,7 @@ import type { HuntingLayer, PlaceProfile } from './hunting'
 import { formatLy, isCynoTarget } from './jumpRange'
 import { MapRenderer, type MapContextMenuRequest, type MapHover, type MapMarkerGroup } from './MapRenderer'
 import { lyBetween, type MapLayout, type MapModel } from './model'
+import { gateRoute } from './route'
 import { formatSecurity } from './security'
 
 /** The jump range shown on the map: from the origin (the focused system), how far, and the systems it reaches. */
@@ -52,7 +53,10 @@ interface MapViewProps {
   profilesAt?: Map<number, PlaceProfile[]> | null
   /** The jump range: a blue glow on the systems it reaches; the hover panel tells the distance. */
   jumpRange?: JumpRangeView | null
-  /** A gate route to highlight (system indexes, origin first), with bars moving along it towards the destination; null for none. */
+  /**
+   * A gate route to highlight (system indexes, origin first), with bars moving along it towards the
+   * destination; null for none. While a system on the map is hovered, the route there from the focused system shows instead.
+   */
   route?: number[] | null
 }
 
@@ -145,9 +149,12 @@ export function MapView({
     rendererRef.current?.setJumpRange(jumpRange?.inRange ?? null)
   }, [jumpRange])
 
+  // A system hovered on the map shows the route there from the focused system instead.
+  const hovered = hover?.index ?? -1
+  const shownRoute = useMemo(() => (focused >= 0 && hovered >= 0 ? gateRoute(model, focused, hovered) : route), [model, focused, hovered, route])
   useEffect(() => {
-    rendererRef.current?.setRoute(route)
-  }, [route])
+    rendererRef.current?.setRoute(shownRoute)
+  }, [shownRoute])
 
   useEffect(() => {
     if (focus) rendererRef.current?.focusOn(focus.systemIndex, focus.zoomIn)

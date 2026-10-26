@@ -239,8 +239,10 @@ function LoadedMap({
     [model, focused, rangeSetting.enabled, rangeSetting.ly],
   )
 
-  // The system hovered in the Nearby panel: the gate route there from the focused system is drawn.
-  const [routeTo, setRouteTo] = useState(-1)
+  // The gate route from the focused system to the system hovered in the Nearby panel, else to the
+  // selection. A system hovered on the map takes over in MapView.
+  const [nearbyHover, setNearbyHover] = useState(-1)
+  const routeTo = nearbyHover >= 0 ? nearbyHover : selection
   const route = useMemo(() => (focused >= 0 && routeTo >= 0 ? gateRoute(model, focused, routeTo) : null), [model, focused, routeTo])
 
   // Escape clears the selection, unless the user is typing somewhere.
@@ -364,7 +366,7 @@ function LoadedMap({
                 profiles={huntingProfiles}
                 onSelect={findSystem}
                 onFocus={focusSystem}
-                onHover={setRouteTo}
+                onHover={setNearbyHover}
               />
             ),
           },
