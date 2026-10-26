@@ -11,12 +11,14 @@ using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Contracts.Auth;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Images;
+using NewEdenSoft.Hunters.Desktop.Settings;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 
 /// <summary>
 /// Log in to a Hunters server with EVE Online and manage the account's characters. The session
-/// is kept in memory only and never saved (docs/decisions.md, D20).
+/// is kept in memory only and never saved (docs/decisions.md, D20). Server addresses and their access
+/// keys can be saved on the login screen (<see cref="Settings.SavedServers"/>); the last saved is filled in at start.
 /// </summary>
 public sealed partial class AccountPageViewModel(
     DesktopLoginClient logins,
@@ -24,7 +26,8 @@ public sealed partial class AccountPageViewModel(
     PortraitCache portraits,
     CharacterPreferences preferences,
     CharacterTracking tracking,
-    EveNames names) : PageViewModel
+    EveNames names,
+    SavedServers servers) : PageViewModel
 {
     public const string HttpClientName = "Hunters";
 
@@ -37,11 +40,56 @@ public sealed partial class AccountPageViewModel(
     // Logged out
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(LogInCommand))]
-    public partial string ServerUrl { get; set; } = "";
+    [NotifyCanExecuteChangedFor(nameof(LogInCommand), nameof(SaveServerCommand))]
+    public partial string ServerUrl { get; set; } = servers.All.FirstOrDefault()?.Label ?? "";
 
     [ObservableProperty]
-    public partial string AccessKey { get; set; } = "";
+    public partial string AccessKey { get; set; } = servers.All.FirstOrDefault()?.AccessKey ?? "";
+
+    /// <summary>The servers saved on this computer, last saved first.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSavedServers))]
+    public partial IReadOnlyList<SavedServer> SavedServers { get; private set; } = servers.All;
+
+    public bool HasSavedServers => SavedServers.Count > 0;
+
+    /// <summary>"Saved hunters.example.com with its access key." after Save; cleared when another server is picked.</summary>
+    [ObservableProperty]
+    public partial string? SavedText { get; private set; }
+
+    /// <summary>Saves the address, and the access key when one is entered, on this computer.</summary>
+    [RelayCommand(CanExecute = nameof(CanLogIn))]
+    private void SaveServer()
+    {
+        if (!ServerAddress.TryParse(ServerUrl, out var server))
+        {
+            ErrorMessage = "Enter a server address, for example hunters.example.com.";
+            return;
+        }
+
+        var saved = servers.Save(server, AccessKey);
+        SavedServers = servers.All;
+        ErrorMessage = null;
+        SavedText = $"Saved {saved.Label}{(saved.HasAccessKey ? " with its access key" : "")}.";
+    }
+
+    /// <summary>Fills in a saved server's address and access key.</summary>
+    [RelayCommand]
+    private void PickServer(SavedServer server)
+    {
+        ServerUrl = server.Label;
+        AccessKey = server.AccessKey ?? "";
+        SavedText = null;
+        ErrorMessage = null;
+    }
+
+    [RelayCommand]
+    private void ForgetServer(SavedServer server)
+    {
+        servers.Remove(server);
+        SavedServers = servers.All;
+        SavedText = null;
+    }
 
     // State
 
