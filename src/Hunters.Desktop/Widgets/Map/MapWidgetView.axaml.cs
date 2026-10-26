@@ -1,14 +1,14 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Shapes;
-using Path = Avalonia.Controls.Shapes.Path;
+using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Layout;
 using Avalonia.Media;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Map;
+using Path = Avalonia.Controls.Shapes.Path;
 
 namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 
@@ -197,14 +197,15 @@ public partial class MapWidgetView : UserControl
     /// <summary>The menu's first line: the system's name and security, not an item to choose.</summary>
     private static MenuItem MenuHeader(MapSystemInfo system) => new()
     {
-        Header = new StackPanel
+        // One TextBlock of runs, so the name and the security share a baseline across the two fonts.
+        Header = new TextBlock
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Children =
+            FontWeight = FontWeight.SemiBold,
+            Inlines = new InlineCollection
             {
-                new TextBlock { Text = system.Name, FontWeight = FontWeight.SemiBold, FontFamily = Resource<FontFamily>("Hud.DisplayFont") ?? FontFamily.Default },
-                new TextBlock { Text = system.Security, Foreground = system.SecurityBrush, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center },
+                new Run(system.Name) { FontFamily = Resource<FontFamily>("Hud.DisplayFont") ?? FontFamily.Default },
+                new Run("  "),
+                new Run(system.Security) { Foreground = system.SecurityBrush, FontFamily = Resource<FontFamily>("Hud.MonoFont") ?? FontFamily.Default },
             },
         },
         IsHitTestVisible = false,
