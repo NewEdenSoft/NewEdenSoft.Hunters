@@ -114,7 +114,11 @@ public sealed partial class HuntingProfileService(
         // use the new definitions (inserts skip what is already there).
         string[] cleared = [.. removed, .. changedIds];
         if (cleared.Length > 0)
+        {
             await db.Sightings.Where(s => cleared.Contains(s.Profile)).ExecuteDeleteAsync(cancellationToken);
+            await db.HuntingAppearances.Where(a => cleared.Contains(a.Profile)).ExecuteDeleteAsync(cancellationToken);
+        }
+
         if (removed.Length > 0)
             await db.HuntingProfileStates.Where(s => removed.Contains(s.Profile)).ExecuteDeleteAsync(cancellationToken);
 
@@ -220,10 +224,9 @@ public sealed partial class HuntingProfileService(
             if (batch.Count == 0)
                 break;
 
-            var found = batch.SelectMany(k => SightingMatcher.Match(k, profiles, settings.FleetAttackers, sovereignty.Current)).ToList();
-            await SightingStore.InsertAsync(db, found, cancellationToken);
+            var found = await SightingStore.RecordAsync(db, batch, profiles, settings.FleetAttackers, sovereignty.Current, cancellationToken);
             kills += batch.Count;
-            sightings += found.Count;
+            sightings += found;
             after = batch[^1].KillmailId;
         }
 

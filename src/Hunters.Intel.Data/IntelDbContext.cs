@@ -38,6 +38,8 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
 
     public DbSet<Sighting> Sightings => Set<Sighting>();
 
+    public DbSet<HuntingAppearance> HuntingAppearances => Set<HuntingAppearance>();
+
     public DbSet<HuntingProfileState> HuntingProfileStates => Set<HuntingProfileState>();
 
     public DbSet<HuntingRebuildRequest> HuntingRebuildRequests => Set<HuntingRebuildRequest>();
@@ -109,6 +111,13 @@ public sealed class IntelDbContext(DbContextOptions<IntelDbContext> options) : D
             e.HasIndex(s => new { s.Profile, s.PilotId, s.SystemId, s.Hour }).IsUnique().HasFilter("\"PilotId\" <> 0");
             e.HasIndex(s => new { s.SystemId, s.Time });
             e.HasIndex(s => s.Time);
+        });
+        // Inserted with ON CONFLICT DO NOTHING like the sightings: the same kill twice adds nothing.
+        model.Entity<HuntingAppearance>(e =>
+        {
+            e.Property(a => a.Profile).HasMaxLength(32);
+            e.HasIndex(a => new { a.Profile, a.KillmailId, a.PilotId }).IsUnique();
+            e.HasIndex(a => a.Time);
         });
         model.Entity<HuntingProfileState>(e =>
         {

@@ -54,8 +54,9 @@ public sealed partial class HuntingAggregator(
     }
 
     /// <summary>
-    /// The regulars: per profile, system and pilot, the sightings that count from the last 30 days, by day
-    /// and hour of the day (UTC). Each of the 24 start hours is tried for the session window and the
+    /// The regulars: per profile, system and pilot, the sightings that count from the last 30 days, and the
+    /// appearances (<see cref="HuntingAppearance"/>) of pilots with such a sighting there, by day and hour of
+    /// the day (UTC). Each of the 24 start hours is tried for the session window and the
     /// extended one (both may run past midnight); a pilot is a regular when one holds sightings on at least
     /// <see cref="HuntingOptions.RegularMinDays"/> different days. The session window wins when it holds,
     /// then the one with the most days, then one starting at an hour the pilot was seen (so a window reads
@@ -70,11 +71,20 @@ public sealed partial class HuntingAggregator(
     {
         var settings = options.Value.Hunting;
         return db.Database.ExecuteSqlRawAsync("""
-            WITH src AS (
-                SELECT "Profile", "SystemId", "PilotId", "Time", "Local",
-                    ("Time" AT TIME ZONE 'UTC')::date AS day, extract(hour FROM "Time" AT TIME ZONE 'UTC')::int AS hour
+            WITH counted AS (
+                SELECT "Profile", "SystemId", "PilotId", "Time", "Local"
                 FROM intel."Sightings"
                 WHERE NOT "IsFleet" AND "PilotId" <> 0 AND "Time" >= @now - interval '30 days'),
+            -- Appearances only for a pilot the profile counts in the system: a known smartbomber on an alt's loss.
+            appeared AS (
+                SELECT a."Profile", a."SystemId", a."PilotId", a."Time", false AS "Local"
+                FROM intel."HuntingAppearances" a
+                WHERE NOT a."IsFleet" AND a."Time" >= @now - interval '30 days'
+                  AND EXISTS (SELECT 1 FROM counted c WHERE c."Profile" = a."Profile" AND c."SystemId" = a."SystemId" AND c."PilotId" = a."PilotId")),
+            src AS (
+                SELECT "Profile", "SystemId", "PilotId", "Time", "Local",
+                    ("Time" AT TIME ZONE 'UTC')::date AS day, extract(hour FROM "Time" AT TIME ZONE 'UTC')::int AS hour
+                FROM (SELECT * FROM counted UNION ALL SELECT * FROM appeared) u),
             pilots AS (
                 SELECT "Profile", "SystemId", "PilotId", count(DISTINCT day) AS days, max("Time") AS last_seen, bool_or("Local") AS local
                 FROM src GROUP BY 1, 2, 3

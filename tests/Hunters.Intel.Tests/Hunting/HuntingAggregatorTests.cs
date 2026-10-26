@@ -23,6 +23,7 @@ public sealed class HuntingAggregatorTests(IntelDatabase database) : IAsyncLifet
         await _services.GetRequiredService<SdeCatalogService>().LoadAsync(CancellationToken.None);
         await using var db = Db();
         await db.Sightings.ExecuteDeleteAsync();
+        await db.HuntingAppearances.ExecuteDeleteAsync();
         await db.HuntingSystemStats.ExecuteDeleteAsync();
         await db.HuntingRegionStats.ExecuteDeleteAsync();
         await db.Versions.Where(v => v.Dataset == IntelVersion.Hunting).ExecuteDeleteAsync();
@@ -106,6 +107,34 @@ public sealed class HuntingAggregatorTests(IntelDatabase database) : IAsyncLifet
         Assert.Equal(expected, carriers.Reliable, new DoubleComparer(9));
         var ishtars = await db.HuntingSystemStats.SingleAsync(s => s.Profile == "ishtars");
         Assert.Equal([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, morning, morning, morning, morning, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ishtars.Reliable, new DoubleComparer(9));
+    }
+
+    [Fact]
+    public async Task A_known_smartbombers_appearances_on_its_alts_losses_make_it_a_regular()
+    {
+        static DateTimeOffset At(int day, int hour) => new(2026, 10, day, hour, 0, 0, TimeSpan.Zero);
+        HuntingAppearance Appeared(long pilot, DateTimeOffset time, bool fleet = false) =>
+            new() { Profile = "smartbombers", KillmailId = ++_kill, SystemId = FakeSde.Jita, Time = time, PilotId = pilot, IsFleet = fleet };
+
+        // Pilot 1 is a known smartbomber in Jita (friendly fire once); pilot 2 only ever shows on others' losses.
+        await SeedAsync(Seen("smartbombers", At(22, 22), pilot: 1));
+        await using (var db = Db())
+        {
+            db.HuntingAppearances.AddRange(
+                Appeared(1, At(20, 23)), Appeared(1, At(18, 22), fleet: true),
+                Appeared(2, At(20, 22)), Appeared(2, At(21, 22)), Appeared(2, At(22, 22)));
+            await db.SaveChangesAsync();
+        }
+
+        await UpdateAsync();
+
+        await using var check = Db();
+        var regular = Assert.Single(await check.HuntingRegulars.ToListAsync());
+        Assert.Equal((1L, 2, 2, 22, 4), (regular.PilotId, regular.Days, regular.DaysInWindow, regular.WindowStart, regular.WindowHours));
+        Assert.Equal(Fade(Now - At(22, 22)) + Fade(Now - At(20, 23)), regular.Strength, 9);
+        // The scores are the sightings' alone.
+        var stats = await check.HuntingSystemStats.SingleAsync();
+        Assert.Equal((1.0, 1), (stats.Month, stats.Pilots));
     }
 
     [Fact]

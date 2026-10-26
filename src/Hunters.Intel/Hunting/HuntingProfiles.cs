@@ -56,6 +56,10 @@ public enum VictimSide
 /// For <see cref="RuleKind.Module"/>: how many of the types, mixed, must be fitted together (five smart
 /// bombs make a smartbomber, one is a utility slot).
 /// </param>
+/// <param name="AppearanceOnly">
+/// For <see cref="RuleKind.Weapon"/>: not evidence on its own, only an appearance
+/// (<see cref="HuntingAppearance"/>) towards the regulars of a pilot the profile already knows there.
+/// </param>
 public sealed record ProfileRule(
     RuleKind Kind,
     int[]? Groups = null,
@@ -65,7 +69,8 @@ public sealed record ProfileRule(
     bool Indicator = false,
     int[]? VictimGroups = null,
     VictimSide Side = VictimSide.Any,
-    int MinFitted = 1);
+    int MinFitted = 1,
+    bool AppearanceOnly = false);
 
 /// <param name="Id">Stable id, stored with each sighting and used by the API.</param>
 /// <param name="KeepsFights">
@@ -121,11 +126,13 @@ public static class HuntingProfiles
         // A victim with at least five smart bombs fitted (any mix): a ship built to bomb, not one carrying a
         // utility smart bomb. Or an attacker's area weapon (a smart bomb, or the Vorton projector of an
         // EDENCOM ship) killing one of its own corporation or alliance: friendly fire in a group that bombs
-        // together.
+        // together. A smartbomber also shows on the losses of its alts in other corporations: those kills
+        // are appearances, towards the regulars of a smartbomber already known there.
         new("smartbombers", "Smartbombers",
         [
             new(RuleKind.Module, Groups: [SmartBomb], MinFitted: SmartbomberMinFitted),
             new(RuleKind.Weapon, Groups: [SmartBomb, VortonProjector], Side: VictimSide.Own),
+            new(RuleKind.Weapon, Groups: [SmartBomb, VortonProjector], AppearanceOnly: true),
         ]),
         new("crab", "CRAB beacons", [new(RuleKind.Victim, GroupOfType: CrabBeacon)]),
         // Strangers' pods popped by smart bombs: PvP smartbombing, typically a camp on a low-sec pipe gate.
@@ -138,7 +145,7 @@ public static class HuntingProfiles
 /// <summary>A rule with its types resolved against the SDE; <paramref name="Victims"/> null means any victim.</summary>
 public sealed record ResolvedRule(
     RuleKind Kind, FrozenSet<int> Types, double Weight, bool Indicator, FrozenSet<int>? Victims = null, VictimSide Side = VictimSide.Any,
-    int MinFitted = 1)
+    int MinFitted = 1, bool AppearanceOnly = false)
 {
     /// <summary>
     /// Matching needs to know how many of each type were fitted, not only which: a kill without the counts
@@ -195,7 +202,7 @@ public sealed record ResolvedProfile(HuntingProfile Profile, IReadOnlyList<Resol
                 victims = catalog.Types.Values.Where(t => victimGroups.Contains(t.GroupId)).Select(t => t.Id).ToFrozenSet();
             }
 
-            rules.Add(new ResolvedRule(rule.Kind, types.ToFrozenSet(), rule.Weight, rule.Indicator, victims, rule.Side, rule.MinFitted));
+            rules.Add(new ResolvedRule(rule.Kind, types.ToFrozenSet(), rule.Weight, rule.Indicator, victims, rule.Side, rule.MinFitted, rule.AppearanceOnly));
         }
 
         // What the sightings depend on: each rule's kind, weight, exact types, how many must be fitted,
@@ -205,7 +212,8 @@ public sealed record ResolvedProfile(HuntingProfile Profile, IReadOnlyList<Resol
                 $"{r.Kind}{(r.Indicator ? "?" : "")}@{r.Weight.ToString(CultureInfo.InvariantCulture)}:{string.Join(',', r.Types.Order())}"
                 + (r.MinFitted > 1 ? $"x{r.MinFitted}" : "")
                 + (r.Victims is { } v ? $">{string.Join(',', v.Order())}" : "")
-                + (r.Side == VictimSide.Any ? "" : $">{r.Side.ToString().ToLowerInvariant()} side")))
+                + (r.Side == VictimSide.Any ? "" : $">{r.Side.ToString().ToLowerInvariant()} side")
+                + (r.AppearanceOnly ? ">appearances" : "")))
             + (profile.KeepsFights ? ";keeps fights" : "")
             + $";npc losses x{HuntingProfiles.NpcLossWeight.ToString(CultureInfo.InvariantCulture)}"
             + $";locals x{HuntingProfiles.LocalWeight.ToString(CultureInfo.InvariantCulture)}";

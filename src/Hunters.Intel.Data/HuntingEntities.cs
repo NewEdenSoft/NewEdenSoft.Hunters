@@ -61,6 +61,32 @@ public sealed class Sighting
 }
 
 /// <summary>
+/// A pilot on a killmail that is not evidence on its own, but shows them there at that time
+/// (docs/map-and-activity.md, "Regulars"): a smartbomber on the attacker list of an alt's loss, whatever
+/// the alt's corporation. It only counts towards the regulars of a pilot the profile already knows in the
+/// system, and never towards the scores. Kept apart from the sightings, whose one-an-hour rule it would
+/// otherwise take a place in.
+/// </summary>
+public sealed class HuntingAppearance
+{
+    public long Id { get; set; }
+
+    public string Profile { get; set; } = "";
+
+    public long KillmailId { get; set; }
+
+    public int SystemId { get; set; }
+
+    /// <summary>The kill's time.</summary>
+    public DateTimeOffset Time { get; set; }
+
+    public long PilotId { get; set; }
+
+    /// <summary>The kill had more attackers than a fleet fight's limit: not counted.</summary>
+    public bool IsFleet { get; set; }
+}
+
+/// <summary>
 /// The hunting profiles in use, and the definition each one's sightings were built with; a change
 /// backfills them from the stored kills. Readers (the API server) list the profiles from here.
 /// </summary>

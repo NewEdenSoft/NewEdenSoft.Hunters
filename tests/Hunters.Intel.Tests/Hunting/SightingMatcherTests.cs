@@ -151,6 +151,29 @@ public sealed class SightingMatcherTests
     }
 
     [Fact]
+    public async Task A_smartbomber_on_an_alts_loss_in_another_corporation_is_an_appearance_not_a_sighting()
+    {
+        var profiles = await ProfilesAsync();
+        string Appearances(Kill kill) =>
+            string.Join(", ", SightingMatcher.Appearances(kill, profiles, 25, SightingMatcher.Match(kill, profiles, 25))
+                .Select(a => $"{a.Profile} {a.PilotId}{(a.IsFleet ? " fleet" : "")}").Order());
+        (long, int, int)[] bombers = [(Other, FakeSde.Rifter, FakeSde.Smartbomb), (Third, FakeSde.Thunderchild, FakeSde.Vorton), (0, FakeSde.Rifter, FakeSde.Smartbomb)];
+
+        // Another corporation's ship: not evidence on its own, but the bombers were there. NPCs are nobody.
+        var alt = Kill(FakeSde.Rifter, victim: Pilot, attackers: bombers);
+        Assert.DoesNotContain(SightingMatcher.Match(alt, profiles, 25), s => s.Profile == "smartbombers");
+        Assert.Equal("smartbombers 90000002, smartbombers 90000003", Appearances(alt));
+
+        // Their own corporation: a sighting already, so no appearance besides.
+        Assert.Equal("", Appearances(Kill(FakeSde.Rifter, victim: Pilot, attackers: bombers, attackerCorp: Corp)));
+
+        // A gun is not an area weapon; a fleet fight is kept but marked.
+        Assert.Equal("", Appearances(Kill(FakeSde.Rifter, victim: Pilot, attackers: [(Other, FakeSde.Rifter, 2873)])));
+        (long, int, int)[] fleet = [(Other, FakeSde.Rifter, FakeSde.Smartbomb), .. Enumerable.Range(0, 25).Select(i => (91000000L + i, FakeSde.Rifter, 2873))];
+        Assert.Equal("smartbombers 90000002 fleet", Appearances(Kill(FakeSde.Rifter, victim: Pilot, attackers: fleet)));
+    }
+
+    [Fact]
     public async Task Smartbomb_camps_are_pods_popped_by_smart_bombs()
     {
         var profiles = await ProfilesAsync();
@@ -237,7 +260,8 @@ public sealed class SightingMatcherTests
         var camps = profiles.Single(p => p.Id == "smartbomb-camps");
         Assert.Equal([FakeSde.Capsule], camps.Rules[0].Victims!);
         Assert.Equal("Weapon@1:3937,3945,3961,3977,3993>670>other side;keeps fights;npc losses x2;locals x1.5", camps.Definition);
-        Assert.Equal("Module@1:3937,3945,3961,3977,3993x5;Weapon@1:3937,3945,3961,3977,3993,54748>own side;npc losses x2;locals x1.5",
+        Assert.Equal("Module@1:3937,3945,3961,3977,3993x5;Weapon@1:3937,3945,3961,3977,3993,54748>own side;"
+                     + "Weapon@1:3937,3945,3961,3977,3993,54748>appearances;npc losses x2;locals x1.5",
             profiles.Single(p => p.Id == "smartbombers").Definition);
     }
 }
