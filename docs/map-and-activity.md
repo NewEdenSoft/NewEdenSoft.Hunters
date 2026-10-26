@@ -120,7 +120,7 @@ A hunting profile is a kind of target: where it is seen, and when, is built up f
 | `fax` | a Force Auxiliary (1538) dies |
 | `marauders` | a Marauder (900) dies |
 | `ishtars` | an Ishtar (type 12005) dies |
-| `smartbombers` | a ship with **at least five smart bombs** fitted dies (Smart Bomb, group 72, any mix of sizes and damage types; one is a utility slot, not a smartbomber), or an attacker's area weapon (Smart Bomb, or Vorton Projector, 4060) kills a victim in **its own corporation or alliance**: friendly fire in a group that bombs together (smartbomb battleships catching a corp-mate's ship and pod, or their own Mobile Tractor Units; Thunderchild groups) |
+| `smartbombers` | a ship with **at least five smart bombs** fitted dies (Smart Bomb, group 72, any mix of sizes and damage types; one is a utility slot, not a smartbomber), or an attacker's area weapon (Smart Bomb, or Vorton Projector, 4060) kills a victim in **its own corporation or alliance**: friendly fire in a group that bombs together (smartbomb battleships catching a corp-mate's ship and pod, or their own Mobile Tractor Units; Thunderchild groups). **Appearances:** an area weapon on anyone else's loss (an alt in another corporation) shows the smartbomber there too, towards its [regulars](#regulars) |
 | `crab` | a CRAB beacon is killed: every type in the group of "CONCORD Rogue Analysis Beacon" (the CONCORD and the CONCORD-Carrier beacon) |
 | `smartbomb-camps` | an attacker's last hit was a Smart Bomb (72) **on a capsule** (29) of **another corporation and alliance**: PvP smartbombing, typically a camp on a low-sec pipe gate. A group's own pods caught in its bombs are friendly fire, not a camp. **Keeps fights:** a burst of pods is its target, so the battle rule doesn't apply to it (the 25-attacker rule still does) |
 
@@ -181,6 +181,11 @@ The intel service's `SovereigntyService` (`src/Hunters.Intel/Sovereignty`) reads
 #### Regulars
 
 A pilot seen in a system on **different days at about the same time of day** has a routine there and is likely back in that window. Regulars are recomputed with the aggregates, in the same transaction, into `intel.HuntingRegulars` (per profile, system and pilot). They come from the sightings of the last 30 days that have a pilot and are not fleet fights.
+
+**Appearances** add to them. A smartbomber seldom dies, but it shows on the attacker list when its own alts die on its grid, and alts are often in other corporations, where the friendly-fire rule can't see them. A rule marked as appearance-only (`AppearanceOnly`) records such kills in `intel.HuntingAppearances`, apart from the sightings so they don't take a place in the one-an-hour rule.
+- **Gate:** an appearance counts towards a pilot's regulars only when the profile already counts that pilot in the system in the last 30 days: dying with five smart bombs fitted, or friendly fire. A gate camper who never shows otherwise is not made a regular this way; camps have their own profile.
+- **What it changes:** appearances count as days in the window and towards the strength, never towards the scores, windows or pilot counts.
+- **Fleets and lifetime:** fleet fights (by attacker count) are kept but not counted. Appearances expire with their kills and are rebuilt with their profile.
 
 - **Windows:** each of the 24 start hours (UTC) is tried for a **session window** of `Hunters:Hunting:RegularWindowHours` (4, a typical play session) and an **extended** one of `RegularExtendedWindowHours` (6). Both may run past midnight.
 - **Regular:** a pilot is a regular when a window holds sightings on at least `RegularMinDays` (2) different days. Two sightings on one day are not a routine.

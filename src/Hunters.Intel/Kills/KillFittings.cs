@@ -209,7 +209,7 @@ public sealed partial class KillRefetchService(
 
         var settings = options.Value.Hunting;
         var needing = hunting.Where(p => p.Rules.Any(r => r.NeedsCounts)).ToList();
-        if (await SightingStore.InsertAsync(db, SightingMatcher.Match(kill, needing, settings.FleetAttackers, sovereignty.Current), cancellationToken) == 0)
+        if (await SightingStore.RecordAsync(db, [kill], needing, settings.FleetAttackers, sovereignty.Current, cancellationToken) == 0)
             return;
 
         string[] keeping = [.. hunting.Where(p => p.Profile.KeepsFights).Select(p => p.Id)];

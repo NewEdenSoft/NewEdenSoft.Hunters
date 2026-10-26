@@ -53,7 +53,7 @@ public static class SightingMatcher
 
         foreach (var profile in profiles)
         {
-            foreach (var rule in profile.Rules)
+            foreach (var rule in profile.Rules.Where(r => !r.AppearanceOnly))
             {
                 switch (rule.Kind)
                 {
@@ -89,6 +89,43 @@ public static class SightingMatcher
         }
 
         return [.. found.Values];
+    }
+
+    /// <summary>
+    /// The appearances on one kill: per profile, the attackers matched by an
+    /// <see cref="ResolvedRule.AppearanceOnly"/> rule that are not already among its <paramref name="sightings"/>
+    /// (a sighting is the stronger evidence).
+    /// </summary>
+    public static List<HuntingAppearance> Appearances(Kill kill, IEnumerable<ResolvedProfile> profiles, int fleetAttackers, IReadOnlyCollection<Sighting> sightings)
+    {
+        var found = new List<HuntingAppearance>();
+        foreach (var profile in profiles)
+        {
+            foreach (var rule in profile.Rules.Where(r => r.AppearanceOnly && r.Kind == RuleKind.Weapon))
+            {
+                if (rule.Victims is { } victims && !victims.Contains(kill.VictimShipTypeId))
+                    continue;
+                for (var i = 0; i < kill.AttackerCharacterIds.Length; i++)
+                {
+                    var pilot = kill.AttackerCharacterIds[i];
+                    if (pilot == 0 || !rule.Types.Contains(kill.AttackerWeaponTypeIds[i]) || !IsOnSide(kill, i, rule.Side)
+                        || sightings.Any(s => s.Profile == profile.Id && s.PilotId == pilot)
+                        || found.Any(a => a.Profile == profile.Id && a.PilotId == pilot))
+                        continue;
+                    found.Add(new HuntingAppearance
+                    {
+                        Profile = profile.Id,
+                        KillmailId = kill.KillmailId,
+                        SystemId = kill.SystemId,
+                        Time = kill.Time,
+                        PilotId = pilot,
+                        IsFleet = kill.AttackerCount > fleetAttackers,
+                    });
+                }
+            }
+        }
+
+        return found;
     }
 
     /// <summary>
@@ -130,9 +167,48 @@ public static class SightingMatcher
     }
 }
 
-/// <summary>Writes sightings and marks the ones in fleet fights. Every statement can safely run twice.</summary>
+/// <summary>Writes sightings and appearances, and marks the sightings in fleet fights. Every statement can safely run twice.</summary>
 public static class SightingStore
 {
+    /// <summary>Matches the kills and stores their sightings and appearances. Returns how many were new.</summary>
+    public static async Task<int> RecordAsync(
+        IntelDbContext db, IEnumerable<Kill> kills, IReadOnlyList<ResolvedProfile> profiles, int fleetAttackers, SovereigntyMap sovereignty,
+        CancellationToken cancellationToken)
+    {
+        var sightings = new List<Sighting>();
+        var appearances = new List<HuntingAppearance>();
+        foreach (var kill in kills)
+        {
+            var seen = SightingMatcher.Match(kill, profiles, fleetAttackers, sovereignty);
+            sightings.AddRange(seen);
+            appearances.AddRange(SightingMatcher.Appearances(kill, profiles, fleetAttackers, seen));
+        }
+
+        return await InsertAsync(db, sightings, cancellationToken) + await InsertAppearancesAsync(db, appearances, cancellationToken);
+    }
+
+    /// <summary>Inserts appearances; one already there (the same kill and pilot) is skipped. Returns how many were new.</summary>
+    public static Task<int> InsertAppearancesAsync(IntelDbContext db, IReadOnlyCollection<HuntingAppearance> appearances, CancellationToken cancellationToken)
+    {
+        if (appearances.Count == 0)
+            return Task.FromResult(0);
+
+        return db.Database.ExecuteSqlRawAsync("""
+            INSERT INTO intel."HuntingAppearances" ("Profile", "KillmailId", "SystemId", "Time", "PilotId", "IsFleet")
+            SELECT * FROM unnest(@profile, @kill, @system, @time, @pilot, @fleet)
+            ON CONFLICT DO NOTHING
+            """,
+            [
+                Array("profile", NpgsqlDbType.Text, appearances.Select(a => a.Profile)),
+                Array("kill", NpgsqlDbType.Bigint, appearances.Select(a => a.KillmailId)),
+                Array("system", NpgsqlDbType.Integer, appearances.Select(a => a.SystemId)),
+                Array("time", NpgsqlDbType.TimestampTz, appearances.Select(a => a.Time)),
+                Array("pilot", NpgsqlDbType.Bigint, appearances.Select(a => a.PilotId)),
+                Array("fleet", NpgsqlDbType.Boolean, appearances.Select(a => a.IsFleet)),
+            ],
+            cancellationToken);
+    }
+
     /// <summary>Inserts sightings; one already there (the same kill, or the same pilot that hour) is skipped. Returns how many were new.</summary>
     public static Task<int> InsertAsync(IntelDbContext db, IReadOnlyCollection<Sighting> sightings, CancellationToken cancellationToken)
     {

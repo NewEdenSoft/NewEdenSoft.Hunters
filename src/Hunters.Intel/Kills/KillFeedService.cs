@@ -133,7 +133,7 @@ public sealed partial class KillFeedService(
         var kill = file.ToKill();
         var settings = options.Value.Hunting;
 
-        var changed = await SightingStore.InsertAsync(db, SightingMatcher.Match(kill, hunting, settings.FleetAttackers, sovereignty.Current), cancellationToken);
+        var changed = await SightingStore.RecordAsync(db, [kill], hunting, settings.FleetAttackers, sovereignty.Current, cancellationToken);
 
         // zKillboard can announce a kill again (a repost, a corrected value); the first one stays.
         var isNew = !await db.Kills.AnyAsync(k => k.KillmailId == file.KillmailId, cancellationToken);
@@ -169,7 +169,8 @@ public sealed partial class KillFeedService(
         var db = scope.ServiceProvider.GetRequiredService<IntelDbContext>();
         var cutoff = now - options.Value.Kills.Retention;
         var deleted = await db.Kills.Where(k => k.Time < cutoff).ExecuteDeleteAsync(cancellationToken);
-        if (await db.Sightings.Where(s => s.Time < cutoff).ExecuteDeleteAsync(cancellationToken) > 0)
+        if (await db.Sightings.Where(s => s.Time < cutoff).ExecuteDeleteAsync(cancellationToken)
+            + await db.HuntingAppearances.Where(a => a.Time < cutoff).ExecuteDeleteAsync(cancellationToken) > 0)
             aggregates.Signal();
         if (deleted > 0)
             LogPruned(deleted, cutoff);

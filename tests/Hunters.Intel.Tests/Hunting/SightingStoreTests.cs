@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NewEdenSoft.Hunters.Intel.Data;
 using NewEdenSoft.Hunters.Intel.Hunting;
 using NewEdenSoft.Hunters.Intel.Sde;
+using NewEdenSoft.Hunters.Intel.Sovereignty;
 
 namespace NewEdenSoft.Hunters.Intel.Tests.Hunting;
 
@@ -22,6 +23,7 @@ public sealed class SightingStoreTests(IntelDatabase database) : IAsyncLifetime
         await using var db = Db();
         await db.Kills.ExecuteDeleteAsync();
         await db.Sightings.ExecuteDeleteAsync();
+        await db.HuntingAppearances.ExecuteDeleteAsync();
         await db.HuntingProfileStates.ExecuteDeleteAsync();
     }
 
@@ -57,6 +59,29 @@ public sealed class SightingStoreTests(IntelDatabase database) : IAsyncLifetime
     {
         await using var db = Db();
         return await db.Sightings.OrderBy(s => s.Time).ThenBy(s => s.Id).ToListAsync();
+    }
+
+    [Fact]
+    public async Task Appearances_are_stored_apart_and_a_kill_recorded_twice_adds_them_once()
+    {
+        var alt = Frigate(1, Time);
+        alt.AttackerCount = 1;
+        alt.AttackerCharacterIds = [Other];
+        alt.AttackerCorporationIds = [98000009];
+        alt.AttackerAllianceIds = [0];
+        alt.AttackerShipTypeIds = [FakeSde.Rifter];
+        alt.AttackerWeaponTypeIds = [FakeSde.Smartbomb];
+
+        await using (var db = Db())
+        {
+            Assert.Equal(1, await SightingStore.RecordAsync(db, [alt], _profiles, 25, SovereigntyMap.Empty, CancellationToken.None));
+            Assert.Equal(0, await SightingStore.RecordAsync(db, [alt], _profiles, 25, SovereigntyMap.Empty, CancellationToken.None));
+        }
+
+        await using var check = Db();
+        var appearance = Assert.Single(await check.HuntingAppearances.ToListAsync());
+        Assert.Equal(("smartbombers", 1L, Other, FakeSde.Jita, Time), (appearance.Profile, appearance.KillmailId, appearance.PilotId, appearance.SystemId, appearance.Time));
+        Assert.Empty(await check.Sightings.ToListAsync());
     }
 
     [Fact]

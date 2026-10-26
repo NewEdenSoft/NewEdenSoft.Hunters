@@ -59,6 +59,44 @@ namespace NewEdenSoft.Hunters.Intel.Data.Migrations
                     b.ToTable("FeedPositions", "intel");
                 });
 
+            modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.HuntingAppearance", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("IsFleet")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("KillmailId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PilotId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Profile")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("SystemId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("Time")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Time");
+
+                    b.HasIndex("Profile", "KillmailId", "PilotId")
+                        .IsUnique();
+
+                    b.ToTable("HuntingAppearances", "intel");
+                });
+
             modelBuilder.Entity("NewEdenSoft.Hunters.Intel.Data.HuntingProfileState", b =>
                 {
                     b.Property<string>("Profile")
