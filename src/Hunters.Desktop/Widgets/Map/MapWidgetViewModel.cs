@@ -496,6 +496,10 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     [ObservableProperty]
     public partial bool HasHunting { get; private set; }
 
+    /// <summary>The server has kills from zKillboard's feed: the System widget lists a system's recent kills.</summary>
+    [ObservableProperty]
+    public partial bool HasKills { get; private set; }
+
     /// <summary>The server's hunting profiles; empty until it has sent them.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShownProfiles))]
@@ -576,6 +580,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             _overview = null;
             Overview = null;
             HasHunting = false;
+            HasKills = false;
             HuntingProfiles = [];
             Model = null;
             Filter = null;
@@ -614,12 +619,13 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                 {
                     try
                     {
-                        if ((!HasActivity || !HasHunting) && DateTimeOffset.UtcNow - featuresAskedAt >= FeaturesPoll)
+                        if ((!HasActivity || !HasHunting || !HasKills) && DateTimeOffset.UtcNow - featuresAskedAt >= FeaturesPoll)
                         {
                             featuresAskedAt = DateTimeOffset.UtcNow;
                             var features = (await session.GetDiscoveryAsync(cancellationToken)).Features;
                             HasActivity = features.Contains(HuntersFeatures.Activity);
                             HasHunting = features.Contains(HuntersFeatures.Hunting);
+                            HasKills = features.Contains(HuntersFeatures.Kills);
                         }
 
                         if (HasActivity)
@@ -675,6 +681,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                     StatusText = null;
                     HasActivity = discovery.Features.Contains(HuntersFeatures.Activity);
                     HasHunting = discovery.Features.Contains(HuntersFeatures.Hunting);
+                    HasKills = discovery.Features.Contains(HuntersFeatures.Kills);
                     _polling = new CancellationTokenSource();
                     _ = PollIntelAsync(session, _polling.Token);
                     return;

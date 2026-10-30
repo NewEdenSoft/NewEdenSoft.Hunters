@@ -56,6 +56,28 @@
     <Style Selector="Run.local">
       <Setter Property="Foreground" Value="{DynamicResource Hud.InfoBrush}" />
     </Style>
+    <!-- Recent kills: each a plain row that opens zKillboard, highlighted under the pointer -->
+    <Style Selector="Button.kill">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="4,3" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="PART_Border" Background="{TemplateBinding Background}" BorderThickness="1" BorderBrush="Transparent">
+            <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"
+                              HorizontalContentAlignment="Stretch" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.kill:pointerover">
+      <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+    </Style>
+    <Style Selector="Button.kill:focus-visible /template/ Border#PART_Border">
+      <Setter Property="BorderBrush" Value="{DynamicResource Hud.FgBrush}" />
+    </Style>
     <!-- The commands, like the Nearby cards' quick controls -->
     <Style Selector="Button.quick">
       <Setter Property="Padding" Value="10,6" />
@@ -232,6 +254,41 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
               </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- Recent kills, newest first, each opening on zKillboard -->
+      <StackPanel Spacing="4" IsVisible="{Binding ShowsKills}">
+        <TextBlock Classes="label" Text="RECENT KILLS" />
+        <TextBlock FontSize="13" TextWrapping="Wrap" Classes="muted" Classes.danger="{Binding Kills.IsError}"
+                   Text="{Binding Kills.Text}" IsVisible="{Binding !Kills.HasRows}" />
+        <ItemsControl ItemsSource="{Binding Kills.Rows}" IsVisible="{Binding Kills.HasRows}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="mw:KillRowViewModel">
+              <Button Classes="kill" Tag="{Binding Url}" Click="OnLinkClick" ToolTip.Tip="Open on zKillboard">
+                <Grid ColumnDefinitions="32,*,Auto" RowDefinitions="Auto,Auto">
+                  <Border Grid.RowSpan="2" Width="32" Height="32" BorderThickness="1" BorderBrush="{DynamicResource Hud.LineBrush}" VerticalAlignment="Center">
+                    <Image Source="{Binding Icon}" />
+                  </Border>
+                  <TextBlock Grid.Column="1" FontSize="13" Margin="8,0,0,0" TextTrimming="CharacterEllipsis">
+                    <Run Text="{Binding Ship}" FontWeight="SemiBold" Foreground="{DynamicResource Hud.FgBrush}" />
+                    <Run Text=" " />
+                    <Run Text="{Binding Victim}" Foreground="{DynamicResource Hud.FgMutedBrush}" />
+                  </TextBlock>
+                  <TextBlock Grid.Column="2" Classes="mono" FontSize="12" Margin="8,0,0,0" TextAlignment="Right"
+                             Foreground="{DynamicResource Hud.FgMutedBrush}" Text="{Binding Ago}" ToolTip.Tip="{Binding TimeTip}" />
+                  <TextBlock Grid.Row="1" Grid.Column="1" FontSize="12" Margin="8,0,0,0" TextTrimming="CharacterEllipsis"
+                             Foreground="{DynamicResource Hud.FgMutedBrush}">
+                    <Run Text="{Binding NpcText}" Foreground="{DynamicResource Hud.WarningBrush}" />
+                    <Run Text="{Binding By}" />
+                    <Run Text="{Binding ByExtra}" Foreground="{DynamicResource Hud.FgFaintBrush}" />
+                  </TextBlock>
+                  <TextBlock Grid.Row="1" Grid.Column="2" Classes="mono" FontSize="12" Margin="8,0,0,0" TextAlignment="Right"
+                             Foreground="{DynamicResource Hud.FgBrush}" Text="{Binding Value}" />
+                </Grid>
+              </Button>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
