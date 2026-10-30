@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewEdenSoft.Hunters.Desktop.Characters;
+using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 
 namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
@@ -11,7 +12,8 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// One system in detail, like the web's System panel (<c>SystemInfoPanel.tsx</c>): the selected system,
 /// or the focused one while nothing is selected, tagged Selected and/or Focused. Its name, security and
 /// region with links to zKillboard and Dotlan, Focus or Unfocus, and Destination: the main part for
-/// every tracked character, ▾ for one usable character, the outcome under the buttons.
+/// every tracked character, ▾ for one usable character, the outcome under the buttons. Then the last
+/// hour of NPC kills, ship kills, pod kills and jumps, once the server has activity.
 /// </summary>
 public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
 {
@@ -61,6 +63,13 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
 
     public Uri? DotlanUrl => System is { } system ? SystemLinks.Dotlan(system.Name) : null;
 
+    /// <summary>The shown system's last hour (<see cref="SystemInfo.MetricRows"/>); empty without activity data.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLastHour))]
+    public partial IReadOnlyList<MetricRow> LastHour { get; private set; } = [];
+
+    public bool HasLastHour => LastHour.Count > 0;
+
     /// <summary>The shown system's destination and what it came to; kept while the same system is shown.</summary>
     [ObservableProperty]
     public partial DestinationViewModel? Destination { get; private set; }
@@ -107,6 +116,8 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
     {
         if (e.PropertyName is nameof(MapWidgetViewModel.SelectedSystemId) or nameof(MapWidgetViewModel.FocusedSystemId) or nameof(MapWidgetViewModel.Model))
             Sync();
+        else if (e.PropertyName == nameof(MapWidgetViewModel.Activity))
+            SyncLastHour();
     }
 
     private void Sync()
@@ -122,7 +133,13 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
             Destination = null;
         else if (Destination?.SystemId != id)
             Destination = new DestinationViewModel(id, system.Name, _destinations, () => _account.Session);
+        SyncLastHour();
     }
+
+    private void SyncLastHour() =>
+        LastHour = System is { } system && _map.Model is { } model && MapFilters.ActivityFor(model, _map.Activity) is { } activity
+            ? SystemInfo.MetricRows(activity, system.Index)
+            : [];
 
     private void SyncTracked()
     {

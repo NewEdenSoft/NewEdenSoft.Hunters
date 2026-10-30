@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
              xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
+             xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
              x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.SystemWidgetView"
              x:DataType="mw:SystemWidgetViewModel">
 
@@ -11,6 +12,32 @@
     </Style>
     <Style Selector="TextBlock.danger">
       <Setter Property="Foreground" Value="{DynamicResource Hud.DangerBrush}" />
+    </Style>
+    <!-- Last hour: figures right-aligned in columns, headed faintly -->
+    <Style Selector="Grid.metrics TextBlock">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Margin" Value="12,0,0,0" />
+      <Setter Property="TextAlignment" Value="Right" />
+    </Style>
+    <Style Selector="Grid.metrics TextBlock.head">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
+    </Style>
+    <Style Selector="Grid.metrics TextBlock.figure">
+      <Setter Property="FontFamily" Value="{StaticResource Hud.MonoFont}" />
+    </Style>
+    <Style Selector="Grid.metrics TextBlock.faint">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
+    </Style>
+    <Style Selector="Grid.metrics TextBlock.name">
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="TextAlignment" Value="Left" />
+    </Style>
+    <Style Selector="Run.peak">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.WarningBrush}" />
+    </Style>
+    <Style Selector="Run.faint">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
     </Style>
     <!-- The commands, like the Nearby cards' quick controls -->
     <Style Selector="Button.quick">
@@ -104,6 +131,49 @@
                  IsVisible="{Binding Destination.HasStatus, FallbackValue=False}"
                  Classes.ok="{Binding Destination.IsOk, FallbackValue=False}"
                  Classes.danger="{Binding Destination.IsDanger, FallbackValue=False}" />
+
+      <!-- Last hour: each metric's hour, change, 24 hours and usual, the columns shared across the rows -->
+      <StackPanel Spacing="4" Grid.IsSharedSizeScope="True" IsVisible="{Binding HasLastHour}">
+        <TextBlock Classes="label" Text="LAST HOUR" />
+        <Grid Classes="metrics">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" SharedSizeGroup="Hour" />
+            <ColumnDefinition Width="Auto" SharedSizeGroup="Change" />
+            <ColumnDefinition Width="Auto" SharedSizeGroup="Day" />
+            <ColumnDefinition Width="Auto" SharedSizeGroup="Usual" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="1" Classes="head" Text="hour" />
+          <TextBlock Grid.Column="2" Classes="head" Text="change" />
+          <TextBlock Grid.Column="3" Classes="head" Text="24 h" />
+          <TextBlock Grid.Column="4" Classes="head" Text="usual" />
+        </Grid>
+        <ItemsControl ItemsSource="{Binding LastHour}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="m:MetricRow">
+              <Grid Classes="metrics" Margin="0,1">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" SharedSizeGroup="Hour" />
+                  <ColumnDefinition Width="Auto" SharedSizeGroup="Change" />
+                  <ColumnDefinition Width="Auto" SharedSizeGroup="Day" />
+                  <ColumnDefinition Width="Auto" SharedSizeGroup="Usual" />
+                </Grid.ColumnDefinitions>
+                <!-- The name and its peak on one baseline -->
+                <TextBlock Classes="name muted" TextTrimming="CharacterEllipsis">
+                  <Run Text="{Binding Label}" />
+                  <Run Text="{Binding PeakText}" FontSize="12" Classes.peak="{Binding IsPeakNow}" Classes.faint="{Binding !IsPeakNow}" />
+                </TextBlock>
+                <TextBlock Grid.Column="1" Classes="figure" FontWeight="SemiBold" Text="{Binding LastHour}" />
+                <TextBlock Grid.Column="2" Classes="figure" Text="{Binding ChangeText}" ToolTip.Tip="{Binding ChangeTip}"
+                           Classes.ok="{Binding IsRising}" Classes.danger="{Binding IsFalling}" Classes.faint="{Binding IsFlat}" />
+                <TextBlock Grid.Column="3" Classes="figure muted" Text="{Binding Day}" />
+                <TextBlock Grid.Column="4" Classes="figure faint" Text="{Binding UsualText}" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
     </StackPanel>
   </StackPanel>
   </ScrollViewer>
