@@ -1,5 +1,6 @@
 using System.Globalization;
 using NewEdenSoft.Hunters.Contracts.Activity;
+using NewEdenSoft.Hunters.Contracts.Hunting;
 
 namespace NewEdenSoft.Hunters.Desktop.Map;
 
@@ -34,6 +35,42 @@ public static class SystemInfo
     /// <summary>"Peak now" in the busiest hours (80% of the peak), "Peak in N h" for a peak within six hours, else null. As on the hover panel.</summary>
     public static string? PeakHint(double? ratio, int? hoursToPeak) =>
         ratio >= 0.8 ? PeakNow : hoursToPeak is > 0 and <= 6 ? $"Peak in {hoursToPeak} h" : null;
+
+    public const string StatusPeakNow = "peak now";
+    public const string StatusNow = "now";
+    public const string StatusSeen = "seen";
+
+    /// <summary>
+    /// A profile seen in a system, at this hour of the day (UTC): "now" when it is usually seen there at this
+    /// hour, "peak now" when this is its busiest hour there (80% of it), "seen" otherwise. As on the map.
+    /// </summary>
+    public static string ProfileStatus(double score, IReadOnlyList<double> hours, int hour)
+    {
+        if (HuntingLayer.LikelyNow(score, hours, hour) <= 0)
+            return StatusSeen;
+        var busiest = hours.DefaultIfEmpty(0).Max();
+        return busiest > 0 && hours[hour] / busiest >= 0.8 ? StatusPeakNow : StatusNow;
+    }
+
+    /// <summary>The profiles likely now first (peak now, then now), then by score, as the server orders them.</summary>
+    public static IReadOnlyList<HuntingPlaceProfile> SortProfiles(IEnumerable<HuntingPlaceProfile> profiles, int hour) =>
+    [
+        .. profiles
+            .OrderBy(p => ProfileStatus(p.Score, p.Hours, hour) switch { StatusPeakNow => 0, StatusNow => 1, _ => 2 })
+            .ThenByDescending(p => p.Score),
+    ];
+
+    /// <summary>How long ago, briefly: "now", "12m", "3h" (up to two days), "5d".</summary>
+    public static string TimeAgo(DateTimeOffset time, DateTimeOffset now)
+    {
+        var minutes = (long)Math.Floor((now - time).TotalMinutes);
+        if (minutes < 1)
+            return "now";
+        if (minutes < 60)
+            return $"{minutes}m";
+        var hours = minutes / 60;
+        return hours < 48 ? $"{hours}h" : $"{hours / 24}d";
+    }
 
     /// <summary>Shortened like EVE players do: "950", "12.5k", "3.2M", "1.05B", "250M". Counts too.</summary>
     public static string FormatIsk(double isk)

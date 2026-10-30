@@ -55,7 +55,7 @@ See [System panel](web-client.md#map). Needs the server's `GET /api/kills/system
   - Focus / Unfocus
   - Destination as a split button: the main part sets it on every tracked character (showing how many); ▾ lists the usable characters (online first, then the main) to set it for one. ESI `POST /ui/autopilot/waypoint?add_to_beginning=false&clear_other_waypoints=true&destination_id=…` with the character's token; retry once on 401, and ask for a new login on 403.
 - [x] **Last hour:** NPC, ship and pod kills and jumps, each with the last hour, the change from the hour before (▲ / ▼ / –), the last 24 hours and the usual, plus Peak now / Peak in N h. Port `metricRows` and `peakHint` from `map/systemInfo.ts`.
-- [ ] **Hunting profiles:** all seen there, with peak now / now / seen, pilots and last seen, likely now first. Port `profileStatus` and `sortProfiles`.
+- [x] **Hunting profiles:** all seen there, with peak now / now / seen, pilots and last seen, likely now first. Port `profileStatus` and `sortProfiles`.
 - [ ] **Regulars** under each hunting profile (see the web's System panel): name, **local**, window ("22–02 UTC") with days in it, and **now** in `hunt-reliable` when the window covers this hour; the profile row says **reliable** when its `reliable` curve is set at this hour. Port `windowCovers` and `windowLabel`.
 - [ ] **Recent kills:** the newest 10, refreshed every minute. Each has the ship icon, ship and pilot, the final blow (pilot and ship, or the NPC) with +N, NPC, time ago and ISK value, and links to the kill on zKillboard. Names come from ESI `/universe/names`. Port `formatIsk`, `timeAgo` and `partyName`.
 
