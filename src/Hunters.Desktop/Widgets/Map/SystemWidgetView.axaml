@@ -50,6 +50,12 @@
     <Style Selector="Run.status-likely">
       <Setter Property="Foreground" Value="{DynamicResource Hud.WarningBrush}" />
     </Style>
+    <Style Selector="Run.reliable">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.HuntReliableBrush}" />
+    </Style>
+    <Style Selector="Run.local">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.InfoBrush}" />
+    </Style>
     <!-- The commands, like the Nearby cards' quick controls -->
     <Style Selector="Button.quick">
       <Setter Property="Padding" Value="10,6" />
@@ -194,17 +200,38 @@
         <ItemsControl ItemsSource="{Binding Profiles}" IsVisible="{Binding HasProfiles}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="mw:SystemProfileRow">
-              <Grid ColumnDefinitions="22,*,Auto" Margin="0,1">
+              <StackPanel Margin="0,1" Spacing="1">
+              <Grid ColumnDefinitions="22,*,Auto">
                 <c:ProfileMark Profile="{Binding Style}" FontSize="11" HorizontalAlignment="Left" VerticalAlignment="Center" />
                 <!-- The name and its status on one baseline -->
                 <TextBlock Grid.Column="1" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding StatusTip}">
                   <Run Text="{Binding Name}" Classes.likely="{Binding IsLikely}" Classes.seen="{Binding !IsLikely}" />
                   <Run Text="  " />
                   <Run Text="{Binding Status}" Classes.status-likely="{Binding IsLikely}" Classes.faint="{Binding !IsLikely}" />
+                  <Run Text="{Binding ReliableText}" Classes="reliable" />
                 </TextBlock>
                 <TextBlock Grid.Column="2" Classes="mono" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"
                            Foreground="{DynamicResource Hud.FgFaintBrush}" Text="{Binding Seen}" ToolTip.Tip="{Binding SeenTip}" />
               </Grid>
+              <!-- Its regulars: name, local, window with the days in it, and now when the window covers this hour -->
+              <ItemsControl ItemsSource="{Binding Regulars}" IsVisible="{Binding HasRegulars}" Margin="22,0,0,2">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="mw:SystemRegularRow">
+                    <Grid ColumnDefinitions="*,Auto,32">
+                      <TextBlock FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding LocalTip}">
+                        <Run Text="{Binding Name}" Classes.likely="{Binding IsNow}" Classes.seen="{Binding !IsNow}" />
+                        <Run Text="{Binding LocalText}" Classes="local" />
+                      </TextBlock>
+                      <TextBlock Grid.Column="1" Classes="mono" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource Hud.FgFaintBrush}" Text="{Binding Window}" ToolTip.Tip="{Binding WindowTip}" />
+                      <TextBlock Grid.Column="2" FontSize="12" Text="now" TextAlignment="Right" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource Hud.HuntReliableBrush}" IsVisible="{Binding IsNow}"
+                                 ToolTip.Tip="Usually here at this hour (UTC)" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              </StackPanel>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>

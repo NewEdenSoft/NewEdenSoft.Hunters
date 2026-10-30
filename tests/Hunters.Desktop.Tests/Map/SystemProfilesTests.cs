@@ -51,9 +51,51 @@ public sealed class SystemProfilesTests
     [InlineData(4, "4 pilots · 3h")]
     public void A_row_tells_the_pilots_and_how_long_since_it_was_seen(int pilots, string seen)
     {
-        var row = SystemProfileRow.Create(Profile("carriers", 1, Hours((10, 1)), pilots), new ProfileStyle("C", default), 10, Now);
+        var row = SystemProfileRow.Create(Profile("carriers", 1, Hours((10, 1)), pilots), new ProfileStyle("C", default), 10, Now, _ => null);
 
         Assert.Equal(seen, row.Seen);
         Assert.True(row.IsLikely);
+    }
+
+    [Fact]
+    public void A_window_covers_the_hours_from_its_start_past_midnight_too()
+    {
+        Assert.Equal([false, true, true, true, true, false], new[] { 21, 22, 23, 0, 1, 2 }.Select(hour => SystemInfo.WindowCovers(22, 4, hour)));
+        Assert.True(SystemInfo.WindowCovers(14, 6, 19));
+        Assert.False(SystemInfo.WindowCovers(14, 6, 20));
+    }
+
+    [Fact]
+    public void A_window_reads_as_from_and_to_UTC()
+    {
+        Assert.Equal("22–02 UTC", SystemInfo.WindowLabel(22, 4));
+        Assert.Equal("08–14 UTC", SystemInfo.WindowLabel(8, 6));
+    }
+
+    [Fact]
+    public void A_row_lists_its_regulars_and_is_reliable_where_its_curve_is_set_at_this_hour()
+    {
+        var reliable = new double[24];
+        reliable[10] = 0.5;
+        var profile = Profile("carriers", 1, Hours((10, 1))) with
+        {
+            Reliable = reliable,
+            Regulars =
+            [
+                new HuntingRegular(7, Days: 6, DaysInWindow: 5, WindowStart: 8, WindowHours: 4, Now.AddDays(-1), Local: true, Strength: 3),
+                new HuntingRegular(8, Days: 3, DaysInWindow: 2, WindowStart: 22, WindowHours: 6, Now.AddDays(-2), Local: false, Strength: 1),
+            ],
+        };
+
+        var row = SystemProfileRow.Create(profile, new ProfileStyle("C", default), 10, Now, id => id == 7 ? "Ava" : null);
+
+        Assert.True(row.IsReliable);
+        Assert.False(SystemProfileRow.Create(profile, new ProfileStyle("C", default), 11, Now, _ => null).IsReliable);
+        Assert.Equal(
+            [
+                new SystemRegularRow("Ava", true, "08–12 UTC · 5d", "5 of 6 days seen here in this window; last seen 2026-10-23 08:00 UTC", true),
+                new SystemRegularRow("…", false, "22–04 UTC · 2d", "2 of 3 days seen here in this window; last seen 2026-10-22 08:00 UTC", false),
+            ],
+            row.Regulars!);
     }
 }
