@@ -44,7 +44,7 @@ See [Nearby panel](web-client.md#map). It uses the server's `GET /api/intel/reac
 See the system menu in [Web Client](web-client.md#map).
 - [x] **Navigate to** in the system's menu on the map, a submenu: **All (N)** for every tracked character, then each usable character (online first, then the main, with an online dot) for that one; the outcome shown on the map.
 - [x] The same menu (**Focus system**, **Navigate to**) on a right click on a Nearby card, the outcome on the card.
-- [ ] With a focus, the hover panel shows the gate jumps from the focused system ("5 jumps from X", or *no gates*).
+- [x] With a focus, the hover panel shows the gate jumps from the focused system ("5 jumps from X", or *no gates*), and here the light years too.
 - [ ] No other context menu on the map, even on empty space, or on the widgets (except in text fields).
 
 ## System panel
