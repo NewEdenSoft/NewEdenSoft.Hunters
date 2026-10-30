@@ -6,7 +6,7 @@ namespace NewEdenSoft.Hunters.Desktop.Tests.Map;
 
 public sealed class JumpRangesTests
 {
-    /// <summary>Systems along x, at 0, 3, 5, 8, 9 ly; one raised 4 ly; Pochven and Zarzakh in range.</summary>
+    /// <summary>Systems along x, at 0, 3, 5, 8, 9 ly; one raised 4 ly; Pochven and Zarzakh in range. Gates 1 - 2 - 3 - 6.</summary>
     private static readonly MapModel Model = MapModel.Build(new MapPack(
         1,
         [new MapRegion(1, "Region"), new MapRegion(10000070, "Pochven")],
@@ -22,7 +22,7 @@ public sealed class JumpRangesTests
             System(7, 2, -1, region: 10000070),
             System(30100000, 1, -1),
         ],
-        []));
+        [new MapGate(1, 2), new MapGate(2, 3), new MapGate(3, 6)]));
 
     private static MapSystem System(int id, double x, double security, double height = 0, int region = 1) =>
         new(id, $"S{id}", region, 1, security, new MapPoint(x, 0), new MapPoint(x, 0), height);
@@ -50,10 +50,25 @@ public sealed class JumpRangesTests
     {
         var inRange = JumpRanges.InRange(Model, 0, 8);
 
-        Assert.Equal(new MapJumpRangeInfo("7.21 ly", "S1", "in range", true), MapJumpRangeInfo.Create(Model, 0, Model.IndexOf[6], inRange));
-        Assert.Equal(new MapJumpRangeInfo("9 ly", "S1", "out of range", false), MapJumpRangeInfo.Create(Model, 0, Model.IndexOf[5], inRange));
-        Assert.Equal(new MapJumpRangeInfo("5 ly", "S1", "no cyno", false), MapJumpRangeInfo.Create(Model, 0, Model.IndexOf[3], inRange));
+        Assert.Equal(new MapDistanceInfo(3, "7.21 ly", "S1", "in range", true), MapDistanceInfo.Create(Model, 0, Model.IndexOf[6], inRange));
+        Assert.Equal(new MapDistanceInfo(null, "9 ly", "S1", "out of range", false), MapDistanceInfo.Create(Model, 0, Model.IndexOf[5], inRange));
+        Assert.Equal(new MapDistanceInfo(2, "5 ly", "S1", "no cyno", false), MapDistanceInfo.Create(Model, 0, Model.IndexOf[3], inRange));
     }
+
+    [Fact]
+    public void Without_the_jump_range_the_hover_line_tells_only_the_distance()
+    {
+        var distance = MapDistanceInfo.Create(Model, 0, Model.IndexOf[2], inRange: null);
+
+        Assert.Equal(new MapDistanceInfo(1, "3 ly", "S1"), distance);
+        Assert.Equal("", distance.StatusText);
+    }
+
+    [Theory]
+    [InlineData(null, "no gates")]
+    [InlineData(1, "1 jump")]
+    [InlineData(5, "5 jumps")]
+    public void Counts_the_gate_jumps(int? jumps, string text) => Assert.Equal(text, new MapDistanceInfo(jumps, "1 ly", "S1").JumpsText);
 
     [Fact]
     public void Shows_whole_ranges_plainly_and_others_with_decimals()

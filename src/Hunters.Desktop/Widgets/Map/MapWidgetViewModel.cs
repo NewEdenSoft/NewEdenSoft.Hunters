@@ -366,8 +366,8 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
             Characters = here.Count == 0 ? null : string.Join(", ", here),
             NpcKills = MapFilters.ActivityFor(model, Activity) is { } activity ? MapNpcKillsInfo.Create(activity.NpcKills, i) : null,
             Profiles = _profilesAt?.GetValueOrDefault(i),
-            JumpRange = JumpRange is { } inRange && FocusedSystemId is { } focused && model.IndexOf.TryGetValue(focused, out var origin) && origin != i
-                ? MapJumpRangeInfo.Create(model, origin, i, inRange)
+            Distance = FocusedSystemId is { } focused && model.IndexOf.TryGetValue(focused, out var origin) && origin != i
+                ? MapDistanceInfo.Create(model, origin, i, JumpRange)
                 : null,
         };
     }
@@ -707,7 +707,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
 /// <param name="Characters">The account's tracked characters in the system, or null.</param>
 /// <param name="NpcKills">NPC kills in the last hour and how they compare; null without activity data.</param>
 /// <param name="Profiles">The shown hunting profiles seen in the system, likely now first; null when none.</param>
-/// <param name="JumpRange">How far the system is from the focused one, with the jump range on; null otherwise.</param>
+/// <param name="Distance">How far the system is from the focused one; null without a focus, or for the focus itself.</param>
 public sealed record MapSystemInfo(
     int Index,
     string Name,
@@ -717,22 +717,42 @@ public sealed record MapSystemInfo(
     string? Characters,
     MapNpcKillsInfo? NpcKills = null,
     IReadOnlyList<PlaceProfile>? Profiles = null,
-    MapJumpRangeInfo? JumpRange = null);
+    MapDistanceInfo? Distance = null);
 
 /// <summary>
-/// The hover panel's jump range line: the distance from the focused system ("14.6 ly from Tama"), and
-/// whether a jump drive lands there: in range, out of range, or no cyno (high-sec, Pochven, Zarzakh).
+/// The hover panel's distance line, with a focus: the gate jumps from the focused system (the shortest
+/// way, as the route on the map) or "no gates", the light years ("5 jumps · 14.6 ly from Tama"), and
+/// with the jump range on, whether a jump drive lands there: in range, out of range, or no cyno
+/// (high-sec, Pochven, Zarzakh).
 /// </summary>
-public sealed record MapJumpRangeInfo(string Distance, string Origin, string Status, bool IsInRange)
+/// <param name="Jumps">Gate jumps from the focused system; null where no gates lead.</param>
+/// <param name="Status">With the jump range on: in range, out of range or no cyno; null otherwise.</param>
+public sealed record MapDistanceInfo(int? Jumps, string Ly, string Origin, string? Status = null, bool IsInRange = false)
 {
-    public string FromText => $"from {Origin}";
+    public bool HasGates => Jumps is not null;
 
-    /// <param name="inRange">Per system, whether it is in jump range of <paramref name="origin"/> (<see cref="JumpRanges.InRange"/>).</param>
-    public static MapJumpRangeInfo Create(MapModel model, int origin, int index, bool[] inRange)
+    public string JumpsText => Jumps switch
     {
-        var ly = Math.Round(model.LyBetween(origin, index), 2);
+        null => "no gates",
+        1 => "1 jump",
+        var n => $"{n} jumps",
+    };
+
+    public string FromText => $" from {Origin}";
+
+    /// <summary>The status, set apart from the distance; empty without the jump range.</summary>
+    public string StatusText => Status is null ? "" : $"  {Status}";
+
+    /// <param name="inRange">With the jump range on, per system, whether it is in range of <paramref name="origin"/> (<see cref="JumpRanges.InRange"/>); null when off.</param>
+    public static MapDistanceInfo Create(MapModel model, int origin, int index, bool[]? inRange)
+    {
+        var jumps = GateRoutes.Route(model, origin, index) is { } route ? route.Length - 1 : (int?)null;
+        var ly = JumpRanges.FormatLy(Math.Round(model.LyBetween(origin, index), 2));
+        if (inRange is null)
+            return new MapDistanceInfo(jumps, ly, model.Names[origin]);
+
         var status = inRange[index] ? "in range" : !JumpRanges.IsCynoTarget(model, index) ? "no cyno" : "out of range";
-        return new MapJumpRangeInfo(JumpRanges.FormatLy(ly), model.Names[origin], status, inRange[index]);
+        return new MapDistanceInfo(jumps, ly, model.Names[origin], status, inRange[index]);
     }
 }
 

@@ -24,6 +24,19 @@
     <Style Selector="TextBlock.jumprange">
       <Setter Property="Foreground" Value="{DynamicResource Hud.JumpRangeBrush}" />
     </Style>
+    <!-- The hover panel's distance line -->
+    <Style Selector="Run.figure">
+      <Setter Property="FontFamily" Value="{StaticResource Hud.MonoFont}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
+    </Style>
+    <Style Selector="Run.faint">
+      <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
+    </Style>
+    <Style Selector="Run.jumprange">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.JumpRangeBrush}" />
+    </Style>
     <!-- Search results in the HUD's colours rather than Fluent's -->
     <Style Selector="ListBox#SearchResults ListBoxItem">
       <Setter Property="Padding" Value="10,4" />
@@ -87,13 +100,16 @@
             <TextBlock Classes="mono" FontWeight="SemiBold" FontSize="13" Text="{Binding Security}" Foreground="{Binding SecurityBrush}" />
             <TextBlock Classes="muted" FontSize="13" Text="{Binding Region}" />
           </StackPanel>
-          <!-- With the jump range on: how far from the focused system, and whether a jump drive lands here -->
-          <Panel IsVisible="{Binding JumpRange, Converter={x:Static ObjectConverters.IsNotNull}}">
-          <StackPanel Orientation="Horizontal" Spacing="8" DataContext="{Binding JumpRange}" x:DataType="mw:MapJumpRangeInfo">
-            <TextBlock Classes="mono" FontSize="13" FontWeight="SemiBold" Text="{Binding Distance}" />
-            <TextBlock Classes="muted" FontSize="13" Text="{Binding FromText}" />
-            <TextBlock FontSize="13" Text="{Binding Status}" Classes.jumprange="{Binding IsInRange}" Classes.same="{Binding !IsInRange}" />
-          </StackPanel>
+          <!-- With a focus: gate jumps and light years from it, and with the jump range on, whether a jump drive lands here.
+               One TextBlock of runs, so the figures and the words share a baseline. -->
+          <Panel IsVisible="{Binding Distance, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <TextBlock Classes="muted" FontSize="13" DataContext="{Binding Distance}" x:DataType="mw:MapDistanceInfo">
+            <Run Classes="figure" Classes.faint="{Binding !HasGates}" Text="{Binding JumpsText}" />
+            <Run Text=" · " />
+            <Run Classes="figure" Text="{Binding Ly}" />
+            <Run Text="{Binding FromText}" />
+            <Run Text="{Binding StatusText}" Classes.jumprange="{Binding IsInRange}" Classes.faint="{Binding !IsInRange}" />
+          </TextBlock>
           </Panel>
           <!-- NPC kills in the last hour, the change from the hour before, the usual, and the peak -->
           <Panel IsVisible="{Binding NpcKills, Converter={x:Static ObjectConverters.IsNotNull}}">
