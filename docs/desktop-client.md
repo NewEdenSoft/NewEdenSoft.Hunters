@@ -223,7 +223,9 @@ One system in detail, like the web's [System panel](web-client.md#map) (`SystemW
   - **Focus**, or **Unfocus** when it is the focused system
   - **Destination**, a split button: the main part sets the autopilot destination there for every tracked character (showing how many), and **▾** lists the account's usable characters (online first, then the main, with a dot for online) to set it for one, as the system's menu does (`SystemMenuFlyout.CharacterItem`). Both go through `Destinations`, as the Nearby cards' Dest. The outcome is listed under the buttons, a success clearing after a few seconds; the buttons wait while one is being set. The outcome is kept while the same system is shown.
 
-Last hour, hunting profiles with their regulars, and recent kills come next (see [Desktop To-Do](desktop-todo.md)).
+- **Last hour:** NPC kills, ship kills, pod kills and jumps from the activity the map keeps, shown once the server has activity. Each has the last hour, the change from the hour before (green ▲ rising, red ▼ falling, ±0 or – without an hour before, faint), the last 24 hours, and the usual for this hour of the week, in columns under faint headings, with *Peak now* (amber) or *Peak in N h* (faint) by the metric's name. `SystemInfo.MetricRows` and `PeakHint`, like the web's `metricRows` and `peakHint`; the hover panel's NPC line uses the same peak rule.
+
+Hunting profiles with their regulars, and recent kills come next (see [Desktop To-Do](desktop-todo.md)).
 
 ## Hunting
 

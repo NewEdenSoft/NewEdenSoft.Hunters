@@ -776,16 +776,12 @@ public sealed record MapNpcKillsInfo(int LastHour, int? Change, string? Usual, s
 
     public bool IsSame => Change == 0;
 
-    public bool IsPeakNow => Peak == PeakNow;
-
-    private const string PeakNow = "Peak now";
+    public bool IsPeakNow => Peak == SystemInfo.PeakNow;
 
     public static MapNpcKillsInfo Create(ActivityColumns npcKills, int index)
     {
         var last = npcKills.LastHour[index];
-        var ratio = npcKills.PeakRatio[index];
-        var toPeak = npcKills.HoursToPeak[index];
-        var peak = ratio >= 0.8 ? PeakNow : toPeak is > 0 and <= 6 ? $"Peak in {toPeak} h" : null;
+        var peak = SystemInfo.PeakHint(npcKills.PeakRatio[index], npcKills.HoursToPeak[index]);
         var typical = npcKills.Typical?[index];
         return new MapNpcKillsInfo(
             last,
