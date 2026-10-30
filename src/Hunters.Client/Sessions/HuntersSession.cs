@@ -111,6 +111,10 @@ public sealed class HuntersSession : ICharacterTokenProvider
         int from, int? jumps, double? ly, string? profile, int limit, string sort, CancellationToken cancellationToken = default) =>
         SendAsync<IntelReach>(HttpMethod.Get, IntelPaths.Reach(from, jumps, ly, profile, limit, sort), cancellationToken: cancellationToken);
 
+    /// <summary>Every hunting profile seen in one system, highest score first, with its regulars.</summary>
+    public Task<HuntingPlace> GetSystemHuntingAsync(int systemId, CancellationToken cancellationToken = default) =>
+        SendAsync<HuntingPlace>(HttpMethod.Get, HuntingPaths.System(systemId), cancellationToken: cancellationToken);
+
     /// <summary>Where every hunting profile is seen. Revalidated like <see cref="GetActivityAsync"/>.</summary>
     public Task<Revalidated<HuntingOverview>> GetHuntingOverviewAsync(Revalidated<HuntingOverview>? previous, CancellationToken cancellationToken = default) =>
         GetRevalidatedAsync(HuntingPaths.Overview, previous, cancellationToken);

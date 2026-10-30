@@ -3,6 +3,7 @@
              xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
              xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
              xmlns:m="using:NewEdenSoft.Hunters.Desktop.Map"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
              x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.SystemWidgetView"
              x:DataType="mw:SystemWidgetViewModel">
 
@@ -38,6 +39,16 @@
     </Style>
     <Style Selector="Run.faint">
       <Setter Property="Foreground" Value="{DynamicResource Hud.FgFaintBrush}" />
+    </Style>
+    <!-- Hunting profiles: likely now in full colour, the rest muted -->
+    <Style Selector="Run.seen">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgMutedBrush}" />
+    </Style>
+    <Style Selector="Run.likely">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
+    </Style>
+    <Style Selector="Run.status-likely">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.WarningBrush}" />
     </Style>
     <!-- The commands, like the Nearby cards' quick controls -->
     <Style Selector="Button.quick">
@@ -169,6 +180,30 @@
                            Classes.ok="{Binding IsRising}" Classes.danger="{Binding IsFalling}" Classes.faint="{Binding IsFlat}" />
                 <TextBlock Grid.Column="3" Classes="figure muted" Text="{Binding Day}" />
                 <TextBlock Grid.Column="4" Classes="figure faint" Text="{Binding UsualText}" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- Hunting profiles seen here, likely now first: badge, name and status, then pilots and last seen -->
+      <StackPanel Spacing="4" IsVisible="{Binding ShowsHunting}">
+        <TextBlock Classes="label" Text="HUNTING PROFILES" />
+        <TextBlock FontSize="13" TextWrapping="Wrap" Classes="muted" Classes.danger="{Binding IsProfilesError}"
+                   Text="{Binding ProfilesText}" IsVisible="{Binding !HasProfiles}" />
+        <ItemsControl ItemsSource="{Binding Profiles}" IsVisible="{Binding HasProfiles}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="mw:SystemProfileRow">
+              <Grid ColumnDefinitions="22,*,Auto" Margin="0,1">
+                <c:ProfileMark Profile="{Binding Style}" FontSize="11" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                <!-- The name and its status on one baseline -->
+                <TextBlock Grid.Column="1" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding StatusTip}">
+                  <Run Text="{Binding Name}" Classes.likely="{Binding IsLikely}" Classes.seen="{Binding !IsLikely}" />
+                  <Run Text="  " />
+                  <Run Text="{Binding Status}" Classes.status-likely="{Binding IsLikely}" Classes.faint="{Binding !IsLikely}" />
+                </TextBlock>
+                <TextBlock Grid.Column="2" Classes="mono" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"
+                           Foreground="{DynamicResource Hud.FgFaintBrush}" Text="{Binding Seen}" ToolTip.Tip="{Binding SeenTip}" />
               </Grid>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
