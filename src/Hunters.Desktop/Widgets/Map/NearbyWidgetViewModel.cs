@@ -21,7 +21,8 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// jumps and the jump range toggle only change what is shown. Systems where nothing happens
 /// (<see cref="Nearby.IsActive"/>) are hidden unless asked for. Up to <see cref="Nearby.Limit"/> cards,
 /// each with its kills, the profiles seen, and quick controls: the destination for every tracked
-/// character, and focus. A click on a card selects its system and takes the map there. While on
+/// character, and focus. A click on a card selects its system and takes the map there; a right click
+/// opens the system's menu (<see cref="SystemMenu"/>), the outcome of Navigate to on the card. While on
 /// screen, the same question is asked again every two minutes, and when it comes back on screen with an
 /// answer older than a minute; the cards shown stay, dimmed, while the next answer loads.
 /// </summary>
@@ -183,6 +184,10 @@ public sealed partial class NearbyWidgetViewModel : WidgetViewModelBase
         if (_map.NearbyHoveredSystemId is { } id && value.All(c => c.SystemId != id))
             _map.NearbyHoveredSystemId = null;
     }
+
+    /// <summary>A card's right click: the system's menu, as on the map, Navigate to setting the card's destination.</summary>
+    public SystemMenu? MenuFor(NearbyCardViewModel card) =>
+        _map.Model is { } model && model.IndexOf.TryGetValue(card.SystemId, out var index) ? _map.MenuFor(index, card.Destination) : null;
 
     /// <summary>A card's Focus: look around that system instead.</summary>
     [RelayCommand]
