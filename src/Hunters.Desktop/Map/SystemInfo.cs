@@ -60,6 +60,12 @@ public static class SystemInfo
             .ThenByDescending(p => p.Score),
     ];
 
+    /// <summary>Whether a regular's window (from <paramref name="start"/>, <paramref name="hours"/> long, UTC) covers the hour; it may run past midnight.</summary>
+    public static bool WindowCovers(int start, int hours, int hour) => (hour - start + 24) % 24 < hours;
+
+    /// <summary>A regular's window as "22–02 UTC" (the hour it ends, not the last hour in it).</summary>
+    public static string WindowLabel(int start, int hours) => $"{start % 24:00}–{(start + hours) % 24:00} UTC";
+
     /// <summary>How long ago, briefly: "now", "12m", "3h" (up to two days), "5d".</summary>
     public static string TimeAgo(DateTimeOffset time, DateTimeOffset now)
     {

@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewEdenSoft.Hunters.Client.Sessions;
+using NewEdenSoft.Hunters.Client.Tracking;
 using NewEdenSoft.Hunters.Contracts.Hunting;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Map;
@@ -17,13 +18,15 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// region with links to zKillboard and Dotlan, Focus or Unfocus, and Destination: the main part for
 /// every tracked character, ▾ for one usable character, the outcome under the buttons. Then the last
 /// hour of NPC kills, ship kills, pod kills and jumps, once the server has activity, and every hunting
-/// profile seen there (<c>/api/hunting/systems/{id}</c>, asked for while on screen), likely now first.
+/// profile seen there (<c>/api/hunting/systems/{id}</c>, asked for while on screen), likely now first,
+/// each with its regulars: who has a routine there, and when.
 /// </summary>
 public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
 {
     private readonly AccountPageViewModel _account;
     private readonly MapWidgetViewModel _map;
     private readonly Destinations _destinations;
+    private readonly EveNames _names;
 
     /// <summary>While on screen, the times ago ("12m") are written again every minute.</summary>
     private readonly DispatcherTimer _clock;
@@ -37,11 +40,12 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
     /// <summary>The hunting question on its way: the system and session it is for.</summary>
     private (int SystemId, HuntersSession Session, CancellationTokenSource Cancel)? _huntingLoading;
 
-    public SystemWidgetViewModel(AccountPageViewModel account, MapWidgetViewModel map, Destinations destinations, CharacterTracking tracking)
+    public SystemWidgetViewModel(AccountPageViewModel account, MapWidgetViewModel map, Destinations destinations, CharacterTracking tracking, EveNames names)
     {
         _account = account;
         _map = map;
         _destinations = destinations;
+        _names = names;
 
         map.PropertyChanged += OnMapChanged;
         account.PropertyChanged += (_, e) =>
@@ -240,6 +244,10 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
                 return;
             _hunting = (place, session);
             ShowHunting();
+            // The regulars' names: shown as "…" until they come (a failed lookup is tried again with the next answer).
+            var pilots = place.Profiles.SelectMany(p => p.Regulars ?? []).Select(r => r.PilotId).ToList();
+            if (pilots.Count > 0 && await _names.ResolveAsync(pilots, cancel.Token) && !cancel.IsCancellationRequested)
+                ShowHunting();
         }
         catch (OperationCanceledException)
         {
@@ -279,7 +287,7 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
 
         var hour = _map.Hour;
         var now = DateTimeOffset.UtcNow;
-        Profiles = [.. SystemInfo.SortProfiles(answer.Place.Profiles, hour).Select(p => SystemProfileRow.Create(p, _map.StyleOf(p.Profile), hour, now))];
+        Profiles = [.. SystemInfo.SortProfiles(answer.Place.Profiles, hour).Select(p => SystemProfileRow.Create(p, _map.StyleOf(p.Profile), hour, now, _names.Get))];
         ProfilesText = Profiles.Count == 0 ? "None seen here." : null;
     }
 
@@ -308,13 +316,29 @@ public static class SystemLinks
 /// <summary>A hunting profile seen in the shown system: its badge, name, status at this hour, and its pilots and last sighting.</summary>
 /// <param name="Status">"peak now", "now" or "seen" (<see cref="SystemInfo.ProfileStatus"/>).</param>
 /// <param name="Seen">"3 pilots · 2h": the pilots in 30 days and how long since it was last seen.</param>
-public sealed record SystemProfileRow(ProfileStyle Style, string Name, string Status, string Seen, string SeenTip)
+/// <param name="IsReliable">Someone with a routine there is usually there at this hour (UTC): the profile's <c>Reliable</c> curve is set.</param>
+/// <param name="Regulars">The pilots with a routine there, in the server's order.</param>
+public sealed record SystemProfileRow(
+    ProfileStyle Style,
+    string Name,
+    string Status,
+    string Seen,
+    string SeenTip,
+    bool IsReliable = false,
+    IReadOnlyList<SystemRegularRow>? Regulars = null)
 {
     public bool IsLikely => Status != SystemInfo.StatusSeen;
 
-    public string StatusTip => IsLikely ? "Usually seen here at this hour (UTC)" : "Seen here, but not usually at this hour (UTC)";
+    public bool HasRegulars => Regulars is { Count: > 0 };
 
-    public static SystemProfileRow Create(HuntingPlaceProfile profile, ProfileStyle style, int hour, DateTimeOffset now)
+    /// <summary>"reliable", set apart from the status; empty when not.</summary>
+    public string ReliableText => IsReliable ? "  reliable" : "";
+
+    public string StatusTip => (IsLikely ? "Usually seen here at this hour (UTC)" : "Seen here, but not usually at this hour (UTC)")
+        + (IsReliable ? "; reliable: someone with a routine here is usually here at this hour" : "");
+
+    /// <param name="nameOf">A pilot's name, or null while not known.</param>
+    public static SystemProfileRow Create(HuntingPlaceProfile profile, ProfileStyle style, int hour, DateTimeOffset now, Func<long, string?> nameOf)
     {
         var pilots = profile.Pilots switch
         {
@@ -327,6 +351,28 @@ public sealed record SystemProfileRow(ProfileStyle Style, string Name, string St
             profile.Name,
             SystemInfo.ProfileStatus(profile.Score, profile.Hours, hour),
             pilots + SystemInfo.TimeAgo(profile.LastSeen, now),
-            $"Last seen {profile.LastSeen.UtcDateTime:yyyy-MM-dd HH:mm} UTC; {profile.Pilots} pilots in 30 days");
+            $"Last seen {profile.LastSeen.UtcDateTime:yyyy-MM-dd HH:mm} UTC; {profile.Pilots} pilots in 30 days",
+            profile.Reliable is { } reliable && hour < reliable.Count && reliable[hour] > 0,
+            [.. (profile.Regulars ?? []).Select(r => SystemRegularRow.Create(r, hour, nameOf(r.PilotId)))]);
     }
+}
+
+/// <summary>
+/// A pilot with a routine in the shown system: seen on different days at about the same time of day.
+/// Its name ("…" until known), <b>local</b> when seen in its own alliance's sovereignty, its window and
+/// the days in it ("22–02 UTC · 5d"), and <b>now</b> when the window covers this hour.
+/// </summary>
+public sealed record SystemRegularRow(string Name, bool IsLocal, string Window, string WindowTip, bool IsNow)
+{
+    /// <summary>"local", set apart from the name; empty when not.</summary>
+    public string LocalText => IsLocal ? "  local" : "";
+
+    public string? LocalTip => IsLocal ? "Local: seen in its own alliance's sovereignty" : null;
+
+    public static SystemRegularRow Create(HuntingRegular regular, int hour, string? name) => new(
+        name ?? "…",
+        regular.Local,
+        $"{SystemInfo.WindowLabel(regular.WindowStart, regular.WindowHours)} · {regular.DaysInWindow}d",
+        $"{regular.DaysInWindow} of {regular.Days} days seen here in this window; last seen {regular.LastSeen.UtcDateTime:yyyy-MM-dd HH:mm} UTC",
+        SystemInfo.WindowCovers(regular.WindowStart, regular.WindowHours, hour));
 }
