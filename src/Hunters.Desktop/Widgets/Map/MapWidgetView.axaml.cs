@@ -1,14 +1,9 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Documents;
-using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
-using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Map;
-using Path = Avalonia.Controls.Shapes.Path;
 
 namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 
@@ -127,106 +122,16 @@ public partial class MapWidgetView : UserControl
             Map.Focus();
     }
 
-    /// <summary>
-    /// A system's menu, like the web's: its name and security, then Focus system (or Clear focus on the
-    /// focused one), and Navigate to: the destination for every tracked character, or for one character.
-    /// </summary>
+    /// <summary>A system's menu (<see cref="SystemMenu"/>), the outcome of Navigate to shown on the map.</summary>
     private void OnSystemMenuRequested(object? sender, MapSystemMenuRequest request)
     {
-        if (_viewModel is not { } vm || vm.Model is not { } model || vm.DescribeSystem(request.Index) is not { } system)
+        if (_viewModel?.MenuFor(request.Index) is not { } menu)
             return;
 
-        var index = request.Index;
-        var isFocused = vm.FocusedSystemId == model.Ids[index];
-        var focus = new MenuItem
-        {
-            Header = isFocused ? "Clear focus" : "Focus system",
-            Icon = isFocused ? null : MenuIcon("Hud.Icon.Target"),
-        };
-        focus.Click += (_, _) =>
-        {
-            if (isFocused)
-                vm.ClearSystem();
-            else
-                vm.FocusSystem(index);
-        };
-
         _menu?.Hide();
-        _menu = new MenuFlyout { Items = { MenuHeader(system), new Separator(), focus, NavigateItem(vm, index) } };
+        _menu = SystemMenuFlyout.Create(menu);
         _menu.ShowAt(Map, showAtPointer: true);
     }
-
-    /// <summary>"Navigate to": All (every tracked character), then each usable character, online first, with an online dot.</summary>
-    private static MenuItem NavigateItem(MapWidgetViewModel vm, int index)
-    {
-        var (tracked, usable) = vm.NavigateChoices();
-        var busy = vm.IsNavigating;
-        var all = new MenuItem
-        {
-            Header = tracked.Count > 0 ? $"All ({tracked.Count})" : "All",
-            Icon = MenuIcon("Hud.Icon.Flag"),
-            IsEnabled = tracked.Count > 0 && !busy,
-        };
-        ToolTip.SetTip(all, tracked.Count == 0 ? "No tracked characters" : $"Every tracked character: {string.Join(", ", tracked.Select(c => c.Name))}");
-        all.Click += (_, _) => vm.NavigateTo(index, tracked);
-
-        var item = new MenuItem { Header = "Navigate to", Icon = MenuIcon("Hud.Icon.Flag"), Items = { all } };
-        foreach (var character in usable)
-            item.Items.Add(CharacterItem(vm, index, character, busy));
-        return item;
-    }
-
-    private static MenuItem CharacterItem(MapWidgetViewModel vm, int index, DestinationCharacter character, bool busy)
-    {
-        var item = new MenuItem
-        {
-            Header = character.Name,
-            Icon = new Ellipse
-            {
-                Width = 8,
-                Height = 8,
-                Fill = Resource<IBrush>(character.IsOnline ? "Hud.OkBrush" : "Hud.FgFaintBrush"),
-            },
-            IsEnabled = !busy,
-        };
-        ToolTip.SetTip(item, character.IsOnline ? "Online" : "Not online: the destination shows when it logs in, if at all");
-        item.Click += (_, _) => vm.NavigateTo(index, [character]);
-        return item;
-    }
-
-    /// <summary>The menu's first line: the system's name and security, not an item to choose.</summary>
-    private static MenuItem MenuHeader(MapSystemInfo system) => new()
-    {
-        // One TextBlock of runs, so the name and the security share a baseline across the two fonts.
-        Header = new TextBlock
-        {
-            FontWeight = FontWeight.SemiBold,
-            Inlines = new InlineCollection
-            {
-                new Run(system.Name) { FontFamily = Resource<FontFamily>("Hud.DisplayFont") ?? FontFamily.Default },
-                new Run("  "),
-                new Run(system.Security) { Foreground = system.SecurityBrush, FontFamily = Resource<FontFamily>("Hud.MonoFont") ?? FontFamily.Default },
-            },
-        },
-        IsHitTestVisible = false,
-        Focusable = false,
-    };
-
-    /// <summary>One of the HUD's stroke icons, for a menu item.</summary>
-    private static Path MenuIcon(string geometry) => new()
-    {
-        Width = 14,
-        Height = 14,
-        Stretch = Stretch.Uniform,
-        StrokeThickness = 2,
-        StrokeLineCap = PenLineCap.Round,
-        StrokeJoin = PenLineJoin.Round,
-        Data = Resource<Geometry>(geometry),
-        Stroke = Resource<IBrush>("Hud.FgBrush"),
-    };
-
-    /// <summary>An app resource (the HUD's brushes, fonts and icons), for controls built in code.</summary>
-    private static T? Resource<T>(string key) where T : class => Application.Current?.FindResource(key) as T;
 
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {

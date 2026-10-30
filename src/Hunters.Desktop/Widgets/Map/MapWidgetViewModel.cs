@@ -377,29 +377,48 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
     public partial DestinationViewModel? Destination { get; private set; }
 
     /// <summary>
-    /// Who "Navigate to" in a system's menu offers: the tracked characters (All), and every usable one
-    /// (online first, then the main). Empty while logged out.
+    /// A system's menu. Navigate to sets the destination through <paramref name="destination"/> (a Nearby
+    /// card's, its outcome on the card), or else through <see cref="Destination"/>, the outcome on the map.
+    /// Navigate to offers no one while logged out. Null for a system not on the map.
     /// </summary>
-    public (IReadOnlyList<DestinationCharacter> Tracked, IReadOnlyList<DestinationCharacter> Usable) NavigateChoices() =>
-        _account.Session is { IsEnded: false } session ? (_destinations.Tracked(session.Account), _destinations.Usable(session.Account)) : ([], []);
-
-    /// <summary>A destination is being set from a system's menu: its items wait until it is done.</summary>
-    public bool IsNavigating => Destination?.IsBusy == true;
-
-    /// <summary>"Navigate to" in a system's menu: sets the autopilot destination there for these characters.</summary>
-    public void NavigateTo(int index, IReadOnlyList<DestinationCharacter> characters)
+    public SystemMenu? MenuFor(int index, DestinationViewModel? destination = null)
     {
-        if (Model is not { } model || index < 0 || index >= model.Count || characters.Count == 0 || IsNavigating)
-            return;
+        if (Model is not { } model || index < 0 || index >= model.Count)
+            return null;
 
+        var (tracked, usable) = _account.Session is { IsEnded: false } session
+            ? (_destinations.Tracked(session.Account), _destinations.Usable(session.Account))
+            : ([], []);
         var systemId = model.Ids[index];
-        if (Destination?.SystemId != systemId)
-            Destination = new DestinationViewModel(systemId, model.Names[index], _destinations, () => _account.Session);
-        _ = Destination.SetForAsync(characters);
+        return new SystemMenu(
+            Describe(index),
+            FocusedSystemId == systemId,
+            tracked,
+            usable,
+            // The map shows one outcome at a time; a card shows its own.
+            (destination ?? Destination)?.IsBusy == true,
+            () => FocusSystem(index),
+            ClearSystem,
+            characters => NavigateTo(index, characters, destination));
     }
 
-    /// <summary>A system's name, security and region, for its menu's header.</summary>
-    public MapSystemInfo? DescribeSystem(int index) => Model is { } model && index >= 0 && index < model.Count ? Describe(index) : null;
+    /// <summary>Navigate to in a system's menu: sets the autopilot destination there for these characters.</summary>
+    private void NavigateTo(int index, IReadOnlyList<DestinationCharacter> characters, DestinationViewModel? destination)
+    {
+        if (Model is not { } model || index < 0 || index >= model.Count || characters.Count == 0)
+            return;
+
+        if (destination is null)
+        {
+            if (Destination?.IsBusy == true)
+                return;
+            var systemId = model.Ids[index];
+            if (Destination?.SystemId != systemId)
+                Destination = new DestinationViewModel(systemId, model.Names[index], _destinations, () => _account.Session);
+            destination = Destination;
+        }
+        _ = destination.SetForAsync(characters);
+    }
 
     /// <summary>A system's name, security and region.</summary>
     private MapSystemInfo Describe(int index)

@@ -90,7 +90,7 @@
       <Setter Property="Stretch" Value="Uniform" />
     </Style>
   </UserControl.Styles>
-  <ScrollViewer>
+  <ScrollViewer ScrollChanged="OnScrolled">
   <StackPanel Spacing="8" Margin="12">
     <StackPanel Spacing="6">
       <TextBlock Classes="label" Text="GATE JUMPS" />
@@ -144,8 +144,8 @@
       </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="mw:NearbyCardViewModel">
-          <!-- The card is clickable (code-behind); focusable, so Enter selects it too -->
-          <Border Classes="card" Focusable="True" Cursor="Hand" Tapped="OnCardTapped" KeyDown="OnCardKeyDown"
+          <!-- The card is clickable (code-behind); focusable, so Enter selects it too; a right click (or the menu key) opens the system's menu -->
+          <Border Classes="card" Focusable="True" Cursor="Hand" Tapped="OnCardTapped" KeyDown="OnCardKeyDown" ContextRequested="OnCardContextRequested"
                   PointerEntered="OnCardEntered" PointerExited="OnCardExited" GotFocus="OnCardEntered" LostFocus="OnCardExited"
                   AutomationProperties.Name="{Binding Name}">
             <Classes.selected>
