@@ -1,0 +1,110 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mw="using:NewEdenSoft.Hunters.Desktop.Widgets.Map"
+             xmlns:w="using:NewEdenSoft.Hunters.Desktop.Widgets"
+             x:Class="NewEdenSoft.Hunters.Desktop.Widgets.Map.SystemWidgetView"
+             x:DataType="mw:SystemWidgetViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.ok">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.OkBrush}" />
+    </Style>
+    <Style Selector="TextBlock.danger">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.DangerBrush}" />
+    </Style>
+    <!-- The commands, like the Nearby cards' quick controls -->
+    <Style Selector="Button.quick">
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.quick:pointerover">
+      <Setter Property="Background" Value="{DynamicResource Hud.PrimarySoftBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Hud.PrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.quick:disabled">
+      <Setter Property="Opacity" Value="0.5" />
+    </Style>
+    <Style Selector="Button.quick Path">
+      <Setter Property="Stroke" Value="{DynamicResource Hud.FgBrush}" />
+      <Setter Property="StrokeThickness" Value="2" />
+      <Setter Property="StrokeLineCap" Value="Round" />
+      <Setter Property="StrokeJoin" Value="Round" />
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Height" Value="12" />
+      <Setter Property="Stretch" Value="Uniform" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer>
+  <StackPanel Spacing="10" Margin="12">
+    <TextBlock Classes="muted" FontSize="13" TextWrapping="Wrap" IsVisible="{Binding !HasSystem}"
+               Text="Select a system on the map, or focus one." />
+
+    <StackPanel Spacing="10" IsVisible="{Binding HasSystem}">
+      <!-- Why this system: the selection, the focus, or both -->
+      <WrapPanel ItemSpacing="4" LineSpacing="4">
+        <Border Classes="badge" IsVisible="{Binding IsSelected}"><TextBlock Text="SELECTED" /></Border>
+        <Border Classes="badge" IsVisible="{Binding IsFocused}"><TextBlock Text="FOCUSED" /></Border>
+      </WrapPanel>
+
+      <!-- Name and security on one baseline across the two fonts, then the region -->
+      <StackPanel Spacing="2" DataContext="{Binding System}" x:DataType="mw:MapSystemInfo">
+        <TextBlock FontWeight="SemiBold" TextWrapping="Wrap">
+          <Run Text="{Binding Name, FallbackValue={x:Null}}" FontFamily="{StaticResource Hud.DisplayFont}" FontSize="17" />
+          <Run Text="  " />
+          <Run Text="{Binding Security, FallbackValue={x:Null}}" FontFamily="{StaticResource Hud.MonoFont}" FontSize="13"
+               Foreground="{Binding SecurityBrush, FallbackValue={x:Null}}" />
+        </TextBlock>
+        <TextBlock Classes="muted" FontSize="13" Text="{Binding Region, FallbackValue={x:Null}}" />
+      </StackPanel>
+
+      <WrapPanel ItemSpacing="4" LineSpacing="4">
+        <Button Classes="hud toggle ghost" Content="ZKILLBOARD ↗" Tag="{Binding ZkillboardUrl}" Click="OnLinkClick"
+                ToolTip.Tip="The system's kills on zKillboard" />
+        <Button Classes="hud toggle ghost" Content="DOTLAN ↗" Tag="{Binding DotlanUrl}" Click="OnLinkClick"
+                ToolTip.Tip="The system on Dotlan" />
+      </WrapPanel>
+
+      <WrapPanel ItemSpacing="4" LineSpacing="4">
+        <Button Classes="hud quick" Command="{Binding ToggleFocusCommand}" ToolTip.Tip="{Binding FocusTip}">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Path Data="{StaticResource Hud.Icon.Target}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding FocusText, Converter={x:Static w:UpperCaseConverter.Instance}}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <!-- Destination as a split button: every tracked character, or ▾ for one -->
+        <StackPanel Orientation="Horizontal" Spacing="1">
+          <Button Classes="hud quick" Command="{Binding SetDestinationCommand}"
+                  ToolTip.Tip="{Binding DestinationTip}" ToolTip.ShowOnDisabled="True">
+            <Button.IsEnabled>
+              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                <Binding Path="HasTracked" />
+                <Binding Path="Destination.IsIdle" FallbackValue="False" />
+              </MultiBinding>
+            </Button.IsEnabled>
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <Path Data="{StaticResource Hud.Icon.Flag}" VerticalAlignment="Center" />
+              <!-- One TextBlock, so the word and the count share a baseline -->
+              <TextBlock VerticalAlignment="Center">
+                <Run Text="DESTINATION" />
+                <Run Text="{Binding TrackedCountText}" FontFamily="{StaticResource Hud.MonoFont}" />
+              </TextBlock>
+            </StackPanel>
+          </Button>
+          <Button x:Name="ChooseCharacter" Classes="hud quick" Content="▾" Click="OnChooseCharacter"
+                  IsEnabled="{Binding Destination.IsIdle, FallbackValue=False}"
+                  ToolTip.Tip="Set the destination for one character" AutomationProperties.Name="Set the destination for one character" />
+        </StackPanel>
+      </WrapPanel>
+
+      <TextBlock FontSize="12" TextWrapping="Wrap" Classes="muted"
+                 Text="{Binding Destination.StatusText, FallbackValue={x:Null}}"
+                 IsVisible="{Binding Destination.HasStatus, FallbackValue=False}"
+                 Classes.ok="{Binding Destination.IsOk, FallbackValue=False}"
+                 Classes.danger="{Binding Destination.IsDanger, FallbackValue=False}" />
+    </StackPanel>
+  </StackPanel>
+  </ScrollViewer>
+</UserControl>

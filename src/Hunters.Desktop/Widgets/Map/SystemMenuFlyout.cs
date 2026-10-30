@@ -38,11 +38,12 @@ public static class SystemMenuFlyout
 
         var item = new MenuItem { Header = "Navigate to", Icon = MenuIcon("Hud.Icon.Flag"), Items = { all } };
         foreach (var character in menu.Usable)
-            item.Items.Add(CharacterItem(menu, character));
+            item.Items.Add(CharacterItem(character, menu.IsBusy, () => menu.Navigate([character])));
         return item;
     }
 
-    private static MenuItem CharacterItem(SystemMenu menu, DestinationCharacter character)
+    /// <summary>A usable character, with a dot for online, to set the destination for just that one (here and the System widget's ▾).</summary>
+    public static MenuItem CharacterItem(DestinationCharacter character, bool isBusy, Action choose)
     {
         var item = new MenuItem
         {
@@ -53,10 +54,10 @@ public static class SystemMenuFlyout
                 Height = 8,
                 Fill = Resource<IBrush>(character.IsOnline ? "Hud.OkBrush" : "Hud.FgFaintBrush"),
             },
-            IsEnabled = !menu.IsBusy,
+            IsEnabled = !isBusy,
         };
         ToolTip.SetTip(item, SystemMenu.CharacterTip(character));
-        item.Click += (_, _) => menu.Navigate([character]);
+        item.Click += (_, _) => choose();
         return item;
     }
 

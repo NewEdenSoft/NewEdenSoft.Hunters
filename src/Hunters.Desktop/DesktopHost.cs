@@ -107,6 +107,8 @@ public static class DesktopHost
             "map-controls", "Map controls", "How the map is drawn: its layout, colours and legend.", 300, 240);
         services.AddWidget<NearbyWidgetViewModel, NearbyWidgetView>(
             "nearby", "Nearby", "What is in reach of the focused system, and where something happens.", 320, 320);
+        services.AddWidget<SystemWidgetViewModel, SystemWidgetView>(
+            "system", "System", "The selected or focused system: links, focus and the autopilot destination.", 300, 260);
         services.AddWidget<HuntingWidgetViewModel, HuntingWidgetView>(
             "hunting", "Hunting", "Hunting profiles on the map: a glow where each is likely now, and badges where it is seen.", 300, 200);
         services.AddWidget<JumpRangeWidgetViewModel, JumpRangeWidgetView>(
