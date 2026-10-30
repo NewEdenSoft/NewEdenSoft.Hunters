@@ -214,6 +214,17 @@ Next for the map: the Nearby panel, route highlight on hover, fleet member marke
 
 How the [map](#map) is drawn: its **layout** (CCP's 2D map or top-down), its **colour** filter (the activity ones only when the server has activity), the **minimum NPC kills** for NPC rising and falling, and the filter's legend (or why it shows nothing yet). It is a widget of its own, so the map stays clear: dock it as a page, or pop it out as an overlay next to the map. Its state is the map's (`MapWidgetViewModel.FilterId` and `MinNpc`, `MapPreferences.Layout`), so both stay in step wherever they are shown.
 
+## System
+
+One system in detail, like the web's [System panel](web-client.md#map) (`SystemWidgetViewModel`): the **selected** system, or the **focused** one while nothing is selected, tagged *Selected* and/or *Focused*. With neither, it says to select or focus one.
+
+- **Header:** the name and security (in its colour, on one baseline), the region, and links to the system on **zKillboard** (`https://zkillboard.com/system/{id}/`) and **Dotlan** (`https://evemaps.dotlan.net/system/{Name_With_Underscores}`), opened in the browser (`SystemLinks`).
+- **Commands:**
+  - **Focus**, or **Unfocus** when it is the focused system
+  - **Destination**, a split button: the main part sets the autopilot destination there for every tracked character (showing how many), and **▾** lists the account's usable characters (online first, then the main, with a dot for online) to set it for one, as the system's menu does (`SystemMenuFlyout.CharacterItem`). Both go through `Destinations`, as the Nearby cards' Dest. The outcome is listed under the buttons, a success clearing after a few seconds; the buttons wait while one is being set. The outcome is kept while the same system is shown.
+
+Last hour, hunting profiles with their regulars, and recent kills come next (see [Desktop To-Do](desktop-todo.md)).
+
 ## Hunting
 
 Which hunting profiles the [map](#map) shows: a toggle per profile with its mark, and a line on what the glow means (or how to start). A server without profiles says so. Like Map controls, it is a widget of its own, docked or floating, and its state is the map's (`MapWidgetViewModel.ShownProfiles`, saved in `MapPreferences.HuntingProfiles`), like the web's Hunting panel.

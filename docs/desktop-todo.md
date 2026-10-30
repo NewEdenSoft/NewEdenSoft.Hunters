@@ -45,13 +45,13 @@ See the system menu in [Web Client](web-client.md#map).
 - [x] **Navigate to** in the system's menu on the map, a submenu: **All (N)** for every tracked character, then each usable character (online first, then the main, with an online dot) for that one; the outcome shown on the map.
 - [x] The same menu (**Focus system**, **Navigate to**) on a right click on a Nearby card, the outcome on the card.
 - [x] With a focus, the hover panel shows the gate jumps from the focused system ("5 jumps from X", or *no gates*), and here the light years too.
-- [ ] No other context menu on the map, even on empty space, or on the widgets (except in text fields).
+- Web only: no other context menu on the map or the panels blocks the browser's own menu; the desktop has none to block.
 
 ## System panel
 See [System panel](web-client.md#map). Needs the server's `GET /api/kills/systems/{id}` (the `kills` feature) and `GET /api/hunting/systems/{id}`.
-- [ ] A **System** widget showing the selected system, or the focused one while nothing is selected, tagged Selected / Focused.
-- [ ] **Header:** name, security and region, with zKillboard (`https://zkillboard.com/system/{id}/`) and Dotlan (`https://evemaps.dotlan.net/system/{Name_With_Underscores}`) links.
-- [ ] **Commands:**
+- [x] A **System** widget showing the selected system, or the focused one while nothing is selected, tagged Selected / Focused.
+- [x] **Header:** name, security and region, with zKillboard (`https://zkillboard.com/system/{id}/`) and Dotlan (`https://evemaps.dotlan.net/system/{Name_With_Underscores}`) links.
+- [x] **Commands:**
   - Focus / Unfocus
   - Destination as a split button: the main part sets it on every tracked character (showing how many); ▾ lists the usable characters (online first, then the main) to set it for one. ESI `POST /ui/autopilot/waypoint?add_to_beginning=false&clear_other_waypoints=true&destination_id=…` with the character's token; retry once on 401, and ask for a new login on 403.
 - [ ] **Last hour:** NPC, ship and pod kills and jumps, each with the last hour, the change from the hour before (▲ / ▼ / –), the last 24 hours and the usual, plus Peak now / Peak in N h. Port `metricRows` and `peakHint` from `map/systemInfo.ts`.
