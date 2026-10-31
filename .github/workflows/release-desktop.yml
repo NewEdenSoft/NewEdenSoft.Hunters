@@ -1,0 +1,136 @@
+name: Release desktop
+
+# Started by hand from main (Actions → Release desktop → Run workflow) with a version such as 1.2.3,
+# or 1.2.3-rc.1 for a pre-release. Runs the CI checks, builds the desktop app and packs it with
+# Velopack, then tags the commit desktop-vX.Y.Z and creates a GitHub Release with generated notes
+# and the installer attached. X.Y is the feature line shared with the server: a server release in
+# it must come first (docs/deployment.md#releasing).
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version, e.g. 1.2.3 or 1.2.3-rc.1"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-desktop
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Releases are made from main, not $GITHUB_REF."; exit 1
+          fi
+          version="${VERSION#v}"
+          if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$VERSION' is not a version like 1.2.3 or 1.2.3-rc.1."; exit 1
+          fi
+          line="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/desktop-v$version" --silent 2> /dev/null; then
+            echo "::error::Tag desktop-v$version already exists."; exit 1
+          fi
+          # The server's releases in this feature line; a pre-release of the desktop may follow a
+          # pre-release of the server, a release needs a server release.
+          servers=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/server-v$line." \
+            --jq '.[].ref | ltrimstr("refs/tags/")')
+          if [[ "$version" != *-* ]]; then servers=$(grep -E '^server-v[0-9.]+$' <<< "$servers" || true); fi
+          if [[ -z "$servers" ]]; then
+            echo "::error::No server release in $line yet. Release the server's $line.0 first."; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: CI
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+
+  desktop:
+    name: Installer
+    needs: [validate, ci]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # vpk, pinned in dotnet-tools.json to the Velopack package's version.
+      - name: Restore tools
+        run: dotnet tool restore
+
+      # Self-contained, so users need no .NET installed.
+      - name: Publish
+        run: >
+          dotnet publish src/Hunters.Desktop/Hunters.Desktop.csproj -c Release -r win-x64
+          --self-contained -p:PublishReadyToRun=true -p:Version="$VERSION" -o publish
+
+      # Setup.exe installs for the current user (no admin), with Start menu and desktop shortcuts.
+      # vpk leaves the .pdb files out.
+      - name: Pack
+        run: >
+          dotnet vpk pack --packId NewEdenSoft.Hunters --packVersion "$VERSION" --packDir publish
+          --mainExe NewEdenSoft.Hunters.Desktop.exe --packTitle Hunters --packAuthors NewEdenSoft
+          --icon src/Hunters.Desktop/Assets/hunters.ico --outputDir releases
+
+      # The version goes in the names users download, since they pick the release that matches
+      # their server. The package and its feed keep vpk's names, for an updater later.
+      - name: Collect
+        run: |
+          mkdir dist
+          cp "releases/NewEdenSoft.Hunters-win-Setup.exe" "dist/Hunters-$VERSION-Setup.exe"
+          cp "releases/NewEdenSoft.Hunters-win-Portable.zip" "dist/Hunters-$VERSION-Portable.zip"
+          cp releases/*.nupkg releases/releases.win.json dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: [validate, desktop]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop
+          path: desktop
+
+      # Creates the tag at the commit the app was built from, with the desktop files attached, and
+      # marks the release as latest unless it is a pre-release. The notes start from the previous
+      # desktop release, so they don't run on from a server one.
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          TAG="desktop-v$VERSION"
+          flags=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --title "Desktop $VERSION")
+          if [[ "$VERSION" == *-* ]]; then flags+=(--prerelease --latest=false); else flags+=(--latest); fi
+          previous=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName \
+            --jq '[.[].tagName | select(startswith("desktop-v"))][0] // empty')
+          if [[ -n "$previous" ]]; then flags+=(--notes-start-tag "$previous"); fi
+          gh release create "$TAG" desktop/* "${flags[@]}"

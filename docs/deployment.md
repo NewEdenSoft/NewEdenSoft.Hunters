@@ -133,13 +133,23 @@ On a Linux host with Docker Engine and the Compose plugin:
 
 ## Releasing
 
-Releases are made by hand from `main`: *Actions → Release → Run workflow*, branch `main`, and a version such as `0.1.0` (or `0.1.0-rc.1` for a pre-release). From the command line: `gh workflow run release.yml --ref main -f version=0.1.0`. The [release workflow](../.github/workflows/release.yml):
+The server (with the web app and the intel service) and the desktop app are released separately, so either can be patched without the other.
 
-1. Refuses to run from any other branch, or when the tag `vX.Y.Z` already exists.
+**Versions.** `X.Y` is the feature line, shared by both: a desktop `X.Y.*` goes with a server `X.Y.*`. A feature that needs both lands in a new `X.Y`, the server first, since the desktop depends on its API. The patch number `Z` is each one's own, so server `1.3.4` and desktop `1.3.1` belong together.
+
+| | Server | Desktop |
+|---|---|---|
+| Workflow | [`release-server.yml`](../.github/workflows/release-server.yml) | [`release-desktop.yml`](../.github/workflows/release-desktop.yml) |
+| Tag and release | `server-vX.Y.Z`, *Server X.Y.Z* | `desktop-vX.Y.Z`, *Desktop X.Y.Z* |
+| Publishes | Both images to GitHub Container Registry | The installer and portable zip on the release ([Installing](desktop-client.md#installing)) |
+
+Releases are made by hand from `main`: *Actions → Release server* (or *Release desktop*) *→ Run workflow*, branch `main`, and a version such as `0.3.0` (or `0.3.0-rc.1` for a pre-release). From the command line: `gh workflow run release-server.yml --ref main -f version=0.3.0`. Each workflow:
+
+1. Refuses to run from any other branch, or when its tag already exists. The desktop's also refuses when the server has no release in `X.Y` yet; a desktop pre-release may follow a server pre-release, a desktop release needs a server release.
 2. Runs the CI checks (the same jobs as [`ci.yml`](../.github/workflows/ci.yml)).
-3. Builds both images with `VERSION=X.Y.Z` and pushes them to GitHub Container Registry (`X.Y.Z`, `X.Y` and `latest`; only `X.Y.Z` for a pre-release).
-4. Tags the commit `vX.Y.Z` and creates a GitHub Release with generated notes, marked as *Latest*, or as a pre-release when the version has a suffix. Edit the notes afterwards if needed.
+3. Builds at version `X.Y.Z`. The server's: both images with `VERSION=X.Y.Z`, pushed to GitHub Container Registry (`X.Y.Z`, `X.Y` and `latest`; only `X.Y.Z` for a pre-release). The desktop's: the app, packed with Velopack.
+4. Tags the commit and creates a GitHub Release with notes generated since the previous release of the same kind (the desktop's with its files attached), marked as *Latest*, or as a pre-release when the version has a suffix. Edit the notes afterwards if needed.
 
-Don't push version tags or draft releases on GitHub yourself: neither starts a build.
+Don't push version tags or draft releases on GitHub yourself: neither starts a build. The first pre-releases, `v0.1.0-rc.1` and `v0.2.0-rc.1`, were server releases from before the two were split.
 
 New packages on GitHub Container Registry are private. After the first release, make `hunters-server` and `hunters-intel` public under the organisation's *Packages* settings, so servers can pull them without logging in.

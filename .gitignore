@@ -8,6 +8,9 @@ artifacts/
 TestResults/
 *.trx
 *.coverage
+# Desktop installer built locally (docs/desktop-client.md#installing)
+/publish/
+/releases/
 
 # IDEs
 .idea/

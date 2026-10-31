@@ -117,6 +117,10 @@ Restart the AppHost after changing parameters. The web dev server always runs on
 
 Then `docker compose up -d`. Step-by-step deployment, upgrades, backups and the full configuration reference are in [Deployment](docs/deployment.md).
 
+## Desktop app
+
+Download `Hunters-X.Y.Z-Setup.exe` (or the portable zip) from a *Desktop* release on [Releases](https://github.com/NewEdenSoft/NewEdenSoft.Hunters/releases): the newest one with the same first two numbers as your server (for a server 1.3.4, the newest desktop 1.3.x). It installs for your user without admin rights; Windows SmartScreen warns the first time, as the installer isn't signed yet (*More info → Run anyway*). See [Installing](docs/desktop-client.md#installing).
+
 ## Self-hosting
 
 See [Deployment](docs/deployment.md).

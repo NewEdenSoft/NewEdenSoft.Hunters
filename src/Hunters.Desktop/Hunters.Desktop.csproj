@@ -29,6 +29,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
 
   <ItemGroup>
