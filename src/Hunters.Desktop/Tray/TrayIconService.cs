@@ -22,7 +22,7 @@ public sealed class TrayIconService(SessionHost sessions, MainWindow mainWindow)
         _lifetime = lifetime;
         _tray = new TrayIcon
         {
-            Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://NewEdenSoft.Hunters.Desktop/Assets/avalonia-logo.ico"))),
+            Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://NewEdenSoft.Hunters.Desktop/Assets/hunters.ico"))),
             ToolTipText = "Hunters",
             Menu = BuildMenu(),
         };
