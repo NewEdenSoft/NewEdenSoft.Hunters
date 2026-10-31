@@ -18,22 +18,39 @@ The app runs inside the .NET Generic Host (`DesktopHost`): dependency injection,
 
 ## Login
 
-Loopback login with a single-use code. See [Authentication](authentication.md#desktop-login).
+The login screen is all the app shows until a session starts. Loopback login with a single-use code. See [Authentication](authentication.md#desktop-login).
 
-### Signed out and signed in (planned)
+### Signed out and signed in
 
 Every feature requires a signed-in session. See [D19](decisions.md#d19--both-apps-are-behind-login).
 
 #### Sessions are memory only
 
-The desktop keeps its app session in memory and never writes it to disk or the OS credential store, so every start of the app needs a login ([D20](decisions.md#d20--desktop-sessions-are-memory-only)). The EVE login page usually remembers the browser, so this is normally two clicks. When the app quits it revokes its session on the server (best effort), so unused sessions do not pile up.
+The desktop keeps its app session in memory and never writes it to disk or the OS credential store, so every start of the app needs a login ([D20](decisions.md#d20--desktop-sessions-are-memory-only)). The EVE login page usually remembers the browser, so this is normally two clicks. When the app quits it revokes its session on the server (best effort, waiting at most 3 seconds), so unused sessions do not pile up.
 
-- **Signed out**: the main window shows only the login screen (server address, access key, log in). No navigation rail, no widgets, no overlays. The tray menu has only *Open Hunters* and *Quit Hunters*.
-- **Signed in**: the full app (navigation rail, widget pages, Account, Settings) and the saved overlays are restored.
-- **At startup**: the app always opens on the login screen, with the last saved server's address and access key filled in, even if *Start in the system tray* is on. Saved overlays and *Start in the system tray* apply after login.
-- **Session ends** (log out, revoked by the server, or rejected by admission): overlays close, background work stops and the app returns to the login screen.
+- **Signed out**: the main window shows only the login screen (saved servers, server address, access key, *Log in with EVE Online*, *Save server*). No navigation rail, no widgets, no overlays. The tray menu has only *Open Hunters* and *Quit Hunters*. **Closing the window quits Hunters**: with nothing running there is no reason to stay in the tray.
+- **Signed in**: the full app (navigation rail, widget pages, Info, Account, Settings) and the saved overlays are restored. Closing the main window hides it to the tray, and the tray menu has the overlays again.
+- **At startup**: the app always opens on the login screen, with the last saved server's address and access key filled in, even if *Start in the system tray* is on. Saved overlays come back with the session; *Start in the system tray* applies to the first login after the app starts (the main window hides when an overlay is open), not to later logins.
+- **Session ends** (log out, account deleted, revoked by the server, or rejected by admission): the layout is saved, overlays close, background work stops and the app returns to the login screen, with the server's address still filled in.
+- **Quit** (from the tray, or Windows signing out): the session ends as above, then it is revoked on the server.
 
-Until this is built, the Account page is just another page and the rest of the app works without a session.
+#### One scope per session
+
+The signed-in app lives in a dependency injection scope of its own, created at login and disposed when the session ends, so nothing of one session (the map pack, the focus and selection, the tracker, polling) is left for the next.
+
+| Piece | Lifetime | Role |
+|---|---|---|
+| `SessionHost` | App | Starts a session (creates the scope, builds the shell, starts the Account page with the session, restores the overlays) and ends it (saves the layout and closes the overlays through `WidgetManager.Shutdown`, stops tracking, disposes the scope). Raises `Changed` for the main window and the tray. `Quit` ends the session and revokes it. |
+| `LoginViewModel`, `LoginView` | App | The login screen. A successful login hands the new `HuntersSession` to `SessionHost.Start`. |
+| `MainWindowViewModel` | App | Shows the login screen or the session's shell (`IsSignedIn`); `QuitsOnClose` while signed out. |
+| `TrayIconService` | App | Rebuilds the tray menu when a session starts or ends. |
+| `ShellViewModel`, `ShellView` | Session | The navigation rail and pages (what the main window was before). |
+| `AccountPageViewModel` | Session | The account and its characters. The widgets read the session from it, as before; `Start` and `Stop` set it. |
+| `WidgetManager`, every widget, `InfoPageViewModel`, `SettingsPageViewModel` | Session | |
+| `MapPreferences`, `MapFocus`, `CharacterPreferences`, `CharacterTracking`, `Destinations` | Session | |
+| `ThemeService`, `SavedServers`, `PortraitCache`, `EveNames`, ESI clients | App | The theme is used on the login screen too; caches of public data are kept for the app's lifetime. |
+
+A session service that listens to an app service unsubscribes when the scope disposes it (the map and the Settings page listen to theme changes). An app service never takes a session service: the host validates scopes in Development and the tests build the container with `ValidateScopes` and `ValidateOnBuild`.
 
 ### Account page
 
@@ -88,7 +105,7 @@ The desktop calls ESI directly with NewEdenKit.ESI, using a local file cache. Ac
 - `Track(ids)` sets exactly which characters are tracked; characters no longer in the list are stopped and removed, with a `Changed` event whose `Current` is null.
 - The ESI calls go through `ILocationEsi`, implemented with NewEdenKit.ESI's `ILocation`, so the tracker is tested with a fake ESI and a fake clock.
 
-In the desktop, `CharacterTracking` owns the one tracker for the signed-in session. It tracks the account's characters that are usable (no re-auth or missing permissions) and not switched off, and follows account changes and the switches. A new session replaces the tracker; logging out stops it. Each character row on the Account page has a **Track** switch (on by default, saved for this computer in `Characters.{id}.IsTracked`) and a line such as *Online · Jita · Docked at Jita IV - Moon 4 - Caldari Navy Assembly Plant · Ishtar “Hunter One”*, with a green dot while online. While polling fails, the line turns amber, with the error in its tooltip. Names of systems, stations and ship types come from ESI's public `POST /universe/names` and are cached for the app's lifetime (`EveNames`). Player structures are not public, so those show as *Docked*.
+In the desktop, `CharacterTracking` owns the one tracker for the signed-in session. It tracks the account's characters that are usable (no re-auth or missing permissions) and not switched off, and follows account changes and the switches. Each session has its own ([one scope per session](#one-scope-per-session)); logging out stops it. Each character row on the Account page has a **Track** switch (on by default, saved for this computer in `Characters.{id}.IsTracked`) and a line such as *Online · Jita · Docked at Jita IV - Moon 4 - Caldari Navy Assembly Plant · Ishtar “Hunter One”*, with a green dot while online. While polling fails, the line turns amber, with the error in its tooltip. Names of systems, stations and ship types come from ESI's public `POST /universe/names` and are cached for the app's lifetime (`EveNames`). Player structures are not public, so those show as *Docked*.
 
 ESI's error limit is per IP, so these calls count against the user's own connection rather than the server's.
 
@@ -136,25 +153,25 @@ EVE must run windowed or borderless; overlays cannot draw over exclusive fullscr
 
 ### System tray and lifetime
 
-The app lives in the system tray. Closing the main window hides it; the app exits only from the tray menu.
+While signed in, the app lives in the system tray: closing the main window hides it, and the app exits only from the tray menu. While signed out, closing the main window quits (see [Signed out and signed in](#signed-out-and-signed-in)).
 
-| Tray menu item | Action |
-|---|---|
-| Open Hunters | Show the main window (also a left click on the icon) |
-| Overlays ▸ *widget* | Pop each widget out as an overlay, or dock it back (checked = floating) |
-| Hide all overlays | Temporarily hide every overlay without docking it |
-| Quit Hunters | Save layout and exit |
+| Tray menu item | Shown | Action |
+|---|---|---|
+| Open Hunters | Always | Show the main window (also a left click on the icon) |
+| Overlays ▸ *widget* | Signed in | Pop each widget out as an overlay, or dock it back (checked = floating) |
+| Hide all overlays | Signed in | Temporarily hide every overlay without docking it |
+| Quit Hunters | Always | End the session (save layout, close overlays), revoke it on the server, and exit |
 
-After login the saved overlays are restored, and the main window hides to the tray if **Start in the system tray** is on and at least one overlay is open.
+After login the saved overlays are restored, and after the first login of the app's run the main window hides to the tray if **Start in the system tray** is on and at least one overlay is open.
 
 ### Implementation
 
 | Piece | Role |
 |---|---|
-| `services.AddWidget<TViewModel, TView>(id, title, description, width, height, fillsPage)` | Registers a widget. Its view model is a single instance, so state survives moving between page and overlay. With `fillsPage`, the docked widget fills the height of its page instead of scrolling (the map). |
+| `services.AddWidget<TViewModel, TView>(id, title, description, width, height, fillsPage)` | Registers a widget. Its view model is one instance per session, so state survives moving between page and overlay. With `fillsPage`, the docked widget fills the height of its page instead of scrolling (the map). |
 | `WidgetViewModelBase.IsActive` | True while the widget is on screen (selected page in a visible main window, or a shown overlay). Use it to pause polling. |
 | `WidgetState` | Live layout state per widget, bound by the page and the overlay. |
-| `WidgetManager` | Floats and docks widgets, owns the overlay windows, restores and saves layout. |
+| `WidgetManager` | Floats and docks widgets, owns the overlay windows, restores and saves layout. One per session: it restores the overlays at login and saves and closes them when the session ends. |
 | `OverlayWindow` | Borderless, transparent, topmost, not in the taskbar or Alt+Tab, does not take focus when shown. |
 | `IOverlayPlatform` | Click-through and overlay window styles per OS. Windows: `WS_EX_LAYERED \| WS_EX_TRANSPARENT`, `WS_EX_TOOLWINDOW`. |
 | `TrayIconService` | The tray icon and menu. |

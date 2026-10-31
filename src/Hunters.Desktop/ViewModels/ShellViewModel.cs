@@ -1,0 +1,86 @@
+using System.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using NewEdenSoft.Hunters.Desktop.Map;
+using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
+using NewEdenSoft.Hunters.Desktop.Widgets;
+
+namespace NewEdenSoft.Hunters.Desktop.ViewModels;
+
+/// <summary>The signed-in main window: navigation rail with widget pages and system pages. One per session.</summary>
+public partial class ShellViewModel : ViewModelBase
+{
+    public ShellViewModel(WidgetManager widgets, InfoPageViewModel info, AccountPageViewModel account, SettingsPageViewModel settings, MapFocus mapFocus)
+    {
+        WidgetPages = widgets.Widgets.Select(w => new WidgetPageViewModel(w, widgets)).ToList();
+
+        // Focusing on a character shows the map: a docked map's page is selected (a floating one is already on screen).
+        mapFocus.FocusRequested += (_, _) =>
+        {
+            if (WidgetPages.FirstOrDefault(p => p.Widget.Id == MapWidgetId) is { Widget.IsFloating: false } page && !page.IsSelected)
+                Navigate(page);
+        };
+
+        SystemPages = [info, account, settings];
+
+        foreach (var page in WidgetPages)
+            page.Widget.PropertyChanged += OnWidgetChanged;
+
+        Navigate(WidgetPages.FirstOrDefault() ?? (PageViewModel)account);
+    }
+
+    /// <summary>The map widget's id, as registered in <see cref="DesktopHost"/>.</summary>
+    public const string MapWidgetId = "map";
+
+    public IReadOnlyList<WidgetPageViewModel> WidgetPages { get; }
+
+    public IReadOnlyList<PageViewModel> SystemPages { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScrollingPage), nameof(FullBleedPage), nameof(IsFullBleed))]
+    public partial PageViewModel? CurrentPage { get; private set; }
+
+    /// <summary>The current page when it scrolls in the padded content area.</summary>
+    public PageViewModel? ScrollingPage => CurrentPage is { IsFullBleed: false } ? CurrentPage : null;
+
+    /// <summary>The current page when it fills the content area (a docked map).</summary>
+    public PageViewModel? FullBleedPage => CurrentPage is { IsFullBleed: true } ? CurrentPage : null;
+
+    public bool IsFullBleed => CurrentPage?.IsFullBleed == true;
+
+    /// <summary>Set from the main window as it is shown and hidden to the tray; false once the session ends.</summary>
+    [ObservableProperty]
+    public partial bool IsWindowVisible { get; set; }
+
+    [RelayCommand]
+    public void Navigate(PageViewModel page)
+    {
+        if (CurrentPage is not null)
+            CurrentPage.IsSelected = false;
+
+        CurrentPage = page;
+        page.IsSelected = true;
+        UpdateDockedActivity();
+    }
+
+    partial void OnIsWindowVisibleChanged(bool value) => UpdateDockedActivity();
+
+    private void OnWidgetChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(WidgetState.IsFloating))
+            return;
+
+        UpdateDockedActivity();
+        // A widget that fills its page scrolls with it while floating (its page shows overlay settings).
+        OnPropertyChanged(nameof(ScrollingPage));
+        OnPropertyChanged(nameof(FullBleedPage));
+        OnPropertyChanged(nameof(IsFullBleed));
+    }
+
+    /// <summary>Docked widgets are active only while their page is visible. Floating ones are handled by <see cref="WidgetManager"/>.</summary>
+    private void UpdateDockedActivity()
+    {
+        foreach (var page in WidgetPages.Where(p => !p.Widget.IsFloating))
+            page.Widget.Content.IsActive = IsWindowVisible && page.IsSelected;
+    }
+}

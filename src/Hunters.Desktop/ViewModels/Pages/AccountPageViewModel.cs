@@ -3,124 +3,55 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NewEdenSoft.Hunters.Client;
 using NewEdenSoft.Hunters.Client.Auth;
 using NewEdenSoft.Hunters.Client.Sessions;
 using NewEdenSoft.Hunters.Client.Tracking;
 using NewEdenSoft.Hunters.Contracts.Account;
-using NewEdenSoft.Hunters.Contracts.Auth;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Images;
-using NewEdenSoft.Hunters.Desktop.Settings;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 
 /// <summary>
-/// Log in to a Hunters server with EVE Online and manage the account's characters. The session
-/// is kept in memory only and never saved (docs/decisions.md, D20). Server addresses and their access
-/// keys can be saved on the login screen (<see cref="Settings.SavedServers"/>); the last saved is filled in at start.
+/// The signed-in account and its characters. One per session: <see cref="Sessions.SessionHost"/> starts it
+/// with the session after the login screen, and stops it when the session ends. The session is kept in
+/// memory only and never saved (docs/decisions.md, D20).
 /// </summary>
 public sealed partial class AccountPageViewModel(
     DesktopLoginClient logins,
-    IHttpClientFactory httpClients,
     PortraitCache portraits,
     CharacterPreferences preferences,
     CharacterTracking tracking,
-    EveNames names,
-    SavedServers servers) : PageViewModel
+    EveNames names) : PageViewModel
 {
-    public const string HttpClientName = "Hunters";
-
     private CancellationTokenSource? _browserLogin;
 
     public override string Title => "Account";
 
     public override string? Badge => Session is null ? null : NeedsAttention ? "LOG IN" : "ONLINE";
 
-    // Logged out
-
+    /// <summary>The session, from <see cref="Start"/> until <see cref="Stop"/>; the widgets read it from here.</summary>
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(LogInCommand), nameof(SaveServerCommand))]
-    public partial string ServerUrl { get; set; } = servers.All.FirstOrDefault()?.Label ?? "";
-
-    [ObservableProperty]
-    public partial string AccessKey { get; set; } = servers.All.FirstOrDefault()?.AccessKey ?? "";
-
-    /// <summary>The servers saved on this computer, last saved first.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSavedServers))]
-    public partial IReadOnlyList<SavedServer> SavedServers { get; private set; } = servers.All;
-
-    public bool HasSavedServers => SavedServers.Count > 0;
-
-    /// <summary>"Saved hunters.example.com with its access key." after Save; cleared when another server is picked.</summary>
-    [ObservableProperty]
-    public partial string? SavedText { get; private set; }
-
-    /// <summary>Saves the address, and the access key when one is entered, on this computer.</summary>
-    [RelayCommand(CanExecute = nameof(CanLogIn))]
-    private void SaveServer()
-    {
-        if (!ServerAddress.TryParse(ServerUrl, out var server))
-        {
-            ErrorMessage = "Enter a server address, for example hunters.example.com.";
-            return;
-        }
-
-        var saved = servers.Save(server, AccessKey);
-        SavedServers = servers.All;
-        ErrorMessage = null;
-        SavedText = $"Saved {saved.Label}{(saved.HasAccessKey ? " with its access key" : "")}.";
-    }
-
-    /// <summary>Fills in a saved server's address and access key.</summary>
-    [RelayCommand]
-    private void PickServer(SavedServer server)
-    {
-        ServerUrl = server.Label;
-        AccessKey = server.AccessKey ?? "";
-        SavedText = null;
-        ErrorMessage = null;
-    }
-
-    [RelayCommand]
-    private void ForgetServer(SavedServer server)
-    {
-        servers.Remove(server);
-        SavedServers = servers.All;
-        SavedText = null;
-    }
-
-    // State
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsLoggedIn), nameof(IsLoggedOut), nameof(Badge), nameof(ServerHost))]
+    [NotifyPropertyChangedFor(nameof(Badge), nameof(ServerHost))]
     public partial HuntersSession? Session { get; private set; }
-
-    public bool IsLoggedIn => Session is not null;
-
-    public bool IsLoggedOut => Session is null;
 
     public string? ServerHost => Session?.Server.Authority;
 
     /// <summary>Set while a request runs; disables the actions.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle), nameof(IsBusy))]
-    [NotifyCanExecuteChangedFor(nameof(LogInCommand))]
     public partial string? BusyText { get; private set; }
 
     public bool IsBusy => BusyText is not null;
 
     public bool IsIdle => BusyText is null;
 
-    /// <summary>True while the browser is open for a login; the login can be cancelled.</summary>
+    /// <summary>True while the browser is open to add a character or log in with one again; it can be cancelled.</summary>
     [ObservableProperty]
     public partial bool IsWaitingForBrowser { get; private set; }
 
     [ObservableProperty]
     public partial string? ErrorMessage { get; private set; }
-
-    // Logged in
 
     public ObservableCollection<CharacterItemViewModel> Characters { get; } = [];
 
@@ -131,25 +62,6 @@ public sealed partial class AccountPageViewModel(
 
     [ObservableProperty]
     public partial bool IsConfirmingDelete { get; set; }
-
-    [RelayCommand(CanExecute = nameof(CanLogIn))]
-    private async Task LogInAsync()
-    {
-        if (!ServerAddress.TryParse(ServerUrl, out var server))
-        {
-            ErrorMessage = "Enter a server address, for example hunters.example.com.";
-            return;
-        }
-
-        await RunBrowserLoginAsync(async ct =>
-        {
-            var result = await logins.LoginAsync(server, AccessKey, Environment.MachineName, cancellationToken: ct);
-            AccessKey = "";
-            SetSession(new HuntersSession(httpClients.CreateClient(HttpClientName), server, result));
-        });
-    }
-
-    private bool CanLogIn() => IsIdle && !string.IsNullOrWhiteSpace(ServerUrl);
 
     [RelayCommand]
     private void CancelLogIn() => _browserLogin?.Cancel();
@@ -232,11 +144,11 @@ public sealed partial class AccountPageViewModel(
         }
         catch (HuntersLoginException e)
         {
-            ErrorMessage = Describe(e.Code, e.Message);
+            ErrorMessage = LoginViewModel.Describe(e.Code, e.Message);
         }
         catch (HuntersApiException e)
         {
-            ErrorMessage = Describe(e.Code, e.Message);
+            ErrorMessage = LoginViewModel.Describe(e.Code, e.Message);
         }
         finally
         {
@@ -245,26 +157,28 @@ public sealed partial class AccountPageViewModel(
         }
     }
 
-    private void SetSession(HuntersSession? session)
+    /// <summary>Shows the session's account and starts tracking its characters.</summary>
+    internal void Start(HuntersSession session)
     {
-        if (Session is { } previous)
-        {
-            previous.AccountChanged -= OnAccountChanged;
-            previous.Ended -= OnSessionEnded;
-        }
-
         Session = session;
-        if (session is not null)
-        {
-            session.AccountChanged += OnAccountChanged;
-            session.Ended += OnSessionEnded;
-        }
-
-        SyncCharacters();
-
-        tracking.Changed -= OnTrackingChanged;
+        session.AccountChanged += OnAccountChanged;
         tracking.Changed += OnTrackingChanged;
         tracking.SetSession(session);
+        SyncCharacters();
+    }
+
+    /// <summary>The session ended: tracking stops, and the widgets drop it.</summary>
+    internal void Stop()
+    {
+        if (Session is not { } session)
+            return;
+
+        _browserLogin?.Cancel();
+        session.AccountChanged -= OnAccountChanged;
+        tracking.Changed -= OnTrackingChanged;
+        tracking.SetSession(null);
+        Session = null;
+        SyncCharacters();
     }
 
     // Raised on the polling thread.
@@ -273,12 +187,6 @@ public sealed partial class AccountPageViewModel(
 
     // Session events can come from background work (access token requests), so they are marshalled to the UI thread.
     private void OnAccountChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(SyncCharacters);
-
-    private void OnSessionEnded(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
-    {
-        if (ReferenceEquals(sender, Session))
-            SetSession(null);
-    });
 
     private void SyncCharacters()
     {
@@ -295,14 +203,6 @@ public sealed partial class AccountPageViewModel(
 
         NeedsAttention = Characters.Any(c => c.NeedsReauth);
     }
-
-    private static string Describe(string? code, string message) => code switch
-    {
-        AuthErrorCodes.AccessKeyRequired => "This server needs an access key to create an account. Enter one and log in again.",
-        AuthErrorCodes.AccessKeyInvalid => "That access key is not valid.",
-        AuthErrorCodes.LoginCancelled => "The login was cancelled in the browser.",
-        _ => message,
-    };
 }
 
 /// <summary>A character on the signed-in account.</summary>

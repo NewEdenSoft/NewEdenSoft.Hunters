@@ -1,12 +1,14 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using NewEdenSoft.Hunters.Desktop.ViewModels;
 
 namespace NewEdenSoft.Hunters.Desktop.Views;
 
 /// <summary>
-/// The main window. Closing it hides it to the system tray; the app keeps running with its
-/// overlays until the user quits from the tray menu.
+/// The main window. Signed in, closing it hides it to the system tray; the app keeps running with its
+/// overlays until the user quits from the tray menu. Signed out, closing it quits the app.
 /// </summary>
 public partial class MainWindow : Window
 {
@@ -29,7 +31,12 @@ public partial class MainWindow : Window
         if (e.CloseReason == WindowCloseReason.WindowClosing && !e.IsProgrammatic)
         {
             e.Cancel = true;
-            Hide();
+            if (DataContext is MainWindowViewModel { QuitsOnClose: true }
+                && Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+                // After this close is handled; shutting down closes the window again, programmatically.
+                Dispatcher.UIThread.Post(() => lifetime.Shutdown());
+            else
+                Hide();
         }
 
         base.OnClosing(e);

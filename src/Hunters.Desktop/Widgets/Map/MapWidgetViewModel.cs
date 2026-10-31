@@ -26,7 +26,7 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// while the widget is on screen (revalidated with its ETag, so mostly a 304), for the activity colours
 /// and the hover panel; with hunting profiles shown, where they are seen too, for their glow and badges.
 /// </summary>
-public sealed partial class MapWidgetViewModel : WidgetViewModelBase
+public sealed partial class MapWidgetViewModel : WidgetViewModelBase, IDisposable
 {
     /// <summary>How often to ask again while the server is still building the map pack.</summary>
     private static readonly TimeSpan PreparingRetry = TimeSpan.FromSeconds(10);
@@ -107,7 +107,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         };
         focus.FocusRequested += (_, id) => FocusOn(id);
         // Quiet systems are drawn in the theme's line colour.
-        theme.ThemeChanged += (_, _) => RebuildFilter();
+        theme.ThemeChanged += OnThemeChanged;
         focus.PropertyChanged += (_, _) =>
         {
             if (focus.FocusedCharacterId is null)
@@ -137,6 +137,16 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
                 RebuildJumpRange();
         };
     }
+
+    /// <summary>The session ended: the theme is the app's, so the map stops listening to it.</summary>
+    public void Dispose()
+    {
+        _theme.ThemeChanged -= OnThemeChanged;
+        _loading?.Cancel();
+        _polling?.Cancel();
+    }
+
+    private void OnThemeChanged(object? sender, ThemeDefinition theme) => RebuildFilter();
 
     public MapLayout Layout => _preferences.Layout;
 
@@ -590,7 +600,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase
         if (session is null)
         {
             HasError = false;
-            StatusText = "Log in on the Account page to see the map.";
+            StatusText = "Log in to see the map.";
             return;
         }
 

@@ -3,12 +3,12 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using NewEdenSoft.Hunters.Desktop.Sessions;
 using NewEdenSoft.Hunters.Desktop.Settings;
 using NewEdenSoft.Hunters.Desktop.Theming;
 using NewEdenSoft.Hunters.Desktop.Tray;
 using NewEdenSoft.Hunters.Desktop.ViewModels;
 using NewEdenSoft.Hunters.Desktop.Views;
-using NewEdenSoft.Hunters.Desktop.Widgets;
 
 namespace NewEdenSoft.Hunters.Desktop;
 
@@ -48,18 +48,29 @@ public partial class App : Application
             var window = _services.GetRequiredService<MainWindow>();
             window.DataContext = _services.GetRequiredService<MainWindowViewModel>();
 
-            var widgets = _services.GetRequiredService<WidgetManager>();
+            var sessions = _services.GetRequiredService<SessionHost>();
             var tray = _services.GetRequiredService<TrayIconService>();
             tray.Initialize(this, desktop);
-            widgets.RestoreOverlays();
 
-            var startInTray = _services.GetRequiredService<ISettingsStore>().Load().StartInTray;
-            if (!startInTray || !widgets.Widgets.Any(w => w.IsFloating))
-                desktop.MainWindow = window;
+            // Always opens on the login screen (docs/decisions.md, D20). The saved overlays come back with the
+            // session; Start in the system tray applies to the first login after the app starts.
+            desktop.MainWindow = window;
+            var settings = _services.GetRequiredService<ISettingsStore>();
+            EventHandler? firstLogin = null;
+            firstLogin = (_, _) =>
+            {
+                if (sessions.Widgets is not { } widgets)
+                    return;
+                sessions.Changed -= firstLogin;
+                if (settings.Load().StartInTray && widgets.Widgets.Any(w => w.IsFloating))
+                    window.Hide();
+            };
+            sessions.Changed += firstLogin;
 
             desktop.Exit += (_, _) =>
             {
-                widgets.Shutdown();
+                // Already done when quitting from the tray; here for other ways out (Windows signing out).
+                sessions.Quit();
                 tray.Dispose();
             };
         }

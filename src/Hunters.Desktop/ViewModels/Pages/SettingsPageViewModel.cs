@@ -7,7 +7,7 @@ using NewEdenSoft.Hunters.Desktop.Theming;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 
-public sealed partial class SettingsPageViewModel : PageViewModel
+public sealed partial class SettingsPageViewModel : PageViewModel, IDisposable
 {
     private readonly ThemeService _themes;
     private readonly ISettingsStore _settings;
@@ -38,9 +38,14 @@ public sealed partial class SettingsPageViewModel : PageViewModel
         };
         SyncBehaviour();
 
-        themes.ThemeChanged += (_, theme) => Sync(theme);
+        themes.ThemeChanged += OnThemeChanged;
         Sync(themes.Current);
     }
+
+    /// <summary>The session ended: the theme is the app's, so the page stops listening to it.</summary>
+    public void Dispose() => _themes.ThemeChanged -= OnThemeChanged;
+
+    private void OnThemeChanged(object? sender, ThemeDefinition theme) => Sync(theme);
 
     public override string Title => "Settings";
 

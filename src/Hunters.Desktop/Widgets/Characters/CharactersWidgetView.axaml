@@ -8,7 +8,7 @@
     <TextBlock Classes="muted" FontSize="13" Margin="16" TextWrapping="Wrap" TextAlignment="Center"
                HorizontalAlignment="Center" VerticalAlignment="Center"
                IsVisible="{Binding IsLoggedOut}"
-               Text="Log in on the Account page to see your characters." />
+               Text="Log in to see your characters." />
 
     <ScrollViewer IsVisible="{Binding IsLoggedIn}">
       <ItemsControl ItemsSource="{Binding Characters}" Margin="0,4">

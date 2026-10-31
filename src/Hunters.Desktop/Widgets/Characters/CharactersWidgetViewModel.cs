@@ -71,9 +71,9 @@ public sealed partial class CharactersWidgetViewModel : WidgetViewModelBase
 
     public ObservableCollection<CharacterRowViewModel> Characters { get; } = [];
 
-    public bool IsLoggedIn => _account.IsLoggedIn;
+    public bool IsLoggedIn => _account.Session is not null;
 
-    public bool IsLoggedOut => _account.IsLoggedOut;
+    public bool IsLoggedOut => _account.Session is null;
 
     private CharacterRowViewModel? Find(long id) => Characters.FirstOrDefault(c => c.Id == id);
 

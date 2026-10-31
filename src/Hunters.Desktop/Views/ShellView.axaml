@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NewEdenSoft.Hunters.Desktop.ViewModels"
+             xmlns:p="using:NewEdenSoft.Hunters.Desktop.ViewModels.Pages"
+             xmlns:v="using:NewEdenSoft.Hunters.Desktop.Views"
+             x:Class="NewEdenSoft.Hunters.Desktop.Views.ShellView"
+             x:DataType="vm:ShellViewModel">
+
+  <UserControl.Resources>
+    <DataTemplate x:Key="NavItem" x:DataType="p:PageViewModel">
+      <Button Classes="nav"
+              Classes.selected="{Binding IsSelected}"
+              Command="{Binding $parent[v:ShellView].((vm:ShellViewModel)DataContext).NavigateCommand}"
+              CommandParameter="{Binding}">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+          <Border Grid.Column="1" Classes="badge"
+                  IsVisible="{Binding Badge, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding Badge}" />
+          </Border>
+        </Grid>
+      </Button>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <DockPanel>
+
+    <!-- Navigation rail -->
+    <Border DockPanel.Dock="Left" Width="230"
+            Background="{DynamicResource Hud.SurfaceBrush}"
+            BorderBrush="{DynamicResource Hud.LineBrush}"
+            BorderThickness="0,0,1,0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Margin="22,24,22,28" Spacing="2">
+          <TextBlock Classes="h2 accent" Text="HUNTERS" LetterSpacing="3" />
+          <TextBlock Classes="label" Text="NEWEDENSOFT" />
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,16" Spacing="2">
+          <TextBlock Classes="label nav-heading" Text="SYSTEM" />
+          <ItemsControl ItemsSource="{Binding SystemPages}" ItemTemplate="{StaticResource NavItem}" />
+        </StackPanel>
+
+        <StackPanel Spacing="2">
+          <TextBlock Classes="label nav-heading" Text="WIDGETS" />
+          <ItemsControl ItemsSource="{Binding WidgetPages}" ItemTemplate="{StaticResource NavItem}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Current page: scrolling, or filling the height of the area (a docked map) -->
+    <Panel>
+      <ScrollViewer IsVisible="{Binding !IsFullBleed}">
+        <ContentControl Margin="36,32" MaxWidth="1040" Content="{Binding ScrollingPage}" />
+      </ScrollViewer>
+      <ContentControl Margin="36,32" IsVisible="{Binding IsFullBleed}" Content="{Binding FullBleedPage}" />
+    </Panel>
+
+  </DockPanel>
+</UserControl>
