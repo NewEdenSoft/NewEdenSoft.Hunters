@@ -192,6 +192,35 @@ public sealed class MapSceneTests
     }
 
     [Fact]
+    public void Systems_where_someone_is_reliably_there_now_get_a_ring_fainter_for_a_weaker_routine()
+    {
+        var scene = new MapScene(
+            _model, MapLayout.TopDown, MapFilters.Security(_model, _catalog), Palette with { Reliable = SKColors.Magenta },
+            new MapFonts(SKTypeface.Default, SKTypeface.Default));
+        var camera = new MapCamera(Scale: 40, OffsetX: 200, OffsetY: 150, Width: 400, Height: 300);
+        // Niyabainen at (200, 190), clear to its left; the ring at the drawn radius + 5.
+        var ringX = (int)MathF.Round(200 - MapScene.SystemRadius(40) - 5);
+
+        SKColor Sample(float level)
+        {
+            var reliable = new float[_model.Count];
+            reliable[_model.IndexOf[12]] = level;
+            using var surface = SKSurface.Create(new SKImageInfo(400, 300));
+            surface.Canvas.Clear(SKColors.Black);
+            scene.Draw(surface.Canvas, camera, hovered: -1, hunting: new HuntingLayer(new float[_model.Count], reliable, []));
+            using var image = surface.Snapshot();
+            using var pixels = image.PeekPixels();
+            return pixels.GetPixelColor(ringX, 190);
+        }
+
+        Assert.Equal(SKColors.Black, Sample(0));
+        var full = Sample(1);
+        var faint = Sample(0.2f);
+        Assert.True(full is { Red: > 150, Green: 0, Blue: > 150 });
+        Assert.True(faint.Red > 0 && faint.Red < full.Red);
+    }
+
+    [Fact]
     public void A_route_is_drawn_along_its_gates_in_the_route_colour()
     {
         var scene = new MapScene(

@@ -84,6 +84,7 @@
                   RouteColor="{DynamicResource Hud.InfoColor}"
                   JumpRangeColor="{DynamicResource Hud.JumpRangeColor}"
                   HuntGlowColor="{DynamicResource Hud.HuntGlowColor}"
+                  ReliableColor="{DynamicResource Hud.HuntReliableColor}"
                   HaloColor="{DynamicResource Hud.BgColor}"
                   GateColor="{DynamicResource Hud.LineStrongColor}"
                   TextColor="{DynamicResource Hud.FgColor}"
@@ -130,11 +131,14 @@
             <ItemsControl ItemsSource="{Binding Profiles}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="hm:PlaceProfile">
-                  <Grid ColumnDefinitions="22,*,Auto" Margin="0,1">
+                  <Grid ColumnDefinitions="22,*,Auto,Auto" Margin="0,1">
                     <c:ProfileMark Profile="{Binding Style}" FontSize="11" HorizontalAlignment="Left" />
                     <TextBlock Grid.Column="1" FontSize="13" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
                                Classes.muted="{Binding !IsLikely}" />
-                    <TextBlock Grid.Column="2" FontSize="13" Margin="12,0,0,0" Text="{Binding When}"
+                    <!-- Someone with a routine here is usually here at this hour: the map's ring -->
+                    <TextBlock Grid.Column="2" FontSize="13" Margin="12,0,0,0" Text="reliable" IsVisible="{Binding IsReliable}"
+                               Foreground="{DynamicResource Hud.HuntReliableBrush}" />
+                    <TextBlock Grid.Column="3" FontSize="13" Margin="12,0,0,0" Text="{Binding When}"
                                Classes.peak="{Binding IsLikely}" Classes.same="{Binding !IsLikely}"
                                ToolTip.Tip="Usually seen here at this hour (UTC), or seen here but not usually now" />
                   </Grid>
