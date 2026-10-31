@@ -1,0 +1,312 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:p="using:NewEdenSoft.Hunters.Desktop.ViewModels.Pages"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+             x:Class="NewEdenSoft.Hunters.Desktop.Views.Pages.InfoPageView"
+             x:DataType="p:InfoPageViewModel">
+
+  <!-- The same wording as the web's Info page, but for using the map, which follows the desktop's widgets -->
+  <UserControl.Styles>
+    <!-- A term and what it means; the text muted, emphasis in the text colour -->
+    <Style Selector="TextBlock.term">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+    <Style Selector="TextBlock.body">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgMutedBrush}" />
+    </Style>
+    <Style Selector="Run.em">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgBrush}" />
+    </Style>
+    <Style Selector="StackPanel.terms">
+      <Setter Property="Spacing" Value="12" />
+    </Style>
+    <Style Selector="StackPanel.terms > StackPanel">
+      <Setter Property="Spacing" Value="2" />
+    </Style>
+    <!-- A bulleted line -->
+    <Style Selector="Grid.bullet > TextBlock.dot">
+      <Setter Property="Foreground" Value="{DynamicResource Hud.FgMutedBrush}" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+    <!-- The map marks' drawings -->
+    <Style Selector="Ellipse.ring">
+      <Setter Property="StrokeThickness" Value="2" />
+      <Setter Property="Width" Value="16" />
+      <Setter Property="Height" Value="16" />
+    </Style>
+    <Style Selector="Grid.indicator > Panel.swatch">
+      <Setter Property="Width" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+  </UserControl.Styles>
+
+  <StackPanel Spacing="20">
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label accent" Text="INFO" />
+      <TextBlock Classes="h1" Text="How Hunters works" />
+    </StackPanel>
+
+    <c:HudPanel>
+      <TextBlock Classes="body" FontSize="15"
+                 Text="Hunters reads every kill in New Eden and works out where targets live and when they are there, so you can land somewhere, often off a filament, and find something worth catching in reach. The map shows it; this page explains how to read it." />
+    </c:HudPanel>
+
+    <!-- Using the map, on the desktop -->
+    <c:HudPanel>
+      <StackPanel Spacing="12">
+        <TextBlock Classes="label" Text="USING THE MAP" />
+        <StackPanel Classes="terms">
+          <StackPanel>
+            <TextBlock Classes="term" Text="Move around" />
+            <TextBlock Classes="body" Text="Drag to pan, scroll to zoom. Names and profile badges appear as you zoom in." />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="Select" />
+            <TextBlock Classes="body"
+                       Text="Click a system to select it: the System widget shows its activity, the hunting profiles seen there with their regulars, and its recent kills. Click empty space or press Esc to clear it. Hover a system for a quick summary." />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="Focus" />
+            <TextBlock Classes="body"
+                       Text="The focus is your staging point: Nearby and the jump range are measured from it. Double click a system (when on in Settings), use a system's menu (right click a system, or a Nearby card), or the Focus button of the selection. It can also follow you: entering known space or a long move focuses where your character is." />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="Search" />
+            <TextBlock Classes="body" Text="Press / or use the search at the top of the map to find a system; Enter goes there and selects it." />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="Widgets" />
+            <TextBlock Classes="body"
+                       Text="The navigation on the left lists the widgets: Map, Map controls (layout and colours), Nearby, System, Hunting (which profiles to show), Jump range and Characters. Each is a page here, or floats over the game as an overlay, with its own opacity, lock and click-through." />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="Characters" />
+            <TextBlock Classes="body"
+                       Text="Your tracked characters are marked on the map. Click one, on the map or in the Characters widget, to go to it; Follow, on its chip at the top of the map, keeps the map on it as it moves. Dragging the map stops following." />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="Colours" />
+            <TextBlock Classes="body"
+                       Text="Map controls colours the systems by security, or by activity from ESI's hourly figures: NPC kills, NPC kills rising or falling since the hour before, ship kills or jumps." />
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+    </c:HudPanel>
+
+    <!-- The map's marks, each with a small drawing of it, then the widgets' words -->
+    <c:HudPanel>
+      <StackPanel Spacing="12">
+        <TextBlock Classes="label" Text="ON THE MAP" />
+        <StackPanel Classes="terms">
+          <Grid Classes="indicator" ColumnDefinitions="40,*">
+            <Panel Classes="swatch">
+              <Ellipse Width="24" Height="24">
+                <Ellipse.Fill>
+                  <RadialGradientBrush>
+                    <GradientStop Offset="0" Color="{DynamicResource Hud.HuntGlowColor}" />
+                    <GradientStop Offset="0.7" Color="Transparent" />
+                  </RadialGradientBrush>
+                </Ellipse.Fill>
+              </Ellipse>
+            </Panel>
+            <StackPanel Grid.Column="1" Spacing="2">
+              <TextBlock Classes="term" Text="Amber glow" />
+              <TextBlock Classes="body">
+                <Run Text="A shown hunting profile is " /><Run Classes="em" Text="likely now" /><Run Text=": it is seen there, and usually at this hour (UTC). The brighter and wider, the likelier, compared with that profile's best system right now, so a rare target still lights up where it is most likely." />
+              </TextBlock>
+            </StackPanel>
+          </Grid>
+          <Grid Classes="indicator" ColumnDefinitions="40,*">
+            <Panel Classes="swatch">
+              <Ellipse Classes="ring" Stroke="{DynamicResource Hud.HuntReliableBrush}" />
+            </Panel>
+            <StackPanel Grid.Column="1" Spacing="2">
+              <TextBlock Classes="term" Text="Mint ring" />
+              <TextBlock Classes="body">
+                <Run Classes="em" Text="Reliable now" /><Run Text=": someone with a routine in that system is usually there at this hour. The stronger the routine (more days, more recent), the more solid the ring. A glow says a kind of target lives there; the ring says someone is likely in space right now." />
+              </TextBlock>
+            </StackPanel>
+          </Grid>
+          <Grid Classes="indicator" ColumnDefinitions="40,*">
+            <Panel Classes="swatch">
+              <c:ProfileMark Profile="{Binding BadgeExample}" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Panel>
+            <StackPanel Grid.Column="1" Spacing="2">
+              <TextBlock Classes="term" Text="Badges" />
+              <TextBlock Classes="body"
+                         Text="The shown profiles seen in a system, in a row under its name when zoomed in. Faint when seen there, but not usually at this hour." />
+            </StackPanel>
+          </Grid>
+          <Grid Classes="indicator" ColumnDefinitions="40,*">
+            <Panel Classes="swatch">
+              <Ellipse Classes="ring" Stroke="{DynamicResource Hud.JumpRangeBrush}">
+                <Ellipse.Fill>
+                  <SolidColorBrush Color="{DynamicResource Hud.JumpRangeColor}" Opacity="0.3" />
+                </Ellipse.Fill>
+              </Ellipse>
+            </Panel>
+            <StackPanel Grid.Column="1" Spacing="2">
+              <TextBlock Classes="term" Text="Blue glow and ring" />
+              <TextBlock Classes="body"
+                         Text="With Jump range on: systems a jump drive can land in from the focus. Only cyno targets count: low and null security, not Pochven or Zarzakh." />
+            </StackPanel>
+          </Grid>
+          <Grid Classes="indicator" ColumnDefinitions="40,*">
+            <Panel Classes="swatch">
+              <Ellipse Classes="ring" Width="12" Height="12" Stroke="{DynamicResource Hud.PrimaryBrush}" />
+              <Ellipse Classes="ring" Width="22" Height="22" Stroke="{DynamicResource Hud.PrimaryBrush}" />
+            </Panel>
+            <StackPanel Grid.Column="1" Spacing="2">
+              <TextBlock Classes="term" Text="Double ring" />
+              <TextBlock Classes="body" Text="The focus, your staging point." />
+            </StackPanel>
+          </Grid>
+          <Grid Classes="indicator" ColumnDefinitions="40,*">
+            <Panel Classes="swatch">
+              <Ellipse Classes="ring" Width="14" Height="14" Stroke="{DynamicResource Hud.FgBrush}" />
+              <!-- The crosshair's four ticks -->
+              <Path Stroke="{DynamicResource Hud.FgBrush}" StrokeThickness="1.5" Data="M12,0 L12,4 M12,20 L12,24 M0,12 L4,12 M20,12 L24,12" />
+            </Panel>
+            <StackPanel Grid.Column="1" Spacing="2">
+              <TextBlock Classes="term" Text="Ring with ticks" />
+              <TextBlock Classes="body" Text="The selected system." />
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+
+        <TextBlock Classes="label" Text="IN THE WIDGETS" Margin="0,8,0,0" />
+        <StackPanel Classes="terms">
+          <StackPanel>
+            <TextBlock Classes="term" Text="peak now · now · seen" Foreground="{DynamicResource Hud.WarningBrush}" />
+            <TextBlock Classes="body">
+              <Run Text="For a profile in a system: " /><Run Classes="em" Text="peak now" /><Run Text=" is its busiest hour of the day there, " /><Run Classes="em" Text="now" /><Run Text=" that it is usually there at this hour, " /><Run Classes="em" Text="seen" /><Run Text=" that it has been seen there, but not usually now." />
+            </TextBlock>
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="reliable" Foreground="{DynamicResource Hud.HuntReliableBrush}" />
+            <TextBlock Classes="body" Text="Someone with a routine there is usually there at this hour: the map's ring." />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="Regulars" />
+            <TextBlock Classes="body">
+              <Run Text="Under each profile in the System widget: pilots seen there on different days at about the same time of day. Each shows the window (for example 22–02 UTC), the days seen in it, and " /><Run Text="now" Foreground="{DynamicResource Hud.HuntReliableBrush}" /><Run Text=" when the window covers this hour." />
+            </TextBlock>
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="local" Foreground="{DynamicResource Hud.InfoBrush}" />
+            <TextBlock Classes="body" Text="Seen in its own alliance's sovereignty: someone who lives there, not passing through." />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Classes="term" Text="Peak now · Peak in N h" Foreground="{DynamicResource Hud.WarningBrush}" />
+            <TextBlock Classes="body" Text="Activity: the system is in its busiest hours of the week for NPC kills, or will be within six hours." />
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+    </c:HudPanel>
+
+    <!-- How the profiles are scored -->
+    <c:HudPanel>
+      <StackPanel Spacing="12">
+        <TextBlock Classes="label" Text="HOW THE PROFILES ARE SCORED" />
+        <StackPanel Spacing="8">
+          <Grid Classes="bullet" ColumnDefinitions="18,*">
+            <TextBlock Classes="dot" Text="•" />
+            <TextBlock Grid.Column="1" Classes="body">
+              <Run Classes="em" Text="What dies in a system lives there." /><Run Text=" A profile counts ships when they die, not when they kill: a capital that helped kill something may have come for that kill and left." />
+            </TextBlock>
+          </Grid>
+          <Grid Classes="bullet" ColumnDefinitions="18,*">
+            <TextBlock Classes="dot" Text="•" />
+            <TextBlock Grid.Column="1" Classes="body">
+              <Run Text="Each kill that matches a profile is a " /><Run Classes="em" Text="sighting" /><Run Text=", at most one per pilot an hour, so someone ratting all evening counts once an hour, not once a kill." />
+            </TextBlock>
+          </Grid>
+          <Grid Classes="bullet" ColumnDefinitions="18,*">
+            <TextBlock Classes="dot" Text="•" />
+            <TextBlock Grid.Column="1" Classes="body">
+              <Run Text="A ship " /><Run Classes="em" Text="lost to NPCs" /><Run Text=" counts double: it died ratting there, the strongest sign it comes back. A " /><Run Classes="em" Text="local" /><Run Text=", in its own alliance's sovereignty at the time, counts one and a half times; both together, three." />
+            </TextBlock>
+          </Grid>
+          <Grid Classes="bullet" ColumnDefinitions="18,*">
+            <TextBlock Classes="dot" Text="•" />
+            <TextBlock Grid.Column="1" Classes="body">
+              <Run Classes="em" Text="Indirect evidence" /><Run Text=" counts less: a CRAB beacon killed hints that a capital ratted there (0.75 for Carriers and Supers)." />
+            </TextBlock>
+          </Grid>
+          <Grid Classes="bullet" ColumnDefinitions="18,*">
+            <TextBlock Classes="dot" Text="•" />
+            <TextBlock Grid.Column="1" Classes="body">
+              <Run Classes="em" Text="Fleet fights" /><Run Text=" are left out: kills with more than 25 attackers, or 20 kills in a system within a quarter of an hour. Smartbomb camps keep their bursts, which are what a camp does." />
+            </TextBlock>
+          </Grid>
+          <Grid Classes="bullet" ColumnDefinitions="18,*">
+            <TextBlock Classes="dot" Text="•" />
+            <TextBlock Grid.Column="1" Classes="body">
+              <Run Text="The " /><Run Classes="em" Text="score" /><Run Text=" counts every sighting, each halving every 14 days, so recent habits count most and an abandoned system fades. The glow is the score times this hour's share of the sightings there." />
+            </TextBlock>
+          </Grid>
+          <Grid Classes="bullet" ColumnDefinitions="18,*">
+            <TextBlock Classes="dot" Text="•" />
+            <TextBlock Grid.Column="1" Classes="body">
+              <Run Text="A " /><Run Classes="em" Text="regular" /><Run Text=" is a pilot seen in a system on at least two different days within a four-hour window of the day (a play session), or a six-hour one at half strength, in the last 30 days. Its strength is those days, each fading over 14 days; about three recent days makes a solid ring." />
+            </TextBlock>
+          </Grid>
+          <Grid Classes="bullet" ColumnDefinitions="18,*">
+            <TextBlock Classes="dot" Text="•" />
+            <TextBlock Grid.Column="1" Classes="body"
+                       Text="Kills come from zKillboard as they happen and are kept for 90 days; activity and sovereignty come from ESI hourly. The map updates every few minutes." />
+          </Grid>
+        </StackPanel>
+      </StackPanel>
+    </c:HudPanel>
+
+    <!-- The profiles, as the server explains them next to their rules -->
+    <c:HudPanel>
+      <StackPanel Spacing="12">
+        <TextBlock Classes="label" Text="THE PROFILES" />
+        <TextBlock Classes="body" Text="{Binding ProfilesText}" IsVisible="{Binding !HasProfiles}" />
+        <ItemsControl ItemsSource="{Binding Profiles}" IsVisible="{Binding HasProfiles}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="16" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="p:InfoProfile">
+              <StackPanel Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <c:ProfileMark Profile="{Binding Style}" FontSize="11" VerticalAlignment="Center" />
+                  <TextBlock Classes="h3" Text="{Binding Name}" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Classes="body" Text="{Binding Description}" IsVisible="{Binding HasDescription}" />
+                <StackPanel Spacing="4" IsVisible="{Binding HasEvidence}">
+                  <TextBlock FontSize="12" Foreground="{DynamicResource Hud.FgFaintBrush}" Text="Seen when" />
+                  <ItemsControl ItemsSource="{Binding Evidence}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Spacing="4" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <Grid Classes="bullet" ColumnDefinitions="18,*">
+                          <TextBlock Classes="dot" Text="•" />
+                          <TextBlock Grid.Column="1" Classes="body" Text="{Binding}" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </c:HudPanel>
+  </StackPanel>
+</UserControl>
