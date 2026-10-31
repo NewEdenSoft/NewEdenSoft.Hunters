@@ -304,7 +304,7 @@ With neither gate jumps nor jump range it says to choose one; without a focus, t
 
 ## Installing
 
-Every [release](deployment.md#releasing) attaches the Windows app, built self-contained (no .NET to install) with ReadyToRun and packed with [Velopack](https://velopack.io):
+Every desktop [release](deployment.md#releasing) (`desktop-vX.Y.Z`) attaches the Windows app, built self-contained (no .NET to install) with ReadyToRun and packed with [Velopack](https://velopack.io):
 
 | File | What |
 |---|---|
@@ -312,7 +312,7 @@ Every [release](deployment.md#releasing) attaches the Windows app, built self-co
 | `Hunters-X.Y.Z-Portable.zip` | The same app, unzipped and run from anywhere; several versions can sit side by side. |
 | `NewEdenSoft.Hunters-X.Y.Z-full.nupkg`, `releases.win.json` | Velopack's package and feed, for an updater later. |
 
-- **Users pick their release.** The app doesn't update itself: servers are self-hosted and upgrade on their own schedule, so users install the release that matches their server. Installing another version's Setup replaces the one installed.
+- **Users pick their release.** The app doesn't update itself: servers are self-hosted and upgrade on their own schedule, so users install the newest desktop release in their server's feature line (a server `1.3.4` takes the newest desktop `1.3.*`). Installing another version's Setup replaces the one installed.
 - **Settings stay.** [Settings](#settings) live in `%LOCALAPPDATA%\NewEdenSoft\Hunters`, outside the install folder, so updating, reinstalling or uninstalling keeps them.
 - **Not signed yet.** Windows SmartScreen warns the first time Setup runs (*More info → Run anyway*).
 - `Program.Main` calls `VelopackApp.Build().Run()` before anything else, so the installer's and uninstaller's hooks run and exit there; started from a build, it does nothing. The Velopack package and the `vpk` tool in `dotnet-tools.json` are kept at the same version.
