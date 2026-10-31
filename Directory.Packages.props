@@ -52,6 +52,8 @@
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.13" />
     <!-- The version Avalonia.Skia is built against; the map draws with it directly. -->
     <PackageVersion Include="SkiaSharp" Version="3.119.4" />
+    <!-- Keep in step with the vpk tool in dotnet-tools.json, which packs the release. -->
+    <PackageVersion Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 
   <ItemGroup Label="Tests">

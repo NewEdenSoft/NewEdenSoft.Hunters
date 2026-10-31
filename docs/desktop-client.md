@@ -302,6 +302,29 @@ With neither gate jumps nor jump range it says to choose one; without a focus, t
 - quick controls: **Dest** sets the autopilot destination for every tracked character (showing how many; the outcome on the card, a success clearing after a few seconds), and **Focus** focuses the system. Each system's outcome is kept while it stays listed (`DestinationViewModel`).
  The setting is saved with the desktop settings (`Map.Nearby`, `NearbySetting`, through `MapPreferences.Nearby`), with **show quiet systems** (off). The rules are `Nearby` (`Validate`, `Request`, `NpcSort`, `TargetChance`, `ByTargetChance`, `WithinJumps`, `IsActive`, `DistanceText`, `InJumpRange`, `DistanceTip`, `NpcChange`, `SeenFirst`, `ProfileWhen`), like the web's `map/nearby.ts`. Systems where nothing happens are hidden: no NPC, ship or pod kills in the last hour or day and no hunting profile seen (jumps alone don't count; without activity data every system counts as active). The summary line counts the active ones ("12 active near Tama, NPC kills rising first.") with an "8 quiet hidden" toggle ("hide 8 quiet" while shown), saved as show quiet systems; with nothing active it says *Nothing happening in reach.* It asks for 200 rows, so enough are left once the quiet ones are hidden. A click on a card (not its quick controls), or Enter on a focused one, selects its system and takes the map there, the focus staying as it was, like the search; the selected system's card is highlighted. **The system's menu.** A right click on a card (or the menu key or Shift+F10 on a focused one) opens the system's menu, as on the map: **Focus system** (or **Clear focus**) and **Navigate to**, which sets the card's destination, so the outcome shows on the card as Dest's does, and both wait while one is being set (`NearbyWidgetViewModel.MenuFor`). It opens at the pointer, or by the card from the keyboard, and closes when the list scrolls. **Route on the map.** Hovering a card (or moving the keyboard's focus onto it) shows the gate route there from the focused system, else to the selected system; a system hovered on the map takes over (`MapControl.RouteToSystemId`, `MapWidgetViewModel.RouteToSystemId`). The route is the fewest gate jumps (`GateRoutes.Route`, like the web's `gateRoute`, a breadth-first search; none where no gates lead). Its gates are drawn under the systems in the info blue (`info` in `design/themes.json`, `Hud.InfoColor`): a soft 9 px stroke under 3 px bars, 8 px long with 6 px gaps, moving from the focus towards the destination at 28 px a second. The map asks for frames only while a route is shown; with Windows' animation effects off (`ReducedMotion`) the bars stand still and it asks for none. **Refreshing.** While the widget is on screen, the same question is asked again every two minutes from the last answer, and when the widget comes back on screen with an answer older than a minute, like the web's refetch interval and stale time. The cards shown stay while the next answer loads (a new focus, sort or light years too), dimmed to 70%.
 
+## Installing
+
+Every [release](deployment.md#releasing) attaches the Windows app, built self-contained (no .NET to install) with ReadyToRun and packed with [Velopack](https://velopack.io):
+
+| File | What |
+|---|---|
+| `Hunters-X.Y.Z-Setup.exe` | Installs for the current user, without admin rights, to `%LocalAppData%\NewEdenSoft.Hunters`, with Start menu and desktop shortcuts and an entry in *Installed apps*. |
+| `Hunters-X.Y.Z-Portable.zip` | The same app, unzipped and run from anywhere; several versions can sit side by side. |
+| `NewEdenSoft.Hunters-X.Y.Z-full.nupkg`, `releases.win.json` | Velopack's package and feed, for an updater later. |
+
+- **Users pick their release.** The app doesn't update itself: servers are self-hosted and upgrade on their own schedule, so users install the release that matches their server. Installing another version's Setup replaces the one installed.
+- **Settings stay.** [Settings](#settings) live in `%LOCALAPPDATA%\NewEdenSoft\Hunters`, outside the install folder, so updating, reinstalling or uninstalling keeps them.
+- **Not signed yet.** Windows SmartScreen warns the first time Setup runs (*More info → Run anyway*).
+- `Program.Main` calls `VelopackApp.Build().Run()` before anything else, so the installer's and uninstaller's hooks run and exit there; started from a build, it does nothing. The Velopack package and the `vpk` tool in `dotnet-tools.json` are kept at the same version.
+
+To build the installer locally:
+
+```sh
+dotnet tool restore
+dotnet publish src/Hunters.Desktop/Hunters.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishReadyToRun=true -p:Version=0.1.0 -o publish
+dotnet vpk pack --packId NewEdenSoft.Hunters --packVersion 0.1.0 --packDir publish --mainExe NewEdenSoft.Hunters.Desktop.exe --packTitle Hunters --packAuthors NewEdenSoft --icon src/Hunters.Desktop/Assets/hunters.ico --outputDir releases
+```
+
 ## Platform support
 
 Avalonia runs on Windows, macOS and Linux, so the core app (map, login, ESI, fleet, account management) is cross-platform without extra work. The platform-specific parts are behind interfaces (`IOverlayPlatform`, `IGlobalHotkeys`, `IEveLogLocator`) with one implementation per OS.
@@ -314,7 +337,7 @@ Avalonia runs on Windows, macOS and Linux, so the core app (map, login, ESI, fle
 | Global hotkeys (if added later) | ✅ `RegisterHotKey` | ✅ Carbon hotkeys (no extra permission) | ✅ `XGrabKey` | ⚠️ only via the desktop portal GlobalShortcuts API (KDE, recent GNOME) |
 | System tray | ✅ | ✅ menu bar extra | ✅ StatusNotifier / AppIndicator | ✅ StatusNotifier (GNOME needs the AppIndicator extension) |
 | Log watcher | `Documents\EVE\logs` | Mac client's log folder | Inside the Proton/Wine prefix | Inside the Proton/Wine prefix |
-| Packaging | Installer + auto-update (e.g. Velopack) | Signed + notarized `.app` (needs an Apple developer account) | AppImage / Flatpak | AppImage / Flatpak |
+| Packaging | ✅ Velopack installer and portable zip ([Installing](#installing)) | Signed + notarized `.app` (needs an Apple developer account) | AppImage / Flatpak | AppImage / Flatpak |
 
 Notes:
 

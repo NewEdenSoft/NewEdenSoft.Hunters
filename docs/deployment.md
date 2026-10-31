@@ -138,7 +138,8 @@ Releases are made by hand from `main`: *Actions → Release → Run workflow*, b
 1. Refuses to run from any other branch, or when the tag `vX.Y.Z` already exists.
 2. Runs the CI checks (the same jobs as [`ci.yml`](../.github/workflows/ci.yml)).
 3. Builds both images with `VERSION=X.Y.Z` and pushes them to GitHub Container Registry (`X.Y.Z`, `X.Y` and `latest`; only `X.Y.Z` for a pre-release).
-4. Tags the commit `vX.Y.Z` and creates a GitHub Release with generated notes, marked as *Latest*, or as a pre-release when the version has a suffix. Edit the notes afterwards if needed.
+4. Builds the desktop app at version `X.Y.Z` and packs it with Velopack (see [Installing](desktop-client.md#installing)).
+5. Tags the commit `vX.Y.Z` and creates a GitHub Release with generated notes and the desktop files attached, marked as *Latest*, or as a pre-release when the version has a suffix. Edit the notes afterwards if needed.
 
 Don't push version tags or draft releases on GitHub yourself: neither starts a build.
 

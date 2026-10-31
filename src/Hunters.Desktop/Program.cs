@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Media;
 using Microsoft.Extensions.Hosting;
+using Velopack;
 
 namespace NewEdenSoft.Hunters.Desktop;
 
@@ -12,6 +13,10 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // First, before anything else: when the installer or uninstaller starts the app with one of
+        // Velopack's hooks, this handles it and exits. Does nothing when run from a build.
+        VelopackApp.Build().Run();
+
         using var host = DesktopHost.Create(args);
         host.Start();
         try

@@ -2,7 +2,8 @@ name: Release
 
 # Started by hand from main (Actions → Release → Run workflow) with a version such as 1.2.3, or
 # 1.2.3-rc.1 for a pre-release. Runs the CI checks, publishes both images to GitHub Container
-# Registry, then tags the commit vX.Y.Z and creates a GitHub Release with generated notes.
+# Registry, builds the desktop installer, then tags the commit vX.Y.Z and creates a GitHub Release
+# with generated notes and the desktop files attached.
 on:
   workflow_dispatch:
     inputs:
@@ -94,15 +95,69 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,scope=${{ matrix.image }},mode=max
 
+  desktop:
+    name: Desktop installer
+    needs: [validate, ci]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # vpk, pinned in dotnet-tools.json to the Velopack package's version.
+      - name: Restore tools
+        run: dotnet tool restore
+
+      # Self-contained, so users need no .NET installed.
+      - name: Publish
+        run: >
+          dotnet publish src/Hunters.Desktop/Hunters.Desktop.csproj -c Release -r win-x64
+          --self-contained -p:PublishReadyToRun=true -p:Version="$VERSION" -o publish
+
+      # Setup.exe installs for the current user (no admin), with Start menu and desktop shortcuts.
+      # vpk leaves the .pdb files out.
+      - name: Pack
+        run: >
+          dotnet vpk pack --packId NewEdenSoft.Hunters --packVersion "$VERSION" --packDir publish
+          --mainExe NewEdenSoft.Hunters.Desktop.exe --packTitle Hunters --packAuthors NewEdenSoft
+          --icon src/Hunters.Desktop/Assets/hunters.ico --outputDir releases
+
+      # The version goes in the names users download, since they pick the release that matches
+      # their server. The package and its feed keep vpk's names, for an updater later.
+      - name: Collect
+        run: |
+          mkdir dist
+          cp "releases/NewEdenSoft.Hunters-win-Setup.exe" "dist/Hunters-$VERSION-Setup.exe"
+          cp "releases/NewEdenSoft.Hunters-win-Portable.zip" "dist/Hunters-$VERSION-Portable.zip"
+          cp releases/*.nupkg releases/releases.win.json dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop
+          path: dist/
+          if-no-files-found: error
+
   release:
     name: GitHub Release
-    needs: [validate, images]
+    needs: [validate, images, desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      # Creates the tag at the commit the images were built from, and marks the release as latest
-      # unless it is a pre-release.
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop
+          path: desktop
+
+      # Creates the tag at the commit the images and the desktop app were built from, with the
+      # desktop files attached, and marks the release as latest unless it is a pre-release.
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -110,4 +165,4 @@ jobs:
         run: |
           flags=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes)
           if [[ "$TAG" == *-* ]]; then flags+=(--prerelease --latest=false); else flags+=(--latest); fi
-          gh release create "$TAG" "${flags[@]}"
+          gh release create "$TAG" desktop/* "${flags[@]}"
