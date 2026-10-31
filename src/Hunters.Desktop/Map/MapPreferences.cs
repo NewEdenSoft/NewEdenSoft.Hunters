@@ -4,7 +4,7 @@ using NewEdenSoft.Hunters.Desktop.Settings;
 
 namespace NewEdenSoft.Hunters.Desktop.Map;
 
-/// <summary>The user's map settings, shared by the map page and the Settings page and saved with the desktop settings.</summary>
+/// <summary>The account's map settings, shared by the map's widgets and the Settings page and saved in its profile (<see cref="ProfileStore"/>).</summary>
 public sealed class MapPreferences : ObservableObject
 {
     public static readonly IReadOnlyList<(MapLayout Id, string Label)> Layouts =
@@ -13,18 +13,23 @@ public sealed class MapPreferences : ObservableObject
         (MapLayout.TopDown, "Top-down"),
     ];
 
-    private readonly ISettingsStore _settings;
+    private readonly ProfileStore _settings;
     private MapLayout _layout;
+    private MapFilterId _filter;
+    private int _minNpc;
     private IReadOnlyList<string> _huntingProfiles;
     private MapBehaviour _behaviour;
     private JumpRangeSetting _jumpRange;
     private NearbySetting _nearby;
 
-    public MapPreferences(ISettingsStore settings)
+    public MapPreferences(ProfileStore settings)
     {
         _settings = settings;
         var map = settings.Load().Map;
         _layout = map.Layout;
+        // A file edited by hand may have a filter or a minimum not offered.
+        _filter = Enum.IsDefined(map.Filter) ? map.Filter : MapFilterId.Security;
+        _minNpc = MapFilters.MinNpcChoices.Contains(map.MinNpc) ? map.MinNpc : 0;
         _huntingProfiles = map.HuntingProfiles;
         // A file edited by hand (or from an older version) may lack it or have a choice not offered.
         var behaviour = map.Behaviour ?? new MapBehaviour();
@@ -32,6 +37,28 @@ public sealed class MapPreferences : ObservableObject
         var jumpRange = map.JumpRange ?? new JumpRangeSetting();
         _jumpRange = jumpRange.Ly is >= JumpRanges.MinLy and <= JumpRanges.MaxLy ? jumpRange : jumpRange with { Ly = new JumpRangeSetting().Ly };
         _nearby = Map.Nearby.Validate(map.Nearby);
+    }
+
+    /// <summary>The map's colour filter (Map controls). An activity filter is kept while the server has no activity yet; the map says so.</summary>
+    public MapFilterId Filter
+    {
+        get => _filter;
+        set
+        {
+            if (SetProperty(ref _filter, value))
+                _settings.Update(s => s with { Map = s.Map with { Filter = value } });
+        }
+    }
+
+    /// <summary>For NPC rising and falling: the minimum NPC kills in the last hour (Map controls).</summary>
+    public int MinNpc
+    {
+        get => _minNpc;
+        set
+        {
+            if (SetProperty(ref _minNpc, value))
+                _settings.Update(s => s with { Map = s.Map with { MinNpc = value } });
+        }
     }
 
     /// <summary>What the Nearby widget looks for around the focused system: gate jumps, the jump range, the sort, and quiet systems.</summary>

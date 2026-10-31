@@ -10,14 +10,15 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets;
 
 /// <summary>
 /// Owns every widget's layout state and overlay window: floating and docking, applying overlay
-/// settings, restoring overlays at startup and persisting changes. UI thread only.
+/// settings, restoring overlays at login and persisting changes to the account's profile
+/// (<see cref="ProfileStore"/>), 500 ms after the last change and when the session ends. UI thread only.
 /// </summary>
 public sealed partial class WidgetManager : ObservableObject
 {
     private static readonly TimeSpan SaveDelay = TimeSpan.FromMilliseconds(500);
     private const int ScreenMargin = 24;
 
-    private readonly ISettingsStore _settings;
+    private readonly ProfileStore _settings;
     private readonly IOverlayPlatform _platform;
     private readonly Dictionary<string, OverlayWindow> _windows = [];
     private readonly DispatcherTimer _saveTimer;
@@ -26,7 +27,7 @@ public sealed partial class WidgetManager : ObservableObject
     public WidgetManager(
         IEnumerable<WidgetDefinition> definitions,
         IServiceProvider services,
-        ISettingsStore settings,
+        ProfileStore settings,
         IOverlayPlatform platform)
     {
         _settings = settings;
@@ -57,7 +58,7 @@ public sealed partial class WidgetManager : ObservableObject
 
     public WidgetState? Find(string id) => Widgets.FirstOrDefault(w => w.Id == id);
 
-    /// <summary>Opens the overlays of widgets saved as floating. Call once at startup.</summary>
+    /// <summary>Opens the overlays of widgets saved as floating. Call once, at login.</summary>
     public void RestoreOverlays()
     {
         foreach (var widget in Widgets.Where(w => w.IsFloating))
@@ -82,7 +83,7 @@ public sealed partial class WidgetManager : ObservableObject
         ScheduleSave();
     }
 
-    /// <summary>Saves layout and closes overlays without docking them. Call on application exit.</summary>
+    /// <summary>Saves layout and closes overlays without docking them. Call when the session ends.</summary>
     public void Shutdown()
     {
         _shuttingDown = true;

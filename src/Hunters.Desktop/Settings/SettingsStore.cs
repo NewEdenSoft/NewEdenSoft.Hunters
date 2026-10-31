@@ -7,7 +7,8 @@ namespace NewEdenSoft.Hunters.Desktop.Settings;
 
 /// <summary>
 /// Per-user desktop preferences. Sessions and tokens never go here (docs/decisions.md, D20); the only
-/// secret is a saved server's access key, as plain text, when the user saves one.
+/// secret is a saved server's access key, as plain text, when the user saves one. What the login screen
+/// needs is kept for this computer; the rest is kept per server and account, in <see cref="Profiles"/>.
 /// </summary>
 public sealed record DesktopSettings
 {
@@ -19,6 +20,13 @@ public sealed record DesktopSettings
     /// <summary>Start hidden in the system tray instead of opening the main window.</summary>
     public bool StartInTray { get; init; }
 
+    /// <summary>The settings of each server and account, keyed by <see cref="ProfileStore.KeyOf"/>.</summary>
+    public IReadOnlyDictionary<string, ProfileSettings> Profiles { get; init; } = new Dictionary<string, ProfileSettings>();
+}
+
+/// <summary>What one account on one server chose: the widgets' layout, the map and the characters.</summary>
+public sealed record ProfileSettings
+{
     /// <summary>Layout of each widget, keyed by widget id.</summary>
     public IReadOnlyDictionary<string, WidgetSettings> Widgets { get; init; } = new Dictionary<string, WidgetSettings>();
 
@@ -41,6 +49,12 @@ public sealed record MapSettings
 {
     /// <summary>The map layout; CCP's 2D map unless the user picks another.</summary>
     public MapLayout Layout { get; init; } = MapLayout.Flat;
+
+    /// <summary>The colour filter, chosen in Map controls; security unless the user picks another.</summary>
+    public MapFilterId Filter { get; init; } = MapFilterId.Security;
+
+    /// <summary>For NPC rising and falling: the minimum NPC kills in the last hour (one of <see cref="MapFilters.MinNpcChoices"/>).</summary>
+    public int MinNpc { get; init; }
 
     /// <summary>The hunting profiles shown on the map (glow and badges), by id, in the order they were turned on.</summary>
     public IReadOnlyList<string> HuntingProfiles { get; init; } = [];

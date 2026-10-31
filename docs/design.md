@@ -57,4 +57,4 @@ Web components live in `web/hunters-web/src/components/ui` and are styled with T
 | Applying a theme | `ThemeService.Apply` writes `Hud.{Name}Color` / `Hud.{Name}Brush` resources; views use `DynamicResource` | `applyTheme` sets `--primary`, `--secondary`, `--tint` |
 | Using colours | `{DynamicResource Hud.PrimaryBrush}` | Tailwind classes (`bg-surface`, `text-fg-muted`, `border-line`, `text-primary`, …); `index.css` maps them to the token variables with `@theme inline`, so they follow the theme at runtime. Also `chamfer`, `chamfer-sm`, `shadow-glow`, `text-shadow-glow`. |
 | Fluent controls | `SystemAccentColor*` follow the theme | — |
-| Saved choice | `desktop-settings.json` in local app data | `localStorage` |
+| Saved choice | `desktop-settings.json` in local app data, for the computer ([Settings](desktop-client.md#settings)) | `localStorage` |

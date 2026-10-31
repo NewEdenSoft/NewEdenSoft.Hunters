@@ -20,7 +20,7 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         var settings = NewStore().Load();
 
         Assert.Null(settings.ThemeId);
-        Assert.Empty(settings.Widgets);
+        Assert.Empty(settings.Profiles);
     }
 
     [Fact]
@@ -30,25 +30,49 @@ public sealed class JsonFileSettingsStoreTests : IDisposable
         {
             ThemeId = "amarr",
             StartInTray = true,
-            Widgets = new Dictionary<string, WidgetSettings> { ["fleet"] = new() { IsFloating = true, X = 10, Y = 20, Opacity = 0.5 } },
+            Profiles = new Dictionary<string, ProfileSettings>
+            {
+                ["a"] = new() { Widgets = new Dictionary<string, WidgetSettings> { ["fleet"] = new() { IsFloating = true, X = 10, Y = 20, Opacity = 0.5 } } },
+            },
         });
 
         var reloaded = NewStore().Load();
 
         Assert.Equal("amarr", reloaded.ThemeId);
         Assert.True(reloaded.StartInTray);
-        Assert.Equal(new WidgetSettings { IsFloating = true, X = 10, Y = 20, Opacity = 0.5 }, reloaded.Widgets["fleet"]);
+        Assert.Equal(new WidgetSettings { IsFloating = true, X = 10, Y = 20, Opacity = 0.5 }, reloaded.Profiles["a"].Widgets["fleet"]);
     }
 
     [Fact]
-    public void Map_layout_defaults_to_the_2d_map_and_is_saved_by_name()
+    public void Map_layout_and_filter_default_to_the_2d_map_and_security_and_are_saved_by_name()
     {
-        Assert.Equal(MapLayout.Flat, NewStore().Load().Map.Layout);
+        Assert.Equal(MapLayout.Flat, new MapSettings().Layout);
+        Assert.Equal(MapFilterId.Security, new MapSettings().Filter);
 
-        NewStore().Update(s => s with { Map = new MapSettings { Layout = MapLayout.TopDown } });
+        NewStore().Update(s => s with { Profiles = new Dictionary<string, ProfileSettings> { ["a"] = new() { Map = new MapSettings { Layout = MapLayout.TopDown, Filter = MapFilterId.NpcRising } } } });
 
-        Assert.Contains("\"TopDown\"", File.ReadAllText(SettingsPath));
-        Assert.Equal(MapLayout.TopDown, NewStore().Load().Map.Layout);
+        var json = File.ReadAllText(SettingsPath);
+        Assert.Contains("\"TopDown\"", json);
+        Assert.Contains("\"NpcRising\"", json);
+        Assert.Equal(MapLayout.TopDown, NewStore().Load().Profiles["a"].Map.Layout);
+        Assert.Equal(MapFilterId.NpcRising, NewStore().Load().Profiles["a"].Map.Filter);
+    }
+
+    [Fact]
+    public void Settings_from_before_profiles_are_left_out()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+        File.WriteAllText(SettingsPath, """
+            { "ThemeId": "amarr", "Widgets": { "map": { "IsFloating": true } }, "Map": { "Layout": "TopDown" }, "Characters": { "1": { "IsTracked": false } } }
+            """);
+
+        var settings = NewStore().Load();
+
+        Assert.Equal("amarr", settings.ThemeId);
+        Assert.Empty(settings.Profiles);
+
+        NewStore().Update(s => s with { StartInTray = true });
+        Assert.DoesNotContain("\"Widgets\"", File.ReadAllText(SettingsPath));
     }
 
     [Fact]

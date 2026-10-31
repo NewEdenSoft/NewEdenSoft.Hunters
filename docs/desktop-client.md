@@ -16,6 +16,19 @@ The app runs inside the .NET Generic Host (`DesktopHost`): dependency injection,
 - The access key is kept as **plain text** in the settings file, by choice: it only lets a character create an account, never logs anyone in, and can be revoked or limited by the server's admins. Sessions are never saved. See [Sessions are memory only](#sessions-are-memory-only).
 - Planned: reading the [discovery document](discovery-and-admission.md) when a server is added, checking compatibility, and asking the user to confirm trust.
 
+## Settings
+
+Settings are kept in one file on this computer, `%LOCALAPPDATA%\NewEdenSoft\Hunters\desktop-settings.json` (`JsonFileSettingsStore`; `Hunters:Desktop:SettingsPath` overrides it), written whole to a temporary file and moved into place on every change.
+
+| Kept | What | Where in the file |
+|---|---|---|
+| For this computer | Saved servers and their access keys, the theme, *Start in the system tray* | `Servers`, `ThemeId`, `StartInTray` |
+| Per server and account | The widgets' layout (floating, position, size, opacity, lock, click-through); the map's layout, colour filter, minimum NPC kills, hunting profiles, behaviour, jump range and Nearby; each character's marker and Track switch | `Profiles.{key}`: `Widgets`, `Map`, `Characters` |
+
+What the login screen needs is kept for the computer; everything else follows the account, so two accounts on one server, or the same account on two servers, each keep their own. A profile's key is the server's address and the account's id (`https://hunters.example.com/|3f2a…`, `ProfileStore.KeyOf`). An account new on this computer starts with the defaults. Settings files from before profiles keep the servers and the theme; their `Widgets`, `Map` and `Characters` are left out and dropped at the next save.
+
+`ProfileStore` is a session service ([one scope per session](#one-scope-per-session)): `SessionHost` opens it for the session's key before anything else is built, and `WidgetManager`, `MapPreferences` and `CharacterPreferences` read it once, when the session starts, and write each change to it. A write that comes late, like the widget layout's delayed save, still goes to the profile of the session it came from, and the layout is written when the session ends. Paths such as `Map.Layout` elsewhere on this page are within the profile.
+
 ## Login
 
 The login screen is all the app shows until a session starts. Loopback login with a single-use code. See [Authentication](authentication.md#desktop-login).
@@ -46,6 +59,7 @@ The signed-in app lives in a dependency injection scope of its own, created at l
 | `TrayIconService` | App | Rebuilds the tray menu when a session starts or ends. |
 | `ShellViewModel`, `ShellView` | Session | The navigation rail and pages (what the main window was before). |
 | `AccountPageViewModel` | Session | The account and its characters. The widgets read the session from it, as before; `Start` and `Stop` set it. |
+| `ProfileStore` | Session | The account's [settings](#settings) on this server; opened first. |
 | `WidgetManager`, every widget, `InfoPageViewModel`, `SettingsPageViewModel` | Session | |
 | `MapPreferences`, `MapFocus`, `CharacterPreferences`, `CharacterTracking`, `Destinations` | Session | |
 | `ThemeService`, `SavedServers`, `PortraitCache`, `EveNames`, ESI clients | App | The theme is used on the login screen too; caches of public data are kept for the app's lifetime. |
@@ -65,7 +79,7 @@ Once logged in, the Account page shows the server and the account's characters (
 | Delete account | Asks for confirmation. Deletes the account, characters and sessions on the server and logs out. |
 | Log out | Revokes this session on the server. |
 
-**Map markers.** Each character has a marker that will show it on the map: a letter (A to Z), a number (1 to 9) or an icon (target, star, diamond, triangle, bolt, shield, eye, heart). Clicking the badge at the start of a character's row opens a picker below it. The default is the first letter of the character's name. Markers are saved in this computer's desktop settings by character id (`Characters.{id}.Marker`) and are not shared with the server or other devices. `CharacterPreferences` reads and saves them and raises `MarkerChanged`; `MarkerBadge` draws one. Icons are SVG path data in a 24 x 24 box (`MarkerIcons`), so Avalonia and the map's Skia renderer draw the same shapes.
+**Map markers.** Each character has a marker that will show it on the map: a letter (A to Z), a number (1 to 9) or an icon (target, star, diamond, triangle, bolt, shield, eye, heart). Clicking the badge at the start of a character's row opens a picker below it. The default is the first letter of the character's name. Markers are saved on this computer in the account's [profile](#settings), by character id (`Characters.{id}.Marker`) and are not shared with the server or other devices. `CharacterPreferences` reads and saves them and raises `MarkerChanged`; `MarkerBadge` draws one. Icons are SVG path data in a 24 x 24 box (`MarkerIcons`), so Avalonia and the map's Skia renderer draw the same shapes.
 
 **Needs re-auth.** Access tokens expire after about 20 minutes and the server refreshes them on request, so the user never sees that. A refresh token stops working when the user revokes the app at EVE, a password changes, or EVE expires it; the server only finds out when it next refreshes. The desktop does not poll for this. A character is flagged when:
 
@@ -105,7 +119,7 @@ The desktop calls ESI directly with NewEdenKit.ESI, using a local file cache. Ac
 - `Track(ids)` sets exactly which characters are tracked; characters no longer in the list are stopped and removed, with a `Changed` event whose `Current` is null.
 - The ESI calls go through `ILocationEsi`, implemented with NewEdenKit.ESI's `ILocation`, so the tracker is tested with a fake ESI and a fake clock.
 
-In the desktop, `CharacterTracking` owns the one tracker for the signed-in session. It tracks the account's characters that are usable (no re-auth or missing permissions) and not switched off, and follows account changes and the switches. Each session has its own ([one scope per session](#one-scope-per-session)); logging out stops it. Each character row on the Account page has a **Track** switch (on by default, saved for this computer in `Characters.{id}.IsTracked`) and a line such as *Online · Jita · Docked at Jita IV - Moon 4 - Caldari Navy Assembly Plant · Ishtar “Hunter One”*, with a green dot while online. While polling fails, the line turns amber, with the error in its tooltip. Names of systems, stations and ship types come from ESI's public `POST /universe/names` and are cached for the app's lifetime (`EveNames`). Player structures are not public, so those show as *Docked*.
+In the desktop, `CharacterTracking` owns the one tracker for the signed-in session. It tracks the account's characters that are usable (no re-auth or missing permissions) and not switched off, and follows account changes and the switches. Each session has its own ([one scope per session](#one-scope-per-session)); logging out stops it. Each character row on the Account page has a **Track** switch (on by default, saved on this computer in the account's [profile](#settings), `Characters.{id}.IsTracked`) and a line such as *Online · Jita · Docked at Jita IV - Moon 4 - Caldari Navy Assembly Plant · Ishtar “Hunter One”*, with a green dot while online. While polling fails, the line turns amber, with the error in its tooltip. Names of systems, stations and ship types come from ESI's public `POST /universe/names` and are cached for the app's lifetime (`EveNames`). Player structures are not public, so those show as *Docked*.
 
 ESI's error limit is per IP, so these calls count against the user's own connection rather than the server's.
 
@@ -147,7 +161,7 @@ While a widget floats, its page in the main window shows its overlay settings:
 | Reset position | Back to the automatic position and default size. |
 | Dock to main window | Closes the overlay; the widget returns to its page. |
 
-Overlays are moved by dragging the header and resized from the bottom-right grip, both only while unlocked. Position, size and all settings are saved per widget in `desktop-settings.json`.
+Overlays are moved by dragging the header and resized from the bottom-right grip, both only while unlocked. Position, size and all settings are saved per widget in the account's [profile](#settings) (`Widgets.{id}`), 500 ms after the last change and when the session ends, so a change made just before logging out or quitting is kept.
 
 EVE must run windowed or borderless; overlays cannot draw over exclusive fullscreen.
 
@@ -211,7 +225,7 @@ The **Map** widget draws known space from the server's map pack, like the [web m
 | `Widgets/Map/JumpRangeWidgetViewModel.cs` | The [Jump range](#jump-range) widget. |
 | `Widgets/Map/NearbyWidgetViewModel.cs` | The [Nearby](#nearby) widget. |
 | `Map/JumpRanges.cs` | Jump range presets, limits and formatting, like the web's `jumpRange.ts`. |
-| `Map/MapPreferences.cs` | The layout setting, saved in the desktop settings (`Map.Layout`) and chosen in Map controls or on the Settings page. CCP's 2D map is the default. |
+| `Map/MapPreferences.cs` | The account's map settings, saved in its [profile](#settings) (`Map`): the layout (chosen in Map controls or on the Settings page; CCP's 2D map is the default), the colour filter and minimum NPC kills, hunting profiles, behaviour, jump range and Nearby. |
 
 `MapScene` is immutable: the UI thread builds a new one when the model, layout, filter or theme colours change, and frames are drawn on the render thread from the scene and camera captured with them. Theme colours reach the control as `DynamicResource` bindings, so a theme change rebuilds the scene.
 
@@ -238,7 +252,7 @@ Next for the map: the Nearby panel, route highlight on hover, fleet member marke
 
 ## Map controls
 
-How the [map](#map) is drawn: its **layout** (CCP's 2D map or top-down), its **colour** filter (the activity ones only when the server has activity), the **minimum NPC kills** for NPC rising and falling, and the filter's legend (or why it shows nothing yet). It is a widget of its own, so the map stays clear: dock it as a page, or pop it out as an overlay next to the map. Its state is the map's (`MapWidgetViewModel.FilterId` and `MinNpc`, `MapPreferences.Layout`), so both stay in step wherever they are shown.
+How the [map](#map) is drawn: its **layout** (CCP's 2D map or top-down), its **colour** filter (the activity ones only when the server has activity), the **minimum NPC kills** for NPC rising and falling, and the filter's legend (or why it shows nothing yet). It is a widget of its own, so the map stays clear: dock it as a page, or pop it out as an overlay next to the map. Its state is the map's (`MapWidgetViewModel.FilterId` and `MinNpc`, `MapPreferences.Layout`), so both stay in step wherever they are shown. The colour filter and the minimum are saved in the account's [profile](#settings) (`Map.Filter`, `Map.MinNpc`; security and any by default). A saved activity filter is kept while the server has no activity yet, and the map says why it shows nothing; a filter or minimum not offered falls back to the default.
 
 ## System
 

@@ -81,6 +81,8 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase, IDisposabl
         _destinations = destinations;
 
         Search = new SystemSearchViewModel(Describe, FindSystem);
+        FilterId = preferences.Filter;
+        MinNpc = preferences.MinNpc;
 
         account.PropertyChanged += (_, e) =>
         {
@@ -345,7 +347,7 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase, IDisposabl
     [ObservableProperty]
     public partial MapFilter? Filter { get; private set; }
 
-    /// <summary>The colour filter, chosen in the Map controls widget.</summary>
+    /// <summary>The colour filter, chosen in the Map controls widget and saved in <see cref="MapPreferences.Filter"/>.</summary>
     [ObservableProperty]
     public partial MapFilterId FilterId { get; set; }
 
@@ -492,13 +494,21 @@ public sealed partial class MapWidgetViewModel : WidgetViewModelBase, IDisposabl
     [ObservableProperty]
     public partial ActivityCurrent? Activity { get; private set; }
 
-    /// <summary>For NPC rising and falling: the minimum NPC kills in the last hour, chosen in Map controls.</summary>
+    /// <summary>For NPC rising and falling: the minimum NPC kills in the last hour, chosen in Map controls and saved in <see cref="MapPreferences.MinNpc"/>.</summary>
     [ObservableProperty]
     public partial int MinNpc { get; set; }
 
-    partial void OnFilterIdChanged(MapFilterId value) => RebuildFilter();
+    partial void OnFilterIdChanged(MapFilterId value)
+    {
+        _preferences.Filter = value;
+        RebuildFilter();
+    }
 
-    partial void OnMinNpcChanged(int value) => RebuildFilter();
+    partial void OnMinNpcChanged(int value)
+    {
+        _preferences.MinNpc = value;
+        RebuildFilter();
+    }
 
     partial void OnActivityChanged(ActivityCurrent? value) => RebuildFilter();
 

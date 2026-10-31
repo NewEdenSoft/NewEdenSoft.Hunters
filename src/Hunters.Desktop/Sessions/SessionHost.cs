@@ -1,6 +1,7 @@
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using NewEdenSoft.Hunters.Client.Sessions;
+using NewEdenSoft.Hunters.Desktop.Settings;
 using NewEdenSoft.Hunters.Desktop.ViewModels;
 using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
 using NewEdenSoft.Hunters.Desktop.Widgets;
@@ -31,6 +32,9 @@ public sealed class SessionHost(IServiceScopeFactory scopes)
 
     public bool IsSignedIn => Session is not null;
 
+    /// <summary>The session's services; null while signed out.</summary>
+    public IServiceProvider? Services => _scope?.ServiceProvider;
+
     /// <summary>A session started or ended; read <see cref="Shell"/> and <see cref="Widgets"/> again.</summary>
     public event EventHandler? Changed;
 
@@ -41,6 +45,8 @@ public sealed class SessionHost(IServiceScopeFactory scopes)
 
         var scope = scopes.CreateScope();
         var services = scope.ServiceProvider;
+        // First, so everything built below reads this account's settings on this server.
+        services.GetRequiredService<ProfileStore>().Open(ProfileStore.KeyOf(session));
         // The shell creates the pages and widgets, so they all see the session start below.
         var shell = services.GetRequiredService<ShellViewModel>();
         var widgets = services.GetRequiredService<WidgetManager>();

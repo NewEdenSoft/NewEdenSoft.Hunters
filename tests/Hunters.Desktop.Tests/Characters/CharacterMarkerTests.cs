@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Settings;
+using NewEdenSoft.Hunters.Desktop.Tests.Settings;
 using SkiaSharp;
 
 namespace NewEdenSoft.Hunters.Desktop.Tests.Characters;
@@ -14,7 +15,7 @@ public sealed class CharacterMarkerTests : IDisposable
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
     private CharacterPreferences NewPreferences() =>
-        new(new JsonFileSettingsStore(SettingsPath, NullLogger<JsonFileSettingsStore>.Instance));
+        new(TestProfiles.Open(new JsonFileSettingsStore(SettingsPath, NullLogger<JsonFileSettingsStore>.Instance)));
 
     [Theory]
     [InlineData("Jita Trader", "J")]
@@ -77,7 +78,8 @@ public sealed class CharacterMarkerTests : IDisposable
     [Fact]
     public void An_unknown_saved_marker_falls_back_to_the_default()
     {
-        File.WriteAllText(SettingsPath, """{ "Characters": { "90000001": { "Marker": { "Kind": "Icon", "Value": "rocket" } } } }""");
+        var key = ProfileStore.KeyOf(TestProfiles.Server, TestProfiles.Account);
+        File.WriteAllText(SettingsPath, $$"""{ "Profiles": { "{{key}}": { "Characters": { "90000001": { "Marker": { "Kind": "Icon", "Value": "rocket" } } } } } }""");
 
         Assert.Equal(new CharacterMarker(MarkerKind.Letter, "J"), NewPreferences().GetMarker(90000001, "Jita Trader"));
     }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Settings;
+using NewEdenSoft.Hunters.Desktop.Tests.Settings;
 
 namespace NewEdenSoft.Hunters.Desktop.Tests.Map;
 
@@ -10,7 +11,7 @@ public sealed class MapPreferencesTests : IDisposable
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
-    private JsonFileSettingsStore NewStore() => new(Path.Combine(_dir, "desktop-settings.json"), NullLogger<JsonFileSettingsStore>.Instance);
+    private ProfileStore NewStore() => TestProfiles.Open(new JsonFileSettingsStore(Path.Combine(_dir, "desktop-settings.json"), NullLogger<JsonFileSettingsStore>.Instance));
 
     [Fact]
     public void Map_behaviour_defaults_like_the_web_and_is_saved()
@@ -62,5 +63,30 @@ public sealed class MapPreferencesTests : IDisposable
         NewStore().Update(s => s with { Map = s.Map with { JumpRange = new JumpRangeSetting(Enabled: true, Ly: 50) } });
 
         Assert.Equal(new JumpRangeSetting(Enabled: true, Ly: 8), new MapPreferences(NewStore()).JumpRange);
+    }
+
+    [Fact]
+    public void The_colour_filter_and_minimum_npc_kills_default_to_security_and_any_and_are_saved()
+    {
+        var preferences = new MapPreferences(NewStore());
+        Assert.Equal(MapFilterId.Security, preferences.Filter);
+        Assert.Equal(0, preferences.MinNpc);
+
+        preferences.Filter = MapFilterId.NpcRising;
+        preferences.MinNpc = 100;
+
+        var reloaded = new MapPreferences(NewStore());
+        Assert.Equal(MapFilterId.NpcRising, reloaded.Filter);
+        Assert.Equal(100, reloaded.MinNpc);
+    }
+
+    [Fact]
+    public void A_saved_filter_or_minimum_not_offered_falls_back_to_the_default()
+    {
+        NewStore().Update(s => s with { Map = s.Map with { Filter = (MapFilterId)99, MinNpc = 30 } });
+
+        var preferences = new MapPreferences(NewStore());
+        Assert.Equal(MapFilterId.Security, preferences.Filter);
+        Assert.Equal(0, preferences.MinNpc);
     }
 }
