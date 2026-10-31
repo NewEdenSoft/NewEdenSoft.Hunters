@@ -13,7 +13,7 @@ namespace NewEdenSoft.Hunters.Desktop.Map;
 /// </summary>
 public sealed record MapPalette(
     SKColor Halo, SKColor Gate, SKColor Region, SKColor Label, SKColor LabelHover, SKColor Accent, SKColor HuntGlow = default, SKColor Selection = default,
-    SKColor JumpRange = default, SKColor Route = default);
+    SKColor JumpRange = default, SKColor Route = default, SKColor Reliable = default);
 
 /// <summary>A gate route to highlight (system indexes, origin first), and how far its bars have moved (pixels).</summary>
 public sealed record MapRoute(int[] Systems, float Travelled = 0);
@@ -198,6 +198,9 @@ public sealed class MapScene
         // Over the systems, so the range shows on busy (large, bright) systems too.
         if (jumpRange is not null)
             DrawJumpRangeRings(canvas, camera, jumpRange);
+        // Outside the jump range's ring.
+        if (hunting is not null)
+            DrawReliableRings(canvas, camera, hunting.Reliable);
         if (hovered >= 0)
             DrawHover(canvas, camera, hovered);
         if (focused >= 0)
@@ -559,6 +562,30 @@ public sealed class MapScene
 
         using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1.5f, Color = _palette.JumpRange };
         canvas.DrawPath(path, paint);
+    }
+
+    /// <summary>
+    /// A 2 px ring just outside each system where someone with a routine is usually there at this hour,
+    /// fainter for a weaker routine (alpha 0.35 + 0.65 × level), at every zoom.
+    /// </summary>
+    private void DrawReliableRings(SKCanvas canvas, in MapCamera camera, float[] reliable)
+    {
+        var radius = SystemRadius(camera.Scale);
+        using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 2 };
+        for (var i = 0; i < reliable.Length && i < _model.Count; i++)
+        {
+            var level = reliable[i];
+            if (level <= 0)
+                continue;
+
+            var r = radius * Filter.SizeOf(i) + 5;
+            var sx = camera.ToScreenX(X(i));
+            var sy = camera.ToScreenY(Y(i));
+            if (sx < -r || sy < -r || sx > camera.Width + r || sy > camera.Height + r)
+                continue;
+            paint.Color = _palette.Reliable.WithAlpha((byte)Math.Round(_palette.Reliable.Alpha * (0.35 + 0.65 * level)));
+            canvas.DrawCircle(sx, sy, r, paint);
+        }
     }
 
     /// <summary>Two rings around the focused system; its dot too if the filter hides it.</summary>

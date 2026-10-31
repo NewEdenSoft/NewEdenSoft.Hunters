@@ -14,12 +14,43 @@ public sealed class HuntingLayerTests
         [.. new[] { 1, 2, 3, 4 }.Select(id => new MapSystem(id, $"S{id}", 1, 1, -0.5, new MapPoint(0, 0), new MapPoint(0, 0)))],
         []));
 
-    /// <summary>Carriers: strong in S1 at 19:00, weaker in S2 at 19:00, in S3 only at 03:00. CRAB: S2 at 19:00. S99 is not on the map.</summary>
+    /// <summary>
+    /// Carriers: strong in S1 at 19:00, weaker in S2 at 19:00, in S3 only at 03:00; a strong regular in S1 at
+    /// 19:00, a weak one in S3 at 03:00. CRAB: S2 at 19:00. S99 is not on the map.
+    /// </summary>
     private static readonly HuntingOverview Overview = new(1, DateTimeOffset.UnixEpoch,
     [
-        Profile("carriers", [1, 2, 3, 99], [8, 2, 5, 9], [At((19, 4)), At((19, 1), (20, 1)), At((3, 2)), At((19, 1))]),
-        Profile("crab", [2], [3], [At((19, 1))]),
+        Profile("carriers", [1, 2, 3, 99], [8, 2, 5, 9], [At((19, 4)), At((19, 1), (20, 1)), At((3, 2)), At((19, 1))])
+            with { Reliable = [At((19, 3)), [], At((3, 0.75)), At((19, 9))] },
+        Profile("crab", [2], [3], [At((19, 1))]) with { Reliable = [] },
     ]);
+
+    [Fact]
+    public void The_reliable_level_is_nothing_without_a_regular_faint_for_a_weak_one_and_full_from_about_three_recent_days()
+    {
+        Assert.Equal(0, HuntingLayer.ReliableLevel(0));
+        Assert.Equal(0.28, HuntingLayer.ReliableLevel(0.3), 2);
+        Assert.Equal(1, HuntingLayer.ReliableLevel(HuntingLayer.ReliableFull));
+        Assert.Equal(1, HuntingLayer.ReliableLevel(10));
+    }
+
+    [Fact]
+    public void Rings_the_systems_where_someone_is_reliably_there_at_this_hour()
+    {
+        Assert.Equal([1f, 0, 0, 0], HuntingLayer.Build(Model, Overview, ["carriers"], 19, Style).Reliable);
+        Assert.Equal([0, 0, 0.4, 0], HuntingLayer.Build(Model, Overview, ["carriers"], 3, Style).Reliable.Select(r => Math.Round(r, 2)));
+        // Only for the shown profiles.
+        Assert.Equal([0f, 0, 0, 0], HuntingLayer.Build(Model, Overview, ["crab"], 19, Style).Reliable);
+    }
+
+    [Fact]
+    public void The_hover_tells_whether_someone_is_reliably_there_now()
+    {
+        var bySystem = HuntingLayer.ProfilesBySystem(Model, Overview, ["carriers"], 19, Style, id => id);
+
+        Assert.True(bySystem[0].Single().IsReliable);
+        Assert.False(bySystem[1].Single().IsReliable);
+    }
 
     [Fact]
     public void Likely_now_is_the_score_times_this_hours_share_of_the_sightings()

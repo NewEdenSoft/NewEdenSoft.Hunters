@@ -237,7 +237,9 @@ One system in detail, like the web's [System panel](web-client.md#map) (`SystemW
 
 ## Hunting
 
-Which hunting profiles the [map](#map) shows: a toggle per profile with its mark, and a line on what the glow means (or how to start). A server without profiles says so. Like Map controls, it is a widget of its own, docked or floating, and its state is the map's (`MapWidgetViewModel.ShownProfiles`, saved in `MapPreferences.HuntingProfiles`), like the web's Hunting panel.
+Which hunting profiles the [map](#map) shows: a toggle per profile with its mark, and a line on what the glow and the ring mean (or how to start). A server without profiles says so. Like Map controls, it is a widget of its own, docked or floating, and its state is the map's (`MapWidgetViewModel.ShownProfiles`, saved in `MapPreferences.HuntingProfiles`), like the web's Hunting panel.
+
+**Reliable now.** Where someone with a routine in a shown profile is usually there at this hour (UTC), the map rings the system: a 2 px ring in `hunt-reliable` at the drawn radius + 5, over the systems and outside the jump range's ring, at every zoom. Its alpha is `0.35 + 0.65 × level`, the level being the strongest shown profile's `HuntingLayer.ReliableLevel` there: 0 without a regular, from 0.2 for a weak (old or extended) routine to full from `ReliableFull` (3, about three recent days in the window), from the overview's `Reliable` curve at this hour (`HuntingLayer.Reliable`, like the web's `reliableLevel` and the layer's `reliable`). The hover panel says **reliable** in `hunt-reliable` next to each shown profile with a regular there now (`PlaceProfile.IsReliable`).
 
 ## Jump range
 

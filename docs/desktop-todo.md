@@ -74,10 +74,10 @@ See [Jump range](web-client.md#map).
 
 ## Reliable now (web, regulars)
 See [Hunting profiles on the map](web-client.md#map). The overview's `reliable` (24 per system) and the system endpoint's `regulars` come from the server (#76, #77).
-- [ ] **`hunt-reliable`** (`#5effd0`), a new fixed token in `design/themes.json`, to add to the desktop theme resources.
-- [ ] **Reliable ring:** port `reliableLevel` (and `RELIABLE_FULL`) from `map/hunting.ts` and the layer's `reliable` per system (the strongest shown profile's level at this UTC hour). Draw a 2 px ring at the drawn radius + 5, alpha `0.35 + 0.65 × level`, over the systems and outside the jump range's ring, at every zoom.
-- [ ] **Hover:** **reliable** in `hunt-reliable` next to a shown profile whose regulars cover this hour.
-- [ ] **Hunting widget hint:** add that a ring marks where someone with a routine is usually there at this hour.
+- [x] **`hunt-reliable`** (`#5effd0`), a new fixed token in `design/themes.json`, to add to the desktop theme resources.
+- [x] **Reliable ring:** port `reliableLevel` (and `RELIABLE_FULL`) from `map/hunting.ts` and the layer's `reliable` per system (the strongest shown profile's level at this UTC hour). Draw a 2 px ring at the drawn radius + 5, alpha `0.35 + 0.65 × level`, over the systems and outside the jump range's ring, at every zoom.
+- [x] **Hover:** **reliable** in `hunt-reliable` next to a shown profile whose regulars cover this hour.
+- [x] **Hunting widget hint:** add that a ring marks where someone with a routine is usually there at this hour.
 
 ## Info page (web)
 See the web's `/info` (`routes/_authed/info.tsx`).

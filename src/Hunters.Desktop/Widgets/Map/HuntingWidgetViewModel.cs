@@ -30,7 +30,7 @@ public sealed class HuntingWidgetViewModel : WidgetViewModelBase
 
     /// <summary>What the glow means while some profile is shown, or how to start.</summary>
     public string Hint => _map.ShownProfiles.Count > 0
-        ? "The glow is where a shown profile is likely now: usually seen there at this hour (UTC)."
+        ? "The glow is where a shown profile is likely now: usually seen there at this hour (UTC). A ring marks where someone with a routine is usually there at this hour."
         : "Show a profile to see where it is seen, and where it is likely now.";
 
     private void OnMapChanged(object? sender, PropertyChangedEventArgs e)

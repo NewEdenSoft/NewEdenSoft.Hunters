@@ -12,12 +12,16 @@ public sealed record HuntingBadgeGroup(int SystemIndex, IReadOnlyList<HuntingBad
 
 /// <summary>A shown profile seen at a system, for the hover panel.</summary>
 /// <param name="PeakNow">This hour against the busiest hour of the day there, 0–1.</param>
-public sealed record PlaceProfile(string Profile, string Name, ProfileStyle Style, double Score, double Likely, double PeakNow)
+/// <param name="ReliableNow">The regulars' strength at this hour there (0 for none): someone reliably there now.</param>
+public sealed record PlaceProfile(string Profile, string Name, ProfileStyle Style, double Score, double Likely, double PeakNow, double ReliableNow = 0)
 {
     /// <summary>"peak now", "now" (usually seen here at this hour, UTC), or "seen".</summary>
     public string When => Likely > 0 ? PeakNow >= 0.8 ? "peak now" : "now" : "seen";
 
     public bool IsLikely => Likely > 0;
+
+    /// <summary>Someone with a routine there is usually there at this hour: the map's ring.</summary>
+    public bool IsReliable => ReliableNow > 0;
 }
 
 /// <summary>
@@ -25,8 +29,22 @@ public sealed record PlaceProfile(string Profile, string Name, ProfileStyle Styl
 /// there, relative to that profile's strongest system) and badges for the shown profiles seen there.
 /// Matches <c>web/hunters-web/src/map/hunting.ts</c>.
 /// </summary>
-public sealed record HuntingLayer(float[] Glow, IReadOnlyList<HuntingBadgeGroup> Badges)
+/// <param name="Reliable">Per system, how strongly to ring it as reliable now (<see cref="ReliableLevel"/>), 0 for no ring.</param>
+public sealed record HuntingLayer(float[] Glow, float[] Reliable, IReadOnlyList<HuntingBadgeGroup> Badges)
 {
+    /// <summary>A reliable strength this high draws the ring at full strength: about three recent days in the window.</summary>
+    public const double ReliableFull = 3;
+
+    /// <summary>
+    /// How strongly to draw "reliable now" for a regular strength at this hour (the server's <c>Reliable</c>
+    /// curve): 0 for none, else from a faint ring (an old or extended routine) to full at <see cref="ReliableFull"/>.
+    /// </summary>
+    public static double ReliableLevel(double strength) => strength > 0 ? Math.Min(1, 0.2 + 0.8 * strength / ReliableFull) : 0;
+
+    /// <summary>A profile's regular strength at this hour in its <paramref name="i"/>th system; 0 without one.</summary>
+    private static double ReliableAt(HuntingProfileSystems systems, int i, int hour) =>
+        systems.Reliable is { } reliable && i < reliable.Count && hour < reliable[i].Count ? reliable[i][hour] : 0;
+
     /// <summary>
     /// "Likely now": the score times this hour's share of the profile's sightings in the system. High where
     /// the habit is strong and this is its usual hour.
@@ -45,6 +63,7 @@ public sealed record HuntingLayer(float[] Glow, IReadOnlyList<HuntingBadgeGroup>
     public static HuntingLayer Build(MapModel model, HuntingOverview overview, IReadOnlyList<string> shown, int hour, Func<string, ProfileStyle> styleOf)
     {
         var glow = new float[model.Count];
+        var reliable = new float[model.Count];
         var badges = new Dictionary<int, List<HuntingBadge>>();
 
         foreach (var profile in shown)
@@ -65,13 +84,14 @@ public sealed record HuntingLayer(float[] Glow, IReadOnlyList<HuntingBadgeGroup>
                     continue;
                 if (strongest > 0 && likely[i] > 0)
                     glow[index] = Math.Max(glow[index], (float)Math.Sqrt(likely[i] / strongest));
+                reliable[index] = Math.Max(reliable[index], (float)ReliableLevel(ReliableAt(systems, i, hour)));
                 if (!badges.TryGetValue(index, out var row))
                     badges[index] = row = [];
                 row.Add(new HuntingBadge(profile, style.Code, style.Colour, ProfileIcons.PathOf(style.Icon), likely[i] <= 0));
             }
         }
 
-        return new HuntingLayer(glow, badges.Select(b => new HuntingBadgeGroup(b.Key, b.Value)).ToList());
+        return new HuntingLayer(glow, reliable, badges.Select(b => new HuntingBadgeGroup(b.Key, b.Value)).ToList());
     }
 
     /// <summary>
@@ -103,7 +123,8 @@ public sealed record HuntingLayer(float[] Glow, IReadOnlyList<HuntingBadgeGroup>
                     style,
                     systems.Score[i],
                     LikelyNow(systems.Score[i], hours, hour),
-                    busiest > 0 && hour < hours.Count ? hours[hour] / busiest : 0));
+                    busiest > 0 && hour < hours.Count ? hours[hour] / busiest : 0,
+                    ReliableAt(systems, i, hour)));
             }
         }
 

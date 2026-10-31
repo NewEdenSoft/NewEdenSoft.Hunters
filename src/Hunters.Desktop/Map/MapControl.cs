@@ -75,6 +75,10 @@ public sealed class MapControl : Control
     public static readonly StyledProperty<Color> JumpRangeColorProperty =
         AvaloniaProperty.Register<MapControl, Color>(nameof(JumpRangeColor), Colors.DodgerBlue);
 
+    /// <summary>The ring around systems where someone with a routine is usually there at this hour.</summary>
+    public static readonly StyledProperty<Color> ReliableColorProperty =
+        AvaloniaProperty.Register<MapControl, Color>(nameof(ReliableColor), Colors.Aquamarine);
+
     /// <summary>The glow behind systems where a shown hunting profile is likely now.</summary>
     public static readonly StyledProperty<Color> HuntGlowColorProperty =
         AvaloniaProperty.Register<MapControl, Color>(nameof(HuntGlowColor), Colors.Orange);
@@ -217,6 +221,12 @@ public sealed class MapControl : Control
     {
         get => GetValue(JumpRangeColorProperty);
         set => SetValue(JumpRangeColorProperty, value);
+    }
+
+    public Color ReliableColor
+    {
+        get => GetValue(ReliableColorProperty);
+        set => SetValue(ReliableColorProperty, value);
     }
 
     public Color HuntGlowColor
@@ -375,7 +385,7 @@ public sealed class MapControl : Control
         }
         else if (change.Property == FilterProperty || change.Property == HaloColorProperty || change.Property == GateColorProperty ||
                  change.Property == TextColorProperty || change.Property == MutedTextColorProperty || change.Property == HoverColorProperty ||
-                 change.Property == HuntGlowColorProperty || change.Property == JumpRangeColorProperty || change.Property == RouteColorProperty)
+                 change.Property == HuntGlowColorProperty || change.Property == ReliableColorProperty || change.Property == JumpRangeColorProperty || change.Property == RouteColorProperty)
         {
             RebuildScene();
         }
@@ -648,7 +658,7 @@ public sealed class MapControl : Control
 
     private MapPalette Palette() => new(
         ToSkia(HaloColor), ToSkia(GateColor), ToSkia(TextColor), ToSkia(MutedTextColor), ToSkia(TextColor), ToSkia(HoverColor), ToSkia(HuntGlowColor),
-        ToSkia(TextColor), ToSkia(JumpRangeColor), ToSkia(RouteColor));
+        ToSkia(TextColor), ToSkia(JumpRangeColor), ToSkia(RouteColor), ToSkia(ReliableColor));
 
     private void UpdateHover(Point at) => SetHovered(SystemAt(at));
 
