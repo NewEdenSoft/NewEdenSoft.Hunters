@@ -81,4 +81,4 @@ See [Hunting profiles on the map](web-client.md#map). The overview's `reliable` 
 
 ## Info page (web)
 See the web's `/info` (`routes/_authed/info.tsx`).
-- [ ] An **Info** page from the navigation: using the map, the map's marks (glow, reliable ring, badges, jump range, focus and selection rings) and the panels' words (peak now / now / seen, reliable, regulars, local, Peak in N h), how profiles are scored, and each profile's description and evidence from `/api/hunting/profiles` (`HuntingProfileInfo.Description`, `Evidence`). Same wording as the web.
+- [x] An **Info** page from the navigation: using the map, the map's marks (glow, reliable ring, badges, jump range, focus and selection rings) and the panels' words (peak now / now / seen, reliable, regulars, local, Peak in N h), how profiles are scored, and each profile's description and evidence from `/api/hunting/profiles` (`HuntingProfileInfo.Description`, `Evidence`). Same wording as the web.

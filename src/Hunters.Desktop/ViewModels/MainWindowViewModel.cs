@@ -10,7 +10,7 @@ namespace NewEdenSoft.Hunters.Desktop.ViewModels;
 /// <summary>Main window shell: navigation rail with widget pages and system pages.</summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
-    public MainWindowViewModel(WidgetManager widgets, AccountPageViewModel account, SettingsPageViewModel settings, MapFocus mapFocus)
+    public MainWindowViewModel(WidgetManager widgets, InfoPageViewModel info, AccountPageViewModel account, SettingsPageViewModel settings, MapFocus mapFocus)
     {
         WidgetPages = widgets.Widgets.Select(w => new WidgetPageViewModel(w, widgets)).ToList();
 
@@ -21,7 +21,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 Navigate(page);
         };
 
-        SystemPages = [account, settings];
+        SystemPages = [info, account, settings];
 
         foreach (var page in WidgetPages)
             page.Widget.PropertyChanged += OnWidgetChanged;

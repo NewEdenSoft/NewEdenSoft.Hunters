@@ -94,8 +94,10 @@ public static class DesktopHost
         services.AddSingleton<MapFocus>();
 
         // System pages
+        services.AddSingleton<InfoPageViewModel>();
         services.AddSingleton<AccountPageViewModel>();
         services.AddSingleton<SettingsPageViewModel>();
+        services.AddView<InfoPageViewModel, InfoPageView>();
         services.AddView<AccountPageViewModel, AccountPageView>();
         services.AddView<SettingsPageViewModel, SettingsPageView>();
         services.AddView<WidgetPageViewModel, WidgetPageView>();

@@ -57,6 +57,15 @@ Once logged in, the Account page shows the server and the account's characters (
 
 Flagged characters show a warning icon and a *Log in again* button, and the Account entry in the navigation rail shows `LOG IN`.
 
+### Info page
+
+How Hunters works, like the web's `/info`: a page of its own (`InfoPageViewModel`, `InfoPageView`), first under SYSTEM in the navigation, not a widget. The same wording as the web, except **Using the map**, which follows the desktop: the widgets (a page each, or floating over the game), a system's menu on a right click (on the map or a Nearby card), Follow on the character's chip, and Map controls for the colours. Then:
+
+- **On the map:** each mark with a small drawing of it: the amber glow (likely now), the mint ring (reliable now), badges, the blue glow and ring (jump range), the double ring (the focus) and the ring with ticks (the selection).
+- **In the widgets:** peak now · now · seen, reliable, Regulars, local, and Peak now · Peak in N h, each in its colour.
+- **How the profiles are scored:** sightings, NPC losses and locals, indirect evidence, fleet fights left out, the score's 14-day half-life, regulars, and where the data comes from.
+- **The profiles:** each hunting profile with its badge, name, description and *Seen when* evidence, from `/api/hunting/profiles` (`HuntingProfileInfo.Description`, `Evidence`), asked for when the page is opened, once per session; *Loading…*, or *The server has no hunting profiles yet.* (asked again the next time the page is opened), or *Log in to see the hunting profiles.*
+
 ## ESI calls
 
 The desktop calls ESI directly with NewEdenKit.ESI, using a local file cache. Access tokens come from the server through `ICharacterTokenProvider`; the desktop never holds refresh tokens.
