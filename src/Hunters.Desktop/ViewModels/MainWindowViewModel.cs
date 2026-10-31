@@ -1,93 +1,49 @@
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using NewEdenSoft.Hunters.Desktop.Map;
-using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
-using NewEdenSoft.Hunters.Desktop.Widgets;
+using NewEdenSoft.Hunters.Desktop.Sessions;
 
 namespace NewEdenSoft.Hunters.Desktop.ViewModels;
 
-/// <summary>Main window shell: navigation rail with widget pages and system pages.</summary>
+/// <summary>
+/// The main window: only the login screen while signed out; the shell (navigation rail, widget pages,
+/// Account, Settings) while signed in (docs/decisions.md, D19).
+/// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
-    public MainWindowViewModel(WidgetManager widgets, InfoPageViewModel info, AccountPageViewModel account, SettingsPageViewModel settings, MapFocus mapFocus)
+    public MainWindowViewModel(LoginViewModel login, SessionHost sessions)
     {
-        WidgetPages = widgets.Widgets.Select(w => new WidgetPageViewModel(w, widgets)).ToList();
-
-        // Focusing on a character shows the map: a docked map's page is selected (a floating one is already on screen).
-        mapFocus.FocusRequested += (_, _) =>
-        {
-            if (WidgetPages.FirstOrDefault(p => p.Widget.Id == MapWidgetId) is { Widget.IsFloating: false } page && !page.IsSelected)
-                Navigate(page);
-        };
-
-        SystemPages = [info, account, settings];
-
-        foreach (var page in WidgetPages)
-            page.Widget.PropertyChanged += OnWidgetChanged;
-
-        Navigate(WidgetPages.FirstOrDefault() ?? (PageViewModel)account);
+        Login = login;
+        sessions.Changed += (_, _) => Shell = sessions.Shell;
+        Shell = sessions.Shell;
     }
 
-    /// <summary>The map widget's id, as registered in <see cref="DesktopHost"/>.</summary>
-    public const string MapWidgetId = "map";
+    public LoginViewModel Login { get; }
 
-    public IReadOnlyList<WidgetPageViewModel> WidgetPages { get; }
-
-    public IReadOnlyList<PageViewModel> SystemPages { get; }
-
+    /// <summary>The signed-in session's shell; null while signed out.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ScrollingPage), nameof(FullBleedPage), nameof(IsFullBleed))]
-    public partial PageViewModel? CurrentPage { get; private set; }
+    [NotifyPropertyChangedFor(nameof(IsSignedIn), nameof(QuitsOnClose))]
+    public partial ShellViewModel? Shell { get; private set; }
 
-    /// <summary>The current page when it scrolls in the padded content area.</summary>
-    public PageViewModel? ScrollingPage => CurrentPage is { IsFullBleed: false } ? CurrentPage : null;
+    public bool IsSignedIn => Shell is not null;
 
-    /// <summary>The current page when it fills the content area (a docked map).</summary>
-    public PageViewModel? FullBleedPage => CurrentPage is { IsFullBleed: true } ? CurrentPage : null;
-
-    public bool IsFullBleed => CurrentPage?.IsFullBleed == true;
+    /// <summary>
+    /// Closing the window quits the app while signed out: there are no overlays or background work to keep
+    /// in the tray. Signed in, it hides to the tray.
+    /// </summary>
+    public bool QuitsOnClose => Shell is null;
 
     /// <summary>Set by the main window as it is shown and hidden to the tray.</summary>
     [ObservableProperty]
     public partial bool IsWindowVisible { get; set; }
 
-    [RelayCommand]
-    public void Navigate(PageViewModel page)
+    partial void OnIsWindowVisibleChanged(bool value)
     {
-        if (CurrentPage is not null)
-            CurrentPage.IsSelected = false;
-
-        CurrentPage = page;
-        page.IsSelected = true;
-        UpdateDockedActivity();
+        if (Shell is { } shell)
+            shell.IsWindowVisible = value;
     }
 
-    /// <summary>Selects a widget's page, for example from the tray menu.</summary>
-    public void NavigateToWidget(string widgetId)
+    partial void OnShellChanged(ShellViewModel? value)
     {
-        if (WidgetPages.FirstOrDefault(p => p.Widget.Id == widgetId) is { } page)
-            Navigate(page);
-    }
-
-    partial void OnIsWindowVisibleChanged(bool value) => UpdateDockedActivity();
-
-    private void OnWidgetChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(WidgetState.IsFloating))
-            return;
-
-        UpdateDockedActivity();
-        // A widget that fills its page scrolls with it while floating (its page shows overlay settings).
-        OnPropertyChanged(nameof(ScrollingPage));
-        OnPropertyChanged(nameof(FullBleedPage));
-        OnPropertyChanged(nameof(IsFullBleed));
-    }
-
-    /// <summary>Docked widgets are active only while their page is visible. Floating ones are handled by <see cref="WidgetManager"/>.</summary>
-    private void UpdateDockedActivity()
-    {
-        foreach (var page in WidgetPages.Where(p => !p.Widget.IsFloating))
-            page.Widget.Content.IsActive = IsWindowVisible && page.IsSelected;
+        if (value is not null)
+            value.IsWindowVisible = IsWindowVisible;
     }
 }

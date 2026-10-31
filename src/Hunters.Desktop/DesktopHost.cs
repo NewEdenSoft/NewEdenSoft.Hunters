@@ -10,6 +10,7 @@ using NewEdenSoft.Hunters.Desktop.Images;
 using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Platform;
 using NewEdenSoft.Hunters.Desktop.Platform.Windows;
+using NewEdenSoft.Hunters.Desktop.Sessions;
 using NewEdenSoft.Hunters.Desktop.Settings;
 using NewEdenSoft.Hunters.Desktop.Theming;
 using NewEdenSoft.Hunters.Desktop.Tray;
@@ -64,11 +65,10 @@ public static class DesktopHost
         var userAgent = $"Hunters.Desktop/{typeof(DesktopHost).Assembly.GetName().Version}";
         services.AddHttpClient<DesktopLoginClient>(http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
         // The server sends the map pack precompressed with Brotli or gzip.
-        services.AddHttpClient(AccountPageViewModel.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent))
+        services.AddHttpClient(LoginViewModel.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent))
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AutomaticDecompression = DecompressionMethods.Brotli | DecompressionMethods.GZip });
         services.AddHttpClient(PortraitCache.HttpClientName, http => http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent));
         services.AddSingleton<PortraitCache>();
-        services.AddSingleton<CharacterPreferences>();
         services.AddSingleton<SavedServers>();
 
         // ESI: the desktop's own calls for its characters (docs/decisions.md, D11)
@@ -80,31 +80,38 @@ public static class DesktopHost
         services.AddSingleton<ILocationEsi, LocationEsi>();
         services.AddSingleton<IEveNameSource, EsiNameSource>();
         services.AddSingleton<EveNames>();
-        services.AddSingleton<CharacterTracking>();
         services.AddSingleton<IAutopilotEsi, AutopilotEsi>();
-        services.AddSingleton<Destinations>();
 
-        // Shell
+        // Main window: the login screen while signed out (singletons)
         services.AddSingleton<MainWindow>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<TrayIconService>();
-        services.AddSingleton<WidgetManager>();
+        services.AddSingleton<SessionHost>();
+        services.AddSingleton<LoginViewModel>();
+        services.AddView<LoginViewModel, LoginView>();
 
-        services.AddSingleton<MapPreferences>();
-        services.AddSingleton<MapFocus>();
+        // Signed in: one scope per session (SessionHost), so nothing of one session is left for the next
+        services.AddScoped<ShellViewModel>();
+        services.AddView<ShellViewModel, ShellView>();
+        services.AddScoped<WidgetManager>();
+        services.AddScoped<CharacterPreferences>();
+        services.AddScoped<CharacterTracking>();
+        services.AddScoped<Destinations>();
+        services.AddScoped<MapPreferences>();
+        services.AddScoped<MapFocus>();
 
         // System pages
-        services.AddSingleton<InfoPageViewModel>();
-        services.AddSingleton<AccountPageViewModel>();
-        services.AddSingleton<SettingsPageViewModel>();
+        services.AddScoped<InfoPageViewModel>();
+        services.AddScoped<AccountPageViewModel>();
+        services.AddScoped<SettingsPageViewModel>();
         services.AddView<InfoPageViewModel, InfoPageView>();
         services.AddView<AccountPageViewModel, AccountPageView>();
         services.AddView<SettingsPageViewModel, SettingsPageView>();
         services.AddView<WidgetPageViewModel, WidgetPageView>();
 
-        // Widgets, in navigation order
+        // Widgets, in navigation order (one per session)
         services.AddWidget<MapWidgetViewModel, MapWidgetView>(
-            MainWindowViewModel.MapWidgetId, "Map", "Known space. Drag to pan, scroll to zoom, right-click a system for its menu; / searches.", 520, 400, fillsPage: true);
+            ShellViewModel.MapWidgetId, "Map", "Known space. Drag to pan, scroll to zoom, right-click a system for its menu; / searches.", 520, 400, fillsPage: true);
         services.AddWidget<MapControlsWidgetViewModel, MapControlsWidgetView>(
             "map-controls", "Map controls", "How the map is drawn: its layout, colours and legend.", 300, 240);
         services.AddWidget<NearbyWidgetViewModel, NearbyWidgetView>(

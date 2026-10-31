@@ -6,9 +6,9 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets;
 public static class WidgetRegistrationExtensions
 {
     /// <summary>
-    /// Registers a widget: its content view model (one shared instance), its view, and its
-    /// definition. The widget then appears in the main window's navigation, the tray menu and as
-    /// an overlay when floated.
+    /// Registers a widget: its content view model (one instance per session, shared by its page and its
+    /// overlay), its view, and its definition. The widget then appears in the main window's navigation,
+    /// the tray menu and as an overlay when floated.
     /// </summary>
     public static IServiceCollection AddWidget<TViewModel, TView>(
         this IServiceCollection services,
@@ -21,7 +21,7 @@ public static class WidgetRegistrationExtensions
         where TViewModel : WidgetViewModelBase
         where TView : Control
     {
-        services.AddSingleton<TViewModel>();
+        services.AddScoped<TViewModel>();
         services.AddView<TViewModel, TView>();
         services.AddSingleton(new WidgetDefinition(id, title, description, typeof(TViewModel), defaultWidth, defaultHeight, FillsPage: fillsPage));
         return services;

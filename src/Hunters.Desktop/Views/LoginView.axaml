@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NewEdenSoft.Hunters.Desktop.ViewModels"
+             xmlns:c="using:NewEdenSoft.Hunters.Desktop.Controls"
+             xmlns:s="using:NewEdenSoft.Hunters.Desktop.Settings"
+             x:Class="NewEdenSoft.Hunters.Desktop.Views.LoginView"
+             x:DataType="vm:LoginViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="36,48" MaxWidth="560" Spacing="20" HorizontalAlignment="Center">
+      <StackPanel Spacing="2">
+        <TextBlock Classes="h2 accent" Text="HUNTERS" LetterSpacing="3" />
+        <TextBlock Classes="label" Text="NEWEDENSOFT" />
+      </StackPanel>
+
+      <!-- Browser login in progress: the rest of the screen waits, so cancel is prominent -->
+      <c:HudPanel IsVisible="{Binding IsWaitingForBrowser}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="label accent" Text="WAITING FOR THE BROWSER" />
+            <TextBlock TextWrapping="Wrap" Text="Finish the EVE login in your browser. Hunters continues when it is done." />
+            <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                       Text="Closed the tab, or the browser shows an error? Cancel and try again." />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="hud primary" VerticalAlignment="Center"
+                  Content="CANCEL" Command="{Binding CancelLogInCommand}" />
+        </Grid>
+      </c:HudPanel>
+
+      <TextBlock Classes="hint" Foreground="{DynamicResource Hud.DangerBrush}" TextWrapping="Wrap"
+                 Text="{Binding ErrorMessage}" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+      <!-- Server address and login -->
+      <c:HudPanel>
+        <StackPanel Spacing="14">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="label" Text="LOG IN" />
+            <TextBlock Classes="muted hint" TextWrapping="Wrap"
+                       Text="Connect to a Hunters server and log in with your EVE Online character. Your browser opens for the EVE login." />
+          </StackPanel>
+
+          <StackPanel Spacing="6" IsVisible="{Binding HasSavedServers}">
+            <TextBlock Classes="label" Text="SAVED SERVERS" />
+            <ItemsControl ItemsSource="{Binding SavedServers}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="s:SavedServer">
+                  <StackPanel Orientation="Horizontal" Spacing="2">
+                    <Button Classes="hud toggle ghost"
+                            Command="{Binding $parent[ItemsControl].((vm:LoginViewModel)DataContext).PickServerCommand}"
+                            CommandParameter="{Binding}"
+                            IsEnabled="{Binding $parent[ItemsControl].((vm:LoginViewModel)DataContext).IsIdle}"
+                            ToolTip.Tip="Fill in this server's address and access key">
+                      <TextBlock VerticalAlignment="Center">
+                        <Run Text="{Binding Label}" />
+                        <Run Text="{Binding KeyTag}"
+                             Foreground="{DynamicResource Hud.FgMutedBrush}" />
+                      </TextBlock>
+                    </Button>
+                    <Button Classes="hud toggle ghost" Content="✕"
+                            Command="{Binding $parent[ItemsControl].((vm:LoginViewModel)DataContext).ForgetServerCommand}"
+                            CommandParameter="{Binding}"
+                            IsEnabled="{Binding $parent[ItemsControl].((vm:LoginViewModel)DataContext).IsIdle}"
+                            ToolTip.Tip="Forget this server and its access key"
+                            AutomationProperties.Name="Forget this server" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <StackPanel Spacing="6">
+            <TextBlock Classes="label" Text="SERVER" />
+            <TextBox Classes="hud" Text="{Binding ServerUrl}" IsEnabled="{Binding IsIdle}"
+                     PlaceholderText="hunters.example.com" />
+          </StackPanel>
+
+          <StackPanel Spacing="6">
+            <TextBlock Classes="label" Text="ACCESS KEY (OPTIONAL)" />
+            <TextBox Classes="hud" Text="{Binding AccessKey}" IsEnabled="{Binding IsIdle}"
+                     PasswordChar="•" PlaceholderText="Only needed for a new account on some servers" />
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="hud primary" Content="LOG IN WITH EVE ONLINE" Command="{Binding LogInCommand}" IsDefault="True" />
+            <Button Classes="hud ghost" Content="SAVE SERVER" Command="{Binding SaveServerCommand}"
+                    ToolTip.Tip="Save this address, and the access key if set, on this computer. The key is kept as plain text in the settings file." />
+          </StackPanel>
+          <TextBlock Classes="muted hint" Text="{Binding SavedText}" IsVisible="{Binding SavedText, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </StackPanel>
+      </c:HudPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
