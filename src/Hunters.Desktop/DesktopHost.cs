@@ -91,6 +91,7 @@ public static class DesktopHost
         services.AddView<LoginViewModel, LoginView>();
 
         // Signed in: one scope per session (SessionHost), so nothing of one session is left for the next
+        services.AddScoped<ProfileStore>();
         services.AddScoped<ShellViewModel>();
         services.AddView<ShellViewModel, ShellView>();
         services.AddScoped<WidgetManager>();

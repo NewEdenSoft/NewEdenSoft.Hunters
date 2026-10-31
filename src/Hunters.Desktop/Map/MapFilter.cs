@@ -1,10 +1,12 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using Avalonia.Media;
 using NewEdenSoft.Hunters.Contracts.Activity;
 using NewEdenSoft.Hunters.Desktop.Theming;
 
 namespace NewEdenSoft.Hunters.Desktop.Map;
 
+[JsonConverter(typeof(JsonStringEnumConverter<MapFilterId>))]
 public enum MapFilterId
 {
     Security,

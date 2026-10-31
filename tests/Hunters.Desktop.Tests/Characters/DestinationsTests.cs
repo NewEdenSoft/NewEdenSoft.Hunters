@@ -6,6 +6,7 @@ using NewEdenSoft.Hunters.Client.Tracking;
 using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Settings;
+using NewEdenSoft.Hunters.Desktop.Tests.Settings;
 
 namespace NewEdenSoft.Hunters.Desktop.Tests.Characters;
 
@@ -21,7 +22,7 @@ public sealed class DestinationsTests : IDisposable
 
     public DestinationsTests()
     {
-        var preferences = new CharacterPreferences(new JsonFileSettingsStore(Path.Combine(_dir, "settings.json"), NullLogger<JsonFileSettingsStore>.Instance));
+        var preferences = new CharacterPreferences(TestProfiles.Open(new JsonFileSettingsStore(Path.Combine(_dir, "settings.json"), NullLogger<JsonFileSettingsStore>.Instance)));
         _destinations = new Destinations(_esi, new CharacterTracking(new NoLocations(), preferences));
     }
 

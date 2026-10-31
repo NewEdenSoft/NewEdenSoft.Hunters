@@ -3,10 +3,10 @@ using NewEdenSoft.Hunters.Desktop.Settings;
 namespace NewEdenSoft.Hunters.Desktop.Characters;
 
 /// <summary>
-/// The user's per-character choices, saved in this computer's desktop settings by character id:
-/// the map marker, and whether the character is tracked.
+/// The user's per-character choices, saved by character id in the account's profile on this computer
+/// (<see cref="ProfileStore"/>): the map marker, and whether the character is tracked.
 /// </summary>
-public sealed class CharacterPreferences(ISettingsStore settings)
+public sealed class CharacterPreferences(ProfileStore settings)
 {
     /// <summary>A character's marker changed; the argument is the character id.</summary>
     public event EventHandler<long>? MarkerChanged;

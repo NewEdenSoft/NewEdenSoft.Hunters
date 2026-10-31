@@ -6,6 +6,7 @@ using NewEdenSoft.Hunters.Contracts.Account;
 using NewEdenSoft.Hunters.Contracts.Auth;
 using NewEdenSoft.Hunters.Desktop.Characters;
 using NewEdenSoft.Hunters.Desktop.Settings;
+using NewEdenSoft.Hunters.Desktop.Tests.Settings;
 
 namespace NewEdenSoft.Hunters.Desktop.Tests.Characters;
 
@@ -17,7 +18,7 @@ public sealed class CharacterTrackingTests : IDisposable
     private readonly CharacterPreferences _preferences;
 
     public CharacterTrackingTests() =>
-        _preferences = new CharacterPreferences(new JsonFileSettingsStore(Path.Combine(_dir, "settings.json"), NullLogger<JsonFileSettingsStore>.Instance));
+        _preferences = new CharacterPreferences(TestProfiles.Open(new JsonFileSettingsStore(Path.Combine(_dir, "settings.json"), NullLogger<JsonFileSettingsStore>.Instance)));
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
