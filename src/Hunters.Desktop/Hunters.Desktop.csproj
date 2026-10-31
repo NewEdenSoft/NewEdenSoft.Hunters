@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\hunters.ico</ApplicationIcon>
     <AssemblyTitle>Hunters</AssemblyTitle>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>

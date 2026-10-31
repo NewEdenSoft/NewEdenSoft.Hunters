@@ -36,3 +36,16 @@ Add an entry to `themes` with a unique `id`. No code changes are needed.
 | Numbers | JetBrains Mono | static 400/600 | `@fontsource-variable/jetbrains-mono` |
 
 All three are SIL Open Font License 1.1 with no reserved font names. The desktop files are static instances generated from the Google Fonts variable fonts with fontTools; their licences sit next to them.
+
+## Icon
+
+[`icon.png`](icon.png) (460 px) and [`icon2x.png`](icon2x.png) (920 px) are the application icon. The shipped files are scaled from `icon2x.png`:
+
+| File | Sizes | Used for |
+|---|---|---|
+| `src/Hunters.Desktop/Assets/hunters.ico` | 16–256 px | Window, tray and the `.exe` (`ApplicationIcon`) |
+| `web/hunters-web/public/favicon.ico` | 16, 32, 48 px | Browser tab |
+| `web/hunters-web/public/icon-192.png` | 192 px | High-resolution favicon |
+| `web/hunters-web/public/apple-touch-icon.png` | 180 px | iOS home screen |
+
+When the icon changes, regenerate all four from `icon2x.png` with high-quality (Lanczos) downscaling.

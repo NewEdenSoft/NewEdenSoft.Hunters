@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="NewEdenSoft.Hunters.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/hunters.ico"
         Width="1100" Height="720" MinWidth="720" MinHeight="460"
         WindowStartupLocation="CenterScreen"
         Title="Hunters">
