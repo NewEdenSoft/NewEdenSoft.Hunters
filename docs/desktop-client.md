@@ -228,7 +228,12 @@ One system in detail, like the web's [System panel](web-client.md#map) (`SystemW
 - **Hunting profiles:** every profile seen there, not only the ones shown on the map (`HuntersSession.GetSystemHuntingAsync`, `GET /api/hunting/systems/{id}`), asked for while the widget is on screen and the server has hunting, once per system and session; *Loading…* until it comes, *None seen here.* without any, or the error. Each has its badge, its name, **peak now** or **now** (usually seen there at this hour, UTC; amber) or **seen** (faint), then the pilots in 30 days and how long since it was last seen ("3 pilots · 2h", the date as a tooltip). The ones likely now come first, then by score; the order follows the hour, and the times ago are written again every minute while on screen. `SystemInfo.ProfileStatus`, `SortProfiles` and `TimeAgo`, like the web's `profileStatus`, `sortProfiles` and `timeAgo`. A profile says **reliable** (in `hunt-reliable`) when its `Reliable` curve is set at this hour: someone with a routine there is usually there now.
   - **Regulars** under each profile, in the server's order (session windows first, then the strongest): the pilot's name (ESI `/universe/names` through `EveNames`, "…" until it comes), **local** (in the info blue) when seen in its own alliance's sovereignty, the window and the days seen in it ("22–02 UTC · 5d", with the days in all and the last sighting as a tooltip), and **now** in `hunt-reliable` when the window covers this hour. `SystemInfo.WindowCovers` and `WindowLabel`, like the web's `windowCovers` and `windowLabel`.
 
-Recent kills come next (see [Desktop To-Do](desktop-todo.md)).
+- **Recent kills:** the newest 10 (`HuntersSession.GetSystemKillsAsync`, `GET /api/kills/systems/{id}`), once the discovery document lists `kills` (`MapWidgetViewModel.HasKills`), asked for while on screen and again every minute, the kills shown kept while the next answer comes (and when a refresh fails). *Loading…*, *No kills here in the kept history.*, or the error. Each kill is a row that opens it on zKillboard (`https://zkillboard.com/kill/{id}/`):
+  - the ship's icon (the image server's 32 px type icon, kept with the portraits in `PortraitCache`), the ship and the pilot
+  - **by** the final blow: the pilot and their ship, or the NPC, with *+N* for the other attackers; *NPC* (amber) when only NPCs were on it; the attacker count when the final blow is unknown
+  - how long ago (the time as a tooltip) and the value in ISK (12.5k, 3.2M, 1.05B)
+
+  Names come from ESI `POST /universe/names` through `EveNames`, "…" until they come. `SystemKillsViewModel` and `KillRowViewModel`; `SystemInfo.KillNameIds` and `PartyName`, like the web's `killNameIds` and `partyName`.
 
 ## Hunting
 

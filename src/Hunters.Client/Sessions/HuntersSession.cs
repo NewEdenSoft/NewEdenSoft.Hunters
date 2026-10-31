@@ -8,6 +8,7 @@ using NewEdenSoft.Hunters.Contracts.Activity;
 using NewEdenSoft.Hunters.Contracts.Auth;
 using NewEdenSoft.Hunters.Contracts.Discovery;
 using NewEdenSoft.Hunters.Contracts.Hunting;
+using NewEdenSoft.Hunters.Contracts.Kills;
 using NewEdenSoft.Hunters.Contracts.Intel;
 using NewEdenSoft.Hunters.Contracts.Map;
 
@@ -110,6 +111,10 @@ public sealed class HuntersSession : ICharacterTokenProvider
     public Task<IntelReach> GetReachAsync(
         int from, int? jumps, double? ly, string? profile, int limit, string sort, CancellationToken cancellationToken = default) =>
         SendAsync<IntelReach>(HttpMethod.Get, IntelPaths.Reach(from, jumps, ly, profile, limit, sort), cancellationToken: cancellationToken);
+
+    /// <summary>A system's most recent kills, newest first; ids only, the names are looked up on ESI.</summary>
+    public Task<SystemKills> GetSystemKillsAsync(int systemId, int? limit = null, CancellationToken cancellationToken = default) =>
+        SendAsync<SystemKills>(HttpMethod.Get, KillPaths.System(systemId, limit), cancellationToken: cancellationToken);
 
     /// <summary>Every hunting profile seen in one system, highest score first, with its regulars.</summary>
     public Task<HuntingPlace> GetSystemHuntingAsync(int systemId, CancellationToken cancellationToken = default) =>

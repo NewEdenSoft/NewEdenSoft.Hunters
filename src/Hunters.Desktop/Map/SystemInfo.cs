@@ -1,6 +1,7 @@
 using System.Globalization;
 using NewEdenSoft.Hunters.Contracts.Activity;
 using NewEdenSoft.Hunters.Contracts.Hunting;
+using NewEdenSoft.Hunters.Contracts.Kills;
 
 namespace NewEdenSoft.Hunters.Desktop.Map;
 
@@ -77,6 +78,34 @@ public static class SystemInfo
         var hours = minutes / 60;
         return hours < 48 ? $"{hours}h" : $"{hours / 24}d";
     }
+
+    /// <summary>The ids the recent kills need names for: pilots, corporations, alliances and ships, each once.</summary>
+    public static IReadOnlyList<long> KillNameIds(IEnumerable<RecentKill> kills)
+    {
+        var ids = new HashSet<long>();
+        foreach (var kill in kills)
+        {
+            foreach (var party in new[] { kill.Victim, kill.FinalBlow })
+            {
+                if (party is null)
+                    continue;
+                foreach (var id in new[] { party.CharacterId, party.CorporationId, party.AllianceId, party.ShipTypeId })
+                {
+                    if (id is { } known)
+                        ids.Add(known);
+                }
+            }
+        }
+
+        return [.. ids];
+    }
+
+    /// <summary>Who a party is, in words: the pilot, else its corporation, else its ship (an NPC); null while not known.</summary>
+    public static string? PartyName(KillParty party, Func<long, string?> nameOf) =>
+        party.CharacterId is { } character ? nameOf(character)
+        : party.CorporationId is { } corporation ? nameOf(corporation)
+        : party.ShipTypeId is { } ship ? nameOf(ship)
+        : null;
 
     /// <summary>Shortened like EVE players do: "950", "12.5k", "3.2M", "1.05B", "250M". Counts too.</summary>
     public static string FormatIsk(double isk)

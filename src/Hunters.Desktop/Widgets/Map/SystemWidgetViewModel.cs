@@ -6,6 +6,7 @@ using NewEdenSoft.Hunters.Client.Sessions;
 using NewEdenSoft.Hunters.Client.Tracking;
 using NewEdenSoft.Hunters.Contracts.Hunting;
 using NewEdenSoft.Hunters.Desktop.Characters;
+using NewEdenSoft.Hunters.Desktop.Images;
 using NewEdenSoft.Hunters.Desktop.Map;
 using NewEdenSoft.Hunters.Desktop.Theming;
 using NewEdenSoft.Hunters.Desktop.ViewModels.Pages;
@@ -19,7 +20,8 @@ namespace NewEdenSoft.Hunters.Desktop.Widgets.Map;
 /// every tracked character, ▾ for one usable character, the outcome under the buttons. Then the last
 /// hour of NPC kills, ship kills, pod kills and jumps, once the server has activity, and every hunting
 /// profile seen there (<c>/api/hunting/systems/{id}</c>, asked for while on screen), likely now first,
-/// each with its regulars: who has a routine there, and when.
+/// each with its regulars: who has a routine there, and when. Last, its recent kills
+/// (<see cref="SystemKillsViewModel"/>).
 /// </summary>
 public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
 {
@@ -40,8 +42,15 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
     /// <summary>The hunting question on its way: the system and session it is for.</summary>
     private (int SystemId, HuntersSession Session, CancellationTokenSource Cancel)? _huntingLoading;
 
-    public SystemWidgetViewModel(AccountPageViewModel account, MapWidgetViewModel map, Destinations destinations, CharacterTracking tracking, EveNames names)
+    public SystemWidgetViewModel(
+        AccountPageViewModel account,
+        MapWidgetViewModel map,
+        Destinations destinations,
+        CharacterTracking tracking,
+        EveNames names,
+        PortraitCache images)
     {
+        Kills = new SystemKillsViewModel(names, images);
         _account = account;
         _map = map;
         _destinations = destinations;
@@ -54,11 +63,16 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
                 return;
             SyncTracked();
             LoadHunting();
+            ShowKills();
         };
         // Tracker events come from its polling threads.
         tracking.Changed += (_, _) => Dispatcher.UIThread.Post(SyncTracked);
         _clock = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
-        _clock.Tick += (_, _) => ShowHunting();
+        _clock.Tick += (_, _) =>
+        {
+            ShowHunting();
+            Kills.Refresh();
+        };
         Sync();
         SyncTracked();
     }
@@ -93,6 +107,12 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
     public partial IReadOnlyList<MetricRow> LastHour { get; private set; } = [];
 
     public bool HasLastHour => LastHour.Count > 0;
+
+    /// <summary>The shown system's recent kills.</summary>
+    public SystemKillsViewModel Kills { get; }
+
+    /// <summary>The server has kills: the section is shown for a system.</summary>
+    public bool ShowsKills => HasSystem && _map.HasKills;
 
     /// <summary>The server has hunting profiles: the section is shown for a system.</summary>
     public bool ShowsHunting => HasSystem && _map.HasHunting;
@@ -166,6 +186,11 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
             OnPropertyChanged(nameof(ShowsHunting));
             LoadHunting();
         }
+        else if (e.PropertyName == nameof(MapWidgetViewModel.HasKills))
+        {
+            OnPropertyChanged(nameof(ShowsKills));
+            ShowKills();
+        }
     }
 
     private void Sync()
@@ -184,6 +209,8 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
         SyncLastHour();
         OnPropertyChanged(nameof(ShowsHunting));
         LoadHunting();
+        OnPropertyChanged(nameof(ShowsKills));
+        ShowKills();
     }
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
@@ -195,6 +222,7 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
         {
             LoadHunting();
             ShowHunting();
+            ShowKills();
             _clock.Start();
         }
         else
@@ -291,6 +319,10 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
         ProfilesText = Profiles.Count == 0 ? "None seen here." : null;
     }
 
+    /// <summary>The kills for the shown system, asked for while on screen and the server has them.</summary>
+    private void ShowKills() =>
+        Kills.Show(_map.HasKills ? SystemId : null, _account.Session is { IsEnded: false } session ? session : null, IsActive);
+
     private void SyncLastHour() =>
         LastHour = System is { } system && _map.Model is { } model && MapFilters.ActivityFor(model, _map.Activity) is { } activity
             ? SystemInfo.MetricRows(activity, system.Index)
@@ -308,6 +340,8 @@ public sealed partial class SystemWidgetViewModel : WidgetViewModelBase
 public static class SystemLinks
 {
     public static Uri Zkillboard(int systemId) => new($"https://zkillboard.com/system/{systemId}/");
+
+    public static Uri ZkillboardKill(long killmailId) => new($"https://zkillboard.com/kill/{killmailId}/");
 
     /// <summary>Dotlan names systems with underscores for spaces.</summary>
     public static Uri Dotlan(string name) => new($"https://evemaps.dotlan.net/system/{Uri.EscapeDataString(name.Replace(' ', '_'))}");
